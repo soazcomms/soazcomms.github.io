@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DSN Map v02</title>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCbSJRMkCIX_qFZRf54qBYOnB9bvK3rb4I"></script>
+    <style>
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+async function initMap() {
+  // Request needed libraries.
+  const { Map, InfoWindow } = await google.maps.importLibrary("maps");
+  const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary(
+    "marker",
+  );
+  // Set LatLng and title text for the markers. The first marker (Boynton Pass)
+  // receives the initial focus when tab is pressed. Use arrow keys to move
+  // between markers; press tab again to cycle through the map controls.
+  const locations = [
+      {position: {lat: 32.3067, lng: -110.8513},
+       title: "Al Grauer SQM",},
+      {position: {lat: 32.0094, lng: -109.3888},
+       title: "Bonita SQM",},
+      {position: {lat: 32.0179, lng: -109.3208},
+       title: "Sugarloaf SQM",},
+      {position: {lat: 31.5681, lng: -111.0506},
+       title: "Tumaca\u0301cori SQM",},
+   ];
+  const map = new Map(document.getElementById("map"), {
+    zoom: 8,
+    center: {lat: 32.2540, lng: -110.9742},
+    mapId: "4504f8b37365c3d0",
+  });
+  // Create an info window to share between markers.
+  const infoWindow = new InfoWindow();
+
+  // Create the markers.
+    locations.forEach(({ position, title }, i) => {
+	if (i<10) {
+	    spacer="0";
+	} else {
+	    spacer="";
+	}
+	const pin = new PinElement({
+	    glyph: `${spacer}${i + 1}`,
+	    scale: 1.5,
+	});
+    const marker = new AdvancedMarkerElement({
+      position,
+      map,
+	title: `<h2>${title}</h2><br>
+<h4>lat ${position.lat}<br> lon ${position.lng}</h4>`,
+      content: pin.element,
+      gmpClickable: true,
+    });
+
+    // Add a click listener for each marker, and set up the info window.
+    marker.addListener("click", ({ domEvent, latLng }) => {
+      const { target } = domEvent;
+
+      infoWindow.close();
+      infoWindow.setContent(marker.title);
+      infoWindow.open(marker.map, marker);
+    });
+  });
+}
+
+      initMap();
+  </script>
+</html>
+
