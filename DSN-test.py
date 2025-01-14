@@ -8,6 +8,6 @@ def check_directory(directory):
         print(f"Error checking directory: {e}")
 
 # Example directory to check
-directory_to_check = 'DSNdata/NEW'  # Replace with your directory path
+directory_to_check = 'soazcomms.github.io/DSNdata/NEW'  # Replace with your directory path
 check_directory(directory_to_check)
 print("Hello Universe")
