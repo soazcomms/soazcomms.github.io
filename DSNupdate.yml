@@ -23,5 +23,5 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Run Python script
+    - name: Run DSNupdate.py
       run: python DSNupdate.py  # Replace with the path to your script
