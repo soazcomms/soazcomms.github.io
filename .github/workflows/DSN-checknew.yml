@@ -23,6 +23,6 @@ jobs:
         python -m pip install --upgrade pip
 #	python -m pip install PyGithub==2.5.0
     - name: Run Python script
-#      run: python DSN-check_directory.py  # dir
-      run: python -m pip list
+      run: python DSN-check_directory.py  # dir
+#      run: python -m pip list
 
