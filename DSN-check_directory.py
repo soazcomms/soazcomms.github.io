@@ -8,7 +8,7 @@ def check_directory(directory):
         print(f"Error checking directory: {e}")
 
 # directory to check
-directory_to_check = '/home/runner/work/soazcomms/DSNdata/NEW'  # Replace with your directory path
+directory_to_check = '/home/runner/work/soazcomms'  # Replace with your directory path
 check_directory(directory_to_check)
 #
 #import github
