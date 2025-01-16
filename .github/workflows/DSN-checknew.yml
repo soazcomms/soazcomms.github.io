@@ -1,9 +1,12 @@
 name: Check Directory
 
 # Trigger the workflow on a schedule
-#on:
+on:
 #  schedule:
 #    - cron: '*/10 * * * *'  # Runs every 10 minutes
+  push:
+    branches:
+      - main  # Trigger on push to the 'main' branch
 
 jobs:
   check-directory:
