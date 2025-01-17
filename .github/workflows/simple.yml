@@ -17,5 +17,5 @@ jobs:
         run: |
           echo "Starting bash commands..."
           pwd
-          ls -la
+          ls -la ./DSNdata/NEW
           echo "Bash commands completed."
