@@ -1,0 +1,20 @@
+# long      lat          el  sensor ihead dark bright   Site
+-108.9226 , +33.4793  , 1634, SQM,  38, 22.3, 19.0, CosmicCampground-NewMexico
++175.4169 , -36.1973  , 0   , SQM,  38, 22.2, 19.0, Aotea-GreatBarrierIsland_NZ
+-108.2803 , +32.7701  , 1830, SQM,  38, 22.0, 19.0, SilverCity-NewMexico
+-111.5997 , +31.9599  , 2098, SQM,  38, 22.0, 19.0, KittPeak
+-110.7893 , +32.4420  , 2791, SQM,  38, 22.0, 19.0, MtLemmon
+-16.51048 , +28.2983  , 2106, TESS, 36, 22.0, 19.0, TESS-Stars211-Observatorio-del-Teide       
+-1.001815 , +40.037077, 1589, TESS, 36, 22.0, 19.0, TESS-Stars218-ObservatorioAstrofisico-de-Javalambre
++138.4124 , -30.812842, 240 , TESS, 36, 22.3, 19.0, TESS-Stars274-Beltana_AU
+-0.734792 , +42.0246  , 810 , TESS, 36, 22.3, 19.0, TESS-Stars62-Centre-d-Observacio-del-Universe
+-110.96132, +32.265535, 716 , TESS, 35, 21.5, 18.0, TESS-WStars19-EastTucson_AZ
+-109.3208 , +32.01785 , 2089, SQM1,   4, 22.3, 19.0, Sugarloaf
+-109.3888 , +32.00944 , 1570, SQM1,  38, 22.3, 19.0, Bonita
+-16.51048 , +28.2983  , 2106, SQM,  35, 22.0, 19.0, Izana-SantaCruz-de-Tenerife_SP
+-17.891279, +28.761666, 2152, TESS, 35, 22.0, 18.0, Stars90LaPalma-Roque-de-Los-Muchachos-IAC
+-110.85127, +32.30672 , 861 , SQM,  39, 22.0, 16.0, ViaFrassino-Tucson
+-122.1364 , +42.88752 , 6379, SQM,  39, 22.0, 19.0, CraterLakeNP_OR
+-120.7297 , +44.1383  , 1100, SQM,  39, 22.0, 19.0, PrinevilleSP_OR
+-110.946975, +32.233586, 806, SQM2,  35, 22.0, 19.0, NOIRLab-HQ
+-110.96132, +32.265535, 716 , TESS1, 35, 21.5, 18.0, TESS-WStars19_2324_AZ
