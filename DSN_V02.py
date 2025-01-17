@@ -1,6 +1,6 @@
 #----
-#     DSN_v01
-#     01/09/2025
+#     DSN_v02
+#     01/17/2025
 #
 #     Original FORTRAN written by A.D. Grauer
 #     Converted to python and expanded by E.E. Falco
@@ -15,9 +15,7 @@
 #     Original FORTRAN was compiled with
 #     gfortran Reduce_SQM4_13.f -o Reduce_SQM4_13
 # COMMENTS ON python version:
-#     The python version requires no compilation. To run it: 
-#     python DSN_vXX.py (if you have the notebook saved to py file)
-#     or load DSN_vXX.ipynb in jupyter-lab
+#     python DSN_VXX.py DataFile
 #----
 import warnings
 warnings.filterwarnings('ignore')
@@ -667,7 +665,7 @@ if (in_file_ind>0):
     in_file_name=in_file[in_file_ind+1:] # drop up to & including "/"
  #   outfile_EEF=in_file_name[:in_file_name.find(".")]+".csv"
 # for influxDB
-    influx_file='DSNdata/NEW/DSN-'+in_file_name[:in_file_name.find(".")]+'.csv'
+    influx_file='DSNdata/NEW/DSN-'+in_file_name[12:in_file_name.find(".")]+'.csv'
     print("InfluxDB file name ",influx_file)
 else:
     influx_file="DSN-TEMPORARY.csv"
