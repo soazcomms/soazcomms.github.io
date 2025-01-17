@@ -3,7 +3,6 @@ juliandate
 pytz
 numpy 
 pandas
-os
 time
 sys
 re
