@@ -1,0 +1,44 @@
+name: Process SQM/TESS files with DSN_V01.py
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+#        python -m pip install --upgrade pip
+        pip install pandas numpy juliandate
+  process-files:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: List files and process with Python
+        run: |
+          echo "Listing files in DSNdata/NEW:"
+          FILES=$(ls -1 DSNdata/NEW)
+          if [ -z "$FILES" ]; then
+            echo "Error: No files found." >&2
+            exit 1
+          fi
+
+          echo "Running Python script on each file:"
+          for file in $FILES; do
+            echo "Processing $file"
+            python3 DSN_V01.py "$file"
+          done
