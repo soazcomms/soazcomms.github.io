@@ -1,0 +1,21 @@
+name: Run Bash Commands
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  run-bash:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Run bash commands
+        run: |
+          echo "Starting bash commands..."
+          pwd
+          ls -la
+          echo "Bash commands completed."
