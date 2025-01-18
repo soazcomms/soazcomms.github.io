@@ -43,3 +43,5 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Authenticate
+        run: echo "GITHUB_TOKEN=${{ secrets.DSN }}" >> $GITHUB_ENV
