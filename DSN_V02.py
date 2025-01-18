@@ -93,7 +93,7 @@ night=np.full(nentries,0)
 pd.options.mode.copy_on_write = True
 # influxDB options
 dficha='LKXtshm7XHpORxczh-ZHJ5JViRk1XDEZuj3YF2wMLHoWV4KafApd7yO6DgUCHp07f_VaRj8pIi8LvkGJSWJNZQ=='
-gficha='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'
+gficha='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'
 url='https://us-east-1-1.aws.cloud2.influxdata.com'
 bucket='DSNdata'
 org='DSN'
