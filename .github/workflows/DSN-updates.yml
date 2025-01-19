@@ -1,0 +1,44 @@
+name: Load InfluxDB Data
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  load-influxdb:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up InfluxDB
+        run: |
+          docker pull influxdb:2.0
+          docker run -d -p 8086:8086 --name influxdb -e DOCKER_INFLUXDB_INIT_MODE=setup \
+            -e DOCKER_INFLUXDB_INIT_USERNAME=soazcomms \
+            -e DOCKER_INFLUXDB_INIT_PASSWORD=${{ secrets.SOAZCOMMS_GITHUB_IO_PASSWORD }} \
+            -e DOCKER_INFLUXDB_INIT_ORG=DSN \
+            -e DOCKER_INFLUXDB_INIT_BUCKET=DSNdata \
+            influxdb:2.0
+          sleep 30 # Wait for InfluxDB to be fully started
+          docker ps # Check if the container is running
+
+      - name: Install InfluxDB CLI
+        run: |
+          wget https://dl.influxdata.com/influxdb/releases/influxdb2-client-2.0.9-linux-amd64.tar.gz
+          tar xvzf influxdb2-client-2.0.9-linux-amd64.tar.gz
+          sudo cp influxdb2-client-2.0.9-linux-amd64/influx /usr/local/bin/
+
+      - name: Write data to InfluxDB
+        run: |
+          echo "Writing data to InfluxDB bucket..."
+          INFLUX_TOKEN=$(docker exec influxdb influx auth list --json | jq -r '.[0].token')
+          influx write \
+            --host http://localhost:8086 \
+            --org DSN \
+            --bucket DSNdata \
+            --token $INFLUX_TOKEN \
+            --file DSNdata/PROCESSED/DSN-MtLemmon_23.csv \
+            --format csv
