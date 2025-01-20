@@ -677,6 +677,8 @@ ofile.close()
 # populate dataframe df
 cols_df=['UTC','SQM','lum','chisquared','moonalt']
 df=pd.DataFrame(columns=cols_df)
+#limit icount for testing
+icount=50
 df.UTC=[UTC_strip[i].replace(".000","") for i in range(icount)]
 df.SQM=SQM
 # calculate luminance
