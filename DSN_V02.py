@@ -91,15 +91,6 @@ moonalt=np.zeros(nentries)
 night=np.full(nentries,0)
 # want the following set to True for pd columns w/o whines
 pd.options.mode.copy_on_write = True
-# influxDB options
-dficha='LKXtshm7XHpORxczh-ZHJ5JViRk1XDEZuj3YF2wMLHoWV4KafApd7yO6DgUCHp07f_VaRj8pIi8LvkGJSWJNZQ=='
-# DSN1
-gficha='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'
-# DSN
-#gficha= 'github_pat_11BOFOWTY0tDCsAGSle8xC_2rSBlTFtZ8RQEStrS3V4zQRRCWI490gthq6e#13de0tOGOEVCUYWKI1zRevL'
-url='https://us-east-1-1.aws.cloud2.influxdata.com'
-bucket='DSNdata'
-org='DSN'
 #     All SQM or TESS site Information
 #
 cols_sites = ['long','lat','el','sensor','ihead','dark',
@@ -666,7 +657,7 @@ start_time=time.time()
 #  putting into a spread sheet and data base
 # create output file name from input file
 # for influxDB
-influx_file="DSNdata/PROCESSED/DSN-"+ in_file[12:in_file.find(".")]+".csv"
+influx_file="DSNdata/INFLUX/DSN-"+ in_file[12:in_file.find(".")]+".csv"
 print("InfluxDB file name ",influx_file)
 # write influxdb file header
 ofile=open(influx_file,'w')
@@ -707,16 +698,6 @@ for second in ['SQM','lum','chisquared','moonalt']:
 #   write header only when second=='SQM'
     df1.to_csv(influx_file,mode='a', header=(second=='SQM'),index=False)
 print("Wrote ",4*len(df1)," entries to ",influx_file)
-# github commands to commit influx_file
-#g = Github(gficha)
-#repo = g.get_repo('soazcomms/soazcomms.github.io')
-#try: 
-#    contents = repo.get_contents(influx_file)
-#except GithubException as e:
-#    print(f"Error: {e.data['NO file '+influx_file]}")
-    # Handle the error or exit gracefully
-#    exit(1)
-#repo.update_file(contents.path, "Updating file via PyGithub",influx_file, contents.sha)
 #
 ##################
 print("LISTING of DSNdata/INFLUX:")
