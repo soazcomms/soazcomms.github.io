@@ -27,6 +27,7 @@ jobs:
       - name: Install Influx CLI
         run: |
           echo "Installing Influx CLI..."
+          echo 'eval $(/home/linuxbrew/.linuxbrew/bin/brew shellenv)' >>~/.profile
           source ~/.profile
           brew update
           brew install influxdb-cli
@@ -37,6 +38,7 @@ jobs:
           INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
         run: |
           echo "Writing data to InfluxDB..."
+          source ~/.profile
           influx write \
             --url https://us-east-1-1.aws.cloud2.influxdata.com \
             --org DSN \
