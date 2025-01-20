@@ -1,0 +1,48 @@
+name: Install and Run Influx CLI
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  install-and-write:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Homebrew
+        run: |
+          set -e
+          echo "Installing Homebrew..."
+          sudo apt-get update
+          sudo apt-get install -y build-essential curl
+          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" >/dev/null 2>&1
+          echo 'eval $(/home/linuxbrew/.linuxbrew/bin/brew shellenv)' >>~/.profile
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          brew --version
+
+      - name: Install Influx CLI
+        run: |
+          echo "Installing Influx CLI..."
+          echo 'eval $(/home/linuxbrew/.linuxbrew/bin/brew shellenv)' >>~/.profile
+          source ~/.profile
+          brew update
+          brew install influxdb-cli
+          influx version
+
+      - name: Write data to InfluxDB
+        env:
+          INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
+        run: |
+          echo "Writing data to InfluxDB..."
+          source ~/.profile
+          influx write \
+            --url https://us-east-1-1.aws.cloud2.influxdata.com \
+            --org DSN \
+            --bucket DSNdata \
+            --token $INFLUX_TOKEN \
+            --file DSNdata/INFLUX/DSN-MtLemmon_23.csv \
+            --format csv
