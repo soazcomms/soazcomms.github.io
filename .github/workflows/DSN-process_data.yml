@@ -47,7 +47,7 @@ jobs:
       run: |
         git config --local user.email "soazcomms@darksky.org"
         git config --local user.name "GitHub Action test"
-        git add ./DSNdata/PROCESSED
+        git add ./DSNdata/INFLUX
         git commit -m "Add changes"
 
     - name: Push changes # push the output folder to repo
