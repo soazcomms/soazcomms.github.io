@@ -22,11 +22,13 @@ jobs:
           /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" >/dev/null 2>&1
           echo 'eval $(/home/linuxbrew/.linuxbrew/bin/brew shellenv)' >>~/.bashrc
           eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          source ~/.bashrc
           brew --version
 
       - name: Install Influx CLI
         run: |
           echo "Installing Influx CLI..."
+          source ~/.bashrc
           brew update
           brew install influxdb-cli
           influx version
