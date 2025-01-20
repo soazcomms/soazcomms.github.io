@@ -606,6 +606,7 @@ nstart=np.full(inight,0)
 nend=np.full(inight,0)
 for i in nstart1:
     i2=nend1[ii]+1
+    i = int(i)
     if sunalt[i]< sun_dark:
         i1=next((j for j in range(i,i2) if sunalt[j]>sun_dark),i2-1)
         i3=next((j for j in range(i1,i2) if sunalt[j]<=sun_dark),i2-1)
