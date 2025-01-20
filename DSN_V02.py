@@ -679,7 +679,7 @@ df.chisquared=chisquared
 df.moonalt=moonalt
 df.UTC=[dt.strftime(dt.strptime(str(df.UTC.iloc[i]),
         '%Y-%m-%d %H:%M:%S'),'%Y-%m-%dT%H:%M:%SZ') 
-            for i in range(len(df.UTC))]
+            for i in range(icount)]
 for second in ['SQM','lum','chisquared','moonalt']:
     print("Processing ",second)
     df1=df[['UTC',second]]
