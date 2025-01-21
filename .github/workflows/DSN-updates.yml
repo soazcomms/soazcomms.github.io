@@ -15,11 +15,9 @@ jobs:
         run: |
           echo "Downloading and installing Influx CLI..."
           curl -sL https://dl.influxdata.com/influxdb/releases/influxdb2-client-2.7.5-linux-amd64.tar.gz -o influxdb2-client.tar.gz
-          tar xvzf influxdb2-client.tar.gz
-          echo "Listing contents of current directory:"
-          ls -l
+          tar xvzf influxdb2-client.tar.gz > /tmp/influx
           echo "Finding the extracted directory..."
-          EXTRACTED_DIR=$(find . -type d -name 'influxdb2-client-*')
+          EXTRACTED_DIR=$(find /tmp -type d -name 'influxdb2-client-*')
           echo "Extracted directory: $EXTRACTED_DIR"
           sudo mv "$EXTRACTED_DIR/influx" /usr/local/bin/
           echo "Influx CLI installed to /usr/local/bin"
