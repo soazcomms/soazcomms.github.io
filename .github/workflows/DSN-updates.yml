@@ -37,8 +37,8 @@ jobs:
 
       - name: Hex Dump of Problematic Line
         run: |
-          echo "dos2unix test.csv"
-          dos2unix DSNdata/INFLUX/test.csv
+          echo "unix2dos test.csv"
+          unix2dos DSNdata/INFLUX/test.csv
           file DSNdata/INFLUX/test.csv
           echo "Hex dump of test.csv"
           cat DSNdata/INFLUX/test.csv | hexdump -C
