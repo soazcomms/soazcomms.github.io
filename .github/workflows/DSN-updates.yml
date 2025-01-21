@@ -18,7 +18,7 @@ jobs:
         run: |
           echo "Installing Homebrew..."
           sudo apt-get update
-          sudo apt-get install -y build-essential curl
+          sudo apt-get install -y build-essential curl dos2unix
           /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" >/dev/null 2>&1
           echo 'eval $(/home/linuxbrew/.linuxbrew/bin/brew shellenv)' >>~/.profile
           echo 'eval $(/home/linuxbrew/.linuxbrew/bin/brew shellenv)' >>~/.bashrc
@@ -38,10 +38,19 @@ jobs:
           export LC_ALL=C.UTF-8
           export LANG=C.UTF-8
 
-      - name: Debug File Inspection
+      - name: Debug Line Count
         run: |
-          echo "Input file:"
-          file test.csv
+          echo "Line count of the file:"
+          wc -l DSNdata/INFLUX/test.csv
+
+      - name: Inspect Last Lines for Extra Newlines
+        run: |
+          echo "Inspecting last 5 lines with special characters visible:"
+          tail -n 5 DSNdata/INFLUX/test.csv | cat -A
+
+      - name: Normalize Line Endings
+        run: |
+          dos2unix DSNdata/INFLUX/test.csv
 
       - name: Write data to InfluxDB
         env:
