@@ -52,7 +52,7 @@ jobs:
         env:
           INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
         run: |
-          echo "timestamp,location,value" > /tmp/minimal.csv
+          echo "timestamp,measurement,value" > /tmp/minimal.csv
           echo "2023-01-17T10:00:00Z,office,22.5" >> /tmp/minimal.csv
           source ~/.profile
           influx write \
