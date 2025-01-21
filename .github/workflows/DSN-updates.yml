@@ -37,11 +37,11 @@ jobs:
 
       - name: Hex Dump of Problematic Line
         run: |
+          echo "dos2unix test.csv"
+          dos2unix DSNdata/INFLUX/test.csv
+          file DSNdata/INFLUX/test.csv
           echo "Hex dump of test.csv"
           cat DSNdata/INFLUX/test.csv | hexdump -C
-          echo "wc of test.csv"
-          wc DSNdata/INFLUX/test.csv
-          file DSNdata/INFLUX/test.csv
 
       - name: Write minimal Test Data to InfluxDB
         env:
