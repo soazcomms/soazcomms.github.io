@@ -38,36 +38,7 @@ jobs:
           export LC_ALL=C.UTF-8
           export LANG=C.UTF-8
 
-      - name: Hex Dump of Problematic Line
-        run: |
-          echo "Hex dump of line 22:"
-          sed -n '22p' DSNdata/INFLUX/test.csv | hexdump -C
-
-      - name: Output Line 22
-        run: |
-          echo "Content of line 22:"
-          sed -n '22p' DSNdata/INFLUX/test.csv
-
-      - name: Write Minimal Example to InfluxDB
-        env:
-          INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
-        run: |
-          echo "timestamp,measurement,value" > /tmp/minimal.csv
-          echo "2023-01-17T10:00:00Z,office,22.5" >> /tmp/minimal.csv
-          source ~/.profile
-          influx write \
-            --url https://us-east-1-1.aws.cloud2.influxdata.com \
-            --org DSN \
-            --bucket DSNdata \
-            --token $INFLUX_TOKEN \
-            --file /tmp/minimal.csv \
-            --format csv \
-            --skipRowOnError \
-            --errors-file /tmp/ERRORS
-          echo "Minimal Test Error File Contents:"
-          cat /tmp/ERRORS || true
-
-      - name: Write Original Data to InfluxDB
+      - name: Write minimal Test Data to InfluxDB
         env:
           INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
         run: |
@@ -76,7 +47,7 @@ jobs:
           influx write \
             --url https://us-east-1-1.aws.cloud2.influxdata.com \
             --org DSN \
-            --bucket DSNdata \
+            --bucket TEST \
             --token $INFLUX_TOKEN \
             --file /tmp/test.csv \
             --format csv \
