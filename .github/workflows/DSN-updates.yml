@@ -38,28 +38,41 @@ jobs:
           export LC_ALL=C.UTF-8
           export LANG=C.UTF-8
 
-      - name: Debug Line Count
+      - name: Hex Dump of Problematic Line
         run: |
-          echo "Line count of the file:"
-          wc -l DSNdata/INFLUX/test.csv
+          echo "Hex dump of line 22:"
+          sed -n '22p' DSNdata/INFLUX/test.csv | hexdump -C
 
-      - name: Inspect Last Lines for Extra Newlines
+      - name: Output Line 22
         run: |
-          echo "Inspecting last 5 lines with special characters visible:"
-          tail -n 5 DSNdata/INFLUX/test.csv | cat -A
+          echo "Content of line 22:"
+          sed -n '22p' DSNdata/INFLUX/test.csv
 
-      - name: Normalize Line Endings
+      - name: Write Minimal Example to InfluxDB
+        env:
+          INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
         run: |
-          dos2unix DSNdata/INFLUX/test.csv
+          echo "timestamp,location,value" > /tmp/minimal.csv
+          echo "2023-01-17T10:00:00Z,office,22.5" >> /tmp/minimal.csv
+          source ~/.profile
+          influx write \
+            --url https://us-east-1-1.aws.cloud2.influxdata.com \
+            --org DSN \
+            --bucket DSNdata \
+            --token $INFLUX_TOKEN \
+            --file /tmp/minimal.csv \
+            --format csv \
+            --skipRowOnError \
+            --errors-file /tmp/ERRORS
+          echo "Minimal Test Error File Contents:"
+          cat /tmp/ERRORS || true
 
-      - name: Write data to InfluxDB
+      - name: Write Original Data to InfluxDB
         env:
           INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
         run: |
           cp DSNdata/INFLUX/test.csv /tmp/test.csv
           source ~/.profile
-          echo "******* influx version: "
-          influx version
           influx write \
             --url https://us-east-1-1.aws.cloud2.influxdata.com \
             --org DSN \
@@ -69,6 +82,5 @@ jobs:
             --format csv \
             --skipRowOnError \
             --errors-file /tmp/ERRORS
-    
-          echo "Error File Contents:"
+          echo "Original Test Error File Contents:"
           cat /tmp/ERRORS || true
