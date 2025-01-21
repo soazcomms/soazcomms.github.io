@@ -16,6 +16,8 @@ jobs:
           echo "Downloading and installing Influx CLI..."
           curl -sL https://dl.influxdata.com/influxdb/releases/influxdb2-client-2.7.5-linux-amd64.tar.gz -o influxdb2-client.tar.gz
           tar xvzf influxdb2-client.tar.gz
+          ls -l
+          ls -l influxdb2-client-2.7.5-linux-amd64
           sudo mv influxdb2-client-2.7.5-linux-amd64/influx /usr/local/bin/
           echo "Influx CLI installed to /usr/local/bin"
           which influx
