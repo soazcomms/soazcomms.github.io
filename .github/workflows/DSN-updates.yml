@@ -1,9 +1,6 @@
 name: Install and Run Influx CLI
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
@@ -44,6 +41,7 @@ jobs:
           cat DSNdata/INFLUX/test.csv | hexdump -C
           echo "wc of test.csv"
           wc DSNdata/INFLUX/test.csv
+          file DSNdata/INFLUX/test.csv
 
       - name: Write minimal Test Data to InfluxDB
         env:
