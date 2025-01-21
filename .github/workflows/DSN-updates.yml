@@ -1,0 +1,40 @@
+name: Minimal InfluxDB Write
+
+on:
+  workflow_dispatch:
+
+jobs:
+  minimal-influx-write:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Influx CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl
+          curl -sL https://repos.influxdata.com/influxdb.key | sudo apt-key add -
+          source /etc/os-release
+          echo "deb https://repos.influxdata.com/ubuntu $VERSION_CODENAME stable" | sudo tee /etc/apt/sources.list.d/influxdb.list
+          sudo apt-get update && sudo apt-get install -y influxdb2-cli
+          influx version
+
+      - name: Write Minimal Data to InfluxDB
+        env:
+          INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
+        run: |
+          echo "timestamp,location,value" > test.csv
+          echo "2023-01-17T10:00:00Z,office,22.5" >> test.csv
+          influx write \
+            --url https://us-east-1-1.aws.cloud2.influxdata.com \
+            --org DSN \
+            --bucket TEST \
+            --token $INFLUX_TOKEN \
+            --file test.csv \
+            --format csv \
+            --skipRowOnError \
+            --errors-file errors.log
+          echo "Error File Contents:"
+          cat errors.log || true
