@@ -40,8 +40,6 @@ jobs:
         env:
           INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
         run: |
-          echo "timestamp,location,value" > test.csv
-          echo "2023-01-17T10:00:00Z,office,22.5" >> test.csv
           influx write \
             --url https://us-east-1-1.aws.cloud2.influxdata.com \
             --org DSN \
