@@ -1,0 +1,32 @@
+name: Update DSN Data
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update-dsn-data:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Dependencies
+        run: |
+          echo "Installing dependencies..."
+          sudo apt-get update
+          sudo apt-get install -y dos2unix iconv curl
+
+      - name: Install Influx CLI
+        run: |
+          echo "Downloading and installing Influx CLI..."
+          curl -sL https://dl.influxdata.com/influxdb/releases/influxdb2-client-2.7.5-linux-amd64.tar.gz -o influxdb2-client.tar.gz
+          tar xvzf influxdb2-client.tar.gz
+          sudo mv influxdb2-client-2.7.5-linux-amd64/influx /usr/local/bin/
+          influx version
+
+      - name: Run `influx_write.sh` Script
+        env:
+          INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
+        run: |
+          ./influx_write.sh DSNdata/INFLUX/test.csv "DSN" "TEST"
