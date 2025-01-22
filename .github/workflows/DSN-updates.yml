@@ -48,14 +48,13 @@ jobs:
           INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
         run: |
           influx write \
-            --host http://localhost:8086 \
+            --url https://us-east-1-1.aws.cloud2.influxdata.com \
             --org DSN \
             --bucket TEST \
             --token $INFLUX_TOKEN \
             --file DSNdata/INFLUX/test.csv \
             --format csv \
             --debug \
-            --http-debug \
             --errors-file /tmp/errors.log
           echo "======================"
           echo "Error File Contents:"
