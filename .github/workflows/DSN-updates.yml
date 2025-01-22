@@ -45,7 +45,7 @@ jobs:
             --org DSN \
             --bucket TEST \
             --token $INFLUX_TOKEN \
-            --file test.csv \
+            --file DSNdata/INFLUX/test.csv \
             --format csv \
             --skipRowOnError \
             --errors-file errors.log
