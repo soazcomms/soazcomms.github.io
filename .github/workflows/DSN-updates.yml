@@ -47,12 +47,19 @@ jobs:
         env:
           INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
         run: |
+	        echo "#group,false,false,false,false,true,true" > test1.csv
+	        echo "#datatype,string,long,dateTime:RFC3339,double,string,string" >> test1.csv
+	        echo "#default,,,,,," >> test1.csv
+	        echo ",,table,_time,_value,_field,_measurement" >> test1.csv
+	        echo ",,,2023-07-09T02:55:05Z,11.09,SQM,test" >> test1.csv
+	        echo "test1.csv: "
+	        cat test1.csv
           influx write \
             --url https://us-east-1-1.aws.cloud2.influxdata.com \
             --org DSN \
             --bucket TEST \
             --token $INFLUX_TOKEN \
-            --file DSNdata/INFLUX/test.csv \
+            --file test1.csv \
             --format csv \
             --debug \
             --errors-file /tmp/errors.log
