@@ -48,7 +48,7 @@ jobs:
           INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
         run: |
           influx write \
-            --url https://us-east-1-1.aws.cloud2.influxdata.com \
+            --host http://localhost:8086 \
             --org DSN \
             --bucket TEST \
             --token $INFLUX_TOKEN \
