@@ -57,5 +57,7 @@ jobs:
             --debug \
             --http-debug \
             --errors-file /tmp/errors.log
+          echo "======================"
           echo "Error File Contents:"
+          echo "======================"
           cat /tmp/errors.log || true
