@@ -36,6 +36,13 @@ jobs:
           which influx
           influx version
 
+      - name: Set Locale and Environment
+        run: |
+          export LC_ALL=C.UTF-8
+          export LANG=C.UTF-8
+          export INFLUXDB_DEBUG=true
+          env
+
       - name: Write Minimal Data to InfluxDB
         env:
           INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
