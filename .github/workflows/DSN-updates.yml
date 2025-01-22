@@ -52,6 +52,11 @@ jobs:
           echo "#default,,,,,," >> test1.csv
           echo ",,table,_time,_value,_field,_measurement" >> test1.csv
           echo ",,,2023-07-09T02:55:05Z,11.09,SQM,test" >> test1.csv
+          dos2unix test1.csv
+          echo "Hex dump of the file:"
+          hexdump -C test1.csv
+          echo "Displaying special characters in the file:"
+          cat -A test1.csv
           echo "test1.csv: "
           cat test1.csv
           influx write \
