@@ -15,7 +15,7 @@ jobs:
         run: |
           echo "Installing dependencies..."
           sudo apt-get update
-          sudo apt-get install -y dos2unix iconv curl
+          sudo apt-get install -y dos2unix libc-bin curl
 
       - name: Install Influx CLI
         run: |
