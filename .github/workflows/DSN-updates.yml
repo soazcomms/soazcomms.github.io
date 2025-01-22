@@ -1,3 +1,4 @@
+
 name: Update DSN Data
 
 on:
@@ -42,9 +43,17 @@ jobs:
           which influx
           influx version
           sudo apt-get install -y dos2unix
-
-      - name: Run `influx_write.sh` Script
-        env:
-          INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
+          
+      - name: Run InfluxDB Write in Docker
         run: |
-          ./influx_write.sh DSNdata/INFLUX/test.csv "DSN" "TEST"
+          echo "Running influx write in Docker..."
+          docker run --rm -v "$(pwd):/data" influxdb:2.0 influx write \
+           --url https://us-east-1-1.aws.cloud2.influxdata.com \
+           --org DSN \
+           --bucket TEST \
+           --token ${{ secrets.INFLUX_TOKEN }} \
+           --file /data/DSNdata/INFLUX/test.csv \
+           --format csv \
+           --errors-file /data/errors.log
+          echo "Error File Contents:"
+          cat errors.log || true
