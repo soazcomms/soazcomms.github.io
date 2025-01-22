@@ -54,7 +54,8 @@ jobs:
             --token $INFLUX_TOKEN \
             --file DSNdata/INFLUX/test.csv \
             --format csv \
-            --skipRowOnError \
-            --errors-file errors.log
+            --debug \
+            --http-debug \
+            --errors-file /tmp/errors.log
           echo "Error File Contents:"
-          cat errors.log || true
+          cat /tmp/errors.log || true
