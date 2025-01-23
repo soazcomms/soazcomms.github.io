@@ -76,7 +76,7 @@ jobs:
           fi
         fi
         echo "Influx CLI installed to /usr/local/bin"
-#
+        
     - name: Start InfluxDB
       run: |
         echo "Starting InfluxDB..."
@@ -96,11 +96,11 @@ jobs:
       run: |
         echo "Setting up InfluxDB..."
         docker exec influxdb influx setup --skip-verify --bucket TEST --org DSN --username admin --password StrongP@ssw0rd --token $INFLUX_TOKEN --force
-#
+
     - name: Run InfluxDB Write in Docker
       env:
         INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
-#
+
       run: |
         echo "Listing files in DSNdata/INFLUX"
         FILES=$(ls -1 DSNdata/INFLUX)
@@ -108,7 +108,7 @@ jobs:
           echo "Error: No files found." >&2
           exit 1
         fi
-#
+
         echo "Run influx write on each file"
         for file in $FILES; do
           docker cp $file influxdb:/tmp/intake.csv
