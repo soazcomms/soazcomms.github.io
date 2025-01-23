@@ -54,7 +54,6 @@ jobs:
             influxdb:2.0
           echo "Waiting for InfluxDB to be ready..."
           until curl -s http://localhost:8086/ping; do sleep 1; done
-          echo "*********** influx ready"
 
       - name: Verify Influx Token
         run: |
