@@ -78,7 +78,7 @@ jobs:
 
       - name: Copy data file to Docker
         run: |
-          docker cp /tmp/data.lp influxdb:/tmp/data.lp
+          docker cp DSNdata/INFLUX/test.csv influxdb:/tmp/test.csv
 
       - name: Run InfluxDB Write in Docker
         env:
@@ -90,5 +90,6 @@ jobs:
             --org DSN \
             --bucket TEST \
             --token $INFLUX_TOKEN \
-            --file /tmp/data.lp
+            --file /tmp/test.csv \
+            --format csv
           echo "Data written successfully."
