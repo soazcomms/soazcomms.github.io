@@ -55,16 +55,16 @@ jobs:
           echo "Waiting for InfluxDB to be ready..."
           until curl -s http://localhost:8086/ping; do sleep 1; done
   
- #     - name: Set up InfluxDB
- #       env:
- #         INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
- #       run: |
- #         echo "Setting up InfluxDB..."
- #         docker exec influxdb influx setup --skip-verify --bucket TEST --org DSN --username admin --password StrongP@ssw0rd --token $INFLUX_TOKEN --force
+      - name: Set up InfluxDB
+        env:
+          INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
+        run: |
+          echo "Setting up InfluxDB..."
+          docker exec influxdb influx setup --skip-verify --bucket TEST --org DSN --username admin --password StrongP@ssw0rd --token $INFLUX_TOKEN --force
 
       - name: Copy data file to Docker
         run: |
-          docker cp DSNdata/INFLUX/test.csv influxdb:/tmp/test.csv
+          docker cp DSNdata/INFLUX/DSN-MtLemmon_23.csv influxdb:/tmp/test.csv
 
       - name: Run InfluxDB Write in Docker
         env:
