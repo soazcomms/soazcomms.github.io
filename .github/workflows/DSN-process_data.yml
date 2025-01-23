@@ -38,6 +38,7 @@ jobs:
           echo "Error: No files found." >&2
           exit 1
         fi
+        echo "IN_FILES=$FILES" >> $GITHUB_ENV
 
         echo "Run DSN_V02.py on each file:"
         for file in $FILES; do
@@ -106,8 +107,8 @@ jobs:
         INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
 
       run: |
-        echo "Run influx write on files in " $FILES
-        for file in $FILES; do
+        echo "Run influx write on files in " $IN_FILES
+        for file in $IN_FILES; do
           infile="DSNdata/INFLUX/${file%.dat}.csv"
           echo "*********influx write " $infile
           docker cp $infile influxdb:/tmp/intake.csv
