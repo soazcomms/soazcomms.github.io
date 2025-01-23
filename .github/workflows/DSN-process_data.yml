@@ -44,7 +44,7 @@ jobs:
           new_file="DSNdata/NEW/$file"
           arc_file="DSNdata/ARCHIVE/$file"
           echo "Processing $new_file"
-          python3 DSN_V02.py $file"
+          python3 DSN_V02.py $file
           if [ -f $arc_file ]; then
             echo "$arc_file exists. Concatenating $new_file and $arc_file."
             cat "$new_file" >> "$arc_file"
