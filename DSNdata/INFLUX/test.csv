@@ -1,5 +1,0 @@
-#group,false,false,false,false,true,true
-#datatype,string,long,dateTime:RFC3339,double,string,string
-#default,,,,,,
-,,table,_time,_value,_field,_measurement
-,,,2023-07-09T02:55:05Z,11.09,SQM,test
