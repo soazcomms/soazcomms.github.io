@@ -105,11 +105,15 @@ jobs:
     - name: Run InfluxDB Write in Docker
       env:
         INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
-
       run: |
-        echo "Run influx write on files in " $IN_FILES
-        for file in $IN_FILES; do
-          infile="./DSNdata/INFLUX/${file%.dat}.csv"
+        echo "Listing files in DSNdata/INFLUX"
+        IN_FILES=$(ls -1 DSNdata/INFLUX)
+        if [ -z "$IN_FILES" ]; then
+          echo "Error: $IN_FILES not found." >&2
+          exit 1
+        fi
+        echo "Run influx write on " $IN_FILES
+        for infile in $IN_FILES; do
           echo "*********influx write " $infile
           docker cp $infile influxdb:/tmp/intake.csv
           docker exec influxdb influx write \
