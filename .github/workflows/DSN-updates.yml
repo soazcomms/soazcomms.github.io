@@ -70,7 +70,7 @@ jobs:
           INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
         run: |
           echo "Setting up InfluxDB..."
-          docker exec influxdb influx setup --skip-verify --bucket TEST --org DSN --username admin --password admin --token $INFLUX_TOKEN --force
+          docker exec influxdb influx setup --skip-verify --bucket TEST --org DSN --username admin --password StrongP@ssw0rd --token $INFLUX_TOKEN --force
 
       - name: Run InfluxDB Write in Docker
         env:
