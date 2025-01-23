@@ -9,7 +9,7 @@ on:
 
 jobs:
   update-dsn-data:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
@@ -68,7 +68,7 @@ jobs:
 
       - name: Copy data file to Docker
         run: |
-          docker cp DSNdata/INFLUX/DSN-MtLemmon_23.csv influxdb:/tmp/test.csv
+          docker cp DSNdata/INFLUX/DSN-MtLemmon_23.csv influxdb:/tmp/intake.csv
 
       - name: Run InfluxDB Write in Docker
         env:
@@ -80,6 +80,6 @@ jobs:
             --org DSN \
             --bucket TEST \
             --token $INFLUX_TOKEN \
-            --file /tmp/test.csv \
+            --file /tmp/intake.csv \
             --format csv
           echo "Data written successfully."
