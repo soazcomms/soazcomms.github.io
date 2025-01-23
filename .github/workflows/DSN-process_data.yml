@@ -107,6 +107,9 @@ jobs:
         if [ -z "$FILES" ]; then
           echo "Error: No files found." >&2
           exit 1
+        else
+          echo " FILES : "
+          echo $FILES
         fi
 
         echo "Run influx write on each file"
