@@ -26,8 +26,6 @@ jobs:
           echo "Downloading and installing Influx CLI..."
           curl -sL https://dl.influxdata.com/influxdb/releases/influxdb2-client-2.7.5-linux-amd64.tar.gz -o influxdb2-client.tar.gz
           tar xvzf influxdb2-client.tar.gz
-          echo "Listing contents of current directory after extraction:"
-          ls -l
           echo "Checking if 'influx' binary exists directly after extraction:"
           if [ -f influx ]; then
             sudo mv influx /usr/local/bin/
@@ -43,8 +41,6 @@ jobs:
             fi
           fi
           echo "Influx CLI installed to /usr/local/bin"
-          which influx
-          influx version
 
       - name: Start InfluxDB
         run: |
@@ -56,14 +52,14 @@ jobs:
             -e INFLUXDB_ADMIN_PASSWORD=StrongP@ssw0rd \
             -e INFLUXDB_DB=dsn \
             influxdb:2.0
-          echo "Waiting for InfluxDB to be ready..."
+          echo "Waiting for InfluxDB up..."
           until curl -s http://localhost:8086/ping; do sleep 1; done
   
       - name: Set up InfluxDB
         env:
           INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
         run: |
-          echo "Setting up InfluxDB..."
+          echo "Set up InfluxDB..."
           docker exec influxdb influx setup --skip-verify --bucket TEST --org DSN --username admin --password StrongP@ssw0rd --token $INFLUX_TOKEN --force
 
       - name: Copy data file to Docker
