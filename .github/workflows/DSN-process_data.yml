@@ -49,8 +49,12 @@ jobs:
       run: |
         git config --local user.email "soazcomms@darksky.org"
         git config --local user.name "GitHub Action test"
-        git add ./DSNdata/INFLUX
-        git commit -m "Add changes"
+        if [[ -n $(git status --porcelain) ]]; then
+          git add ./DSNdata/INFLUX
+          git commit -m "Add changes"
+        else
+          echo "No changes to commit"
+        fi
 
     - name: Push changes # push the output folder to repo
       uses: ad-m/github-push-action@master
