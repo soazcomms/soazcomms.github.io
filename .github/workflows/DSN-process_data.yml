@@ -106,9 +106,10 @@ jobs:
         INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
 
       run: |
-        echo "Run influx write on each file"
+        echo "Run influx write on files in " $FILES
         for file in $FILES; do
           infile="DSNdata/INFLUX/${file%.dat}.csv"
+          echo "*********influx write " $infile
           docker cp $infile influxdb:/tmp/intake.csv
           docker exec influxdb influx write \
             --host http://localhost:8086 \
