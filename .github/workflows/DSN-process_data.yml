@@ -106,19 +106,10 @@ jobs:
         INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
 
       run: |
-        echo "Listing files in DSNdata/INFLUX"
-        FILES=$(ls -1 DSNdata/INFLUX)
-        if [ -z "$FILES" ]; then
-          echo "Error: No files found." >&2
-          exit 1
-        else
-          echo " FILES : "
-          echo $FILES
-        fi
-
         echo "Run influx write on each file"
         for file in $FILES; do
-          docker cp $file influxdb:/tmp/intake.csv
+          infile="DSNdata/INFLUX/${file%.dat}.csv"
+          docker cp $infile influxdb:/tmp/intake.csv
           docker exec influxdb influx write \
             --host http://localhost:8086 \
             --org DSN \
