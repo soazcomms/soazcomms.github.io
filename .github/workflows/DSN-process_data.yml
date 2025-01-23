@@ -106,12 +106,8 @@ jobs:
       env:
         INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
       run: |
-        echo "Current directory: $(pwd)"
-        echo "Listing files in current directory:"
-        ls -R
-
-        echo "Listing files in DSNdata/INFLUX"
-        IN_FILES=$(ls -1 $(pwd)./DSNdata/INFLUX)
+        echo "Listing files in $(pwd)/DSNdata/INFLUX"
+        IN_FILES=$(ls -1 $(pwd)/DSNdata/INFLUX)
         if [ -z "$IN_FILES" ]; then
           echo "Error: $IN_FILES not found." >&2
           exit 1
