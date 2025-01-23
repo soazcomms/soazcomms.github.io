@@ -60,7 +60,7 @@ jobs:
           echo "Running influx write..."
           echo 'temperature,location=office value=22.5 1673961600000000000' > /tmp/data.lp
           influx write \
-            --host http://localhost:8086 \
+            --url https://us-east-1-1.aws.cloud2.influxdata.com
             --org DSN \
             --bucket TEST \
             --token $INFLUX_TOKEN \
