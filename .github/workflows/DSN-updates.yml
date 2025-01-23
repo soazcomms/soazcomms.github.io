@@ -55,6 +55,15 @@ jobs:
           echo "Waiting for InfluxDB to be ready..."
           until curl -s http://localhost:8086/ping; do sleep 1; done
 
+      - name: Verify Influx Token
+        run: |
+          if [ -z "${{ secrets.INFLUX_TOKEN }}" ]; then
+            echo "INFLUX_TOKEN is not set"
+            exit 1
+          else
+            echo "INFLUX_TOKEN is set"
+          fi
+
       - name: Run InfluxDB Write
         env:
           INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
