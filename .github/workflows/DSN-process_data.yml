@@ -109,7 +109,7 @@ jobs:
       run: |
         echo "Run influx write on files in " $IN_FILES
         for file in $IN_FILES; do
-          infile="DSNdata/INFLUX/${file%.dat}.csv"
+          infile="./DSNdata/INFLUX/${file%.dat}.csv"
           echo "*********influx write " $infile
           docker cp $infile influxdb:/tmp/intake.csv
           docker exec influxdb influx write \
