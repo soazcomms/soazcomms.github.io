@@ -76,7 +76,7 @@ jobs:
             exit 1
           fi
         fi
-          echo "Influx CLI installed to /usr/local/bin"
+        echo "Influx CLI installed to /usr/local/bin"
 #
     - name: Start InfluxDB
       run: |
