@@ -54,27 +54,13 @@ jobs:
             influxdb:2.0
           echo "Waiting for InfluxDB to be ready..."
           until curl -s http://localhost:8086/ping; do sleep 1; done
-          echo "*********** influx ready"
-
-      - name: Verify Influx Token
-        run: |
-          if [ -z "${{ secrets.INFLUX_TOKEN }}" ]; then
-            echo "INFLUX_TOKEN is not set"
-            exit 1
-          else
-            echo "INFLUX_TOKEN is set"
-          fi
-
-      - name: Set up InfluxDB
-        env:
-          INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
-        run: |
-          echo "Setting up InfluxDB..."
-          docker exec influxdb influx setup --skip-verify --bucket TEST --org DSN --username admin --password StrongP@ssw0rd --token $INFLUX_TOKEN --force
-
-      - name: Create data file
-        run: |
-          echo 'temperature,location=office value=22.5 1673961600000000000' > /tmp/data.lp
+  
+ #     - name: Set up InfluxDB
+ #       env:
+ #         INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
+ #       run: |
+ #         echo "Setting up InfluxDB..."
+ #         docker exec influxdb influx setup --skip-verify --bucket TEST --org DSN --username admin --password StrongP@ssw0rd --token $INFLUX_TOKEN --force
 
       - name: Copy data file to Docker
         run: |
