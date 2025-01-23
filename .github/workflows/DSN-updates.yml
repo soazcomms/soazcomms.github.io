@@ -49,7 +49,7 @@ jobs:
             --name influxdb \
             -p 8086:8086 \
             -e INFLUXDB_ADMIN_USER=admin \
-            -e INFLUXDB_ADMIN_PASSWORD=admin \
+            -e INFLUXDB_ADMIN_PASSWORD=StrongP@ssw0rd \
             -e INFLUXDB_DB=dsn \
             influxdb:2.0
           echo "Waiting for InfluxDB to be ready..."
@@ -72,12 +72,18 @@ jobs:
           echo "Setting up InfluxDB..."
           docker exec influxdb influx setup --skip-verify --bucket TEST --org DSN --username admin --password StrongP@ssw0rd --token $INFLUX_TOKEN --force
 
+      - name: Create data file
+        run: |
+          echo 'temperature,location=office value=22.5 1673961600000000000' > /tmp/data.lp
+
+      - name: Copy data file to Docker
+        run: |
+          docker cp /tmp/data.lp influxdb:/tmp/data.lp
+
       - name: Run InfluxDB Write in Docker
         env:
           INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
         run: |
-          echo "Creating data file..."
-          echo 'temperature,location=office value=22.5 1673961600000000000' > /tmp/data.lp
           echo "Running influx write..."
           docker exec influxdb influx write \
             --host http://localhost:8086 \
