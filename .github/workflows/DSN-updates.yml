@@ -54,6 +54,7 @@ jobs:
             influxdb:2.0
           echo "Waiting for InfluxDB to be ready..."
           until curl -s http://localhost:8086/ping; do sleep 1; done
+          echo "*********** influx ready"
 
       - name: Verify Influx Token
         run: |
@@ -64,13 +65,13 @@ jobs:
             echo "INFLUX_TOKEN is set"
           fi
 
-      - name: Run InfluxDB Write
+      - name: Run InfluxDB Write in Docker
         env:
           INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
         run: |
           echo "Running influx write..."
           echo 'temperature,location=office value=22.5 1673961600000000000' > /tmp/data.lp
-          influx write \
+          docker exec influxdb influx write \
             --host http://localhost:8086 \
             --org DSN \
             --bucket TEST \
