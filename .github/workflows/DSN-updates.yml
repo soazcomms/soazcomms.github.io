@@ -52,8 +52,10 @@ jobs:
             -e INFLUXDB_ADMIN_PASSWORD=admin \
             -e INFLUXDB_DB=dsn \
             influxdb:2.0
+          echo "Waiting for InfluxDB to be ready..."
+          until curl -s http://localhost:8086/ping; do sleep 1; done
 
-      - name: Run InfluxDB Write in Docker
+      - name: Run InfluxDB Write
         env:
           INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
         run: |
