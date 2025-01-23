@@ -1,5 +1,5 @@
 name: Process SQM/TESS data
-# Trigger the workflow on a schedule
+# Trigger the workflow on a schedule (in production mode)
 on:
 #  schedule:
 #    - cron: '0 17 * * 0-7'  # Runs every day at 17:00 UTC
@@ -38,7 +38,6 @@ jobs:
           echo "Error: No files found." >&2
           exit 1
         fi
-        echo "IN_FILES=$FILES" >> $GITHUB_ENV
 
         echo "Run DSN_V02.py on each file:"
         for file in $FILES; do
@@ -61,6 +60,7 @@ jobs:
       uses: ad-m/github-push-action@master
       with:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Install Influx CLI
       run: |
         echo "Downloading and installing Influx CLI..."
