@@ -106,6 +106,10 @@ jobs:
       env:
         INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
       run: |
+        echo "Current directory: $(pwd)"
+        echo "Listing files in current directory:"
+        ls -R
+
         echo "Listing files in DSNdata/INFLUX"
         IN_FILES=$(ls -1 DSNdata/INFLUX)
         if [ -z "$IN_FILES" ]; then
