@@ -92,7 +92,7 @@ jobs:
         INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
       run: |
         echo "CURRENT_DATE=$(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV      
-        echo "Listing files in $(pwd)/DSNdata/INFLUX"
+        echo $CURRENT_DATE": Listing files in $(pwd)/DSNdata/INFLUX"
         IN_FILES=$(ls -1 $(pwd)/DSNdata/INFLUX)
         if [ -z "$IN_FILES" ]; then
           echo "Error: $IN_FILES not found." >&2
