@@ -43,7 +43,6 @@ jobs:
           new_file="DSNdata/NEW/$file"
           echo "Process $new_file"
           python3 DSN_V03.py $new_file
-          rm -f $new_file
         done
 
     - name: Install Influx CLI
@@ -109,7 +108,7 @@ jobs:
             --token $INFLUX_TOKEN \
             --file /tmp/intake.csv \
             --format csv
-          echo $CURRENT_DATE ./DSNdata/NEW/$infile" archived." >> DSNdata/RUN_LOG
+          echo $CURRENT_DATE ./DSNdata/NEW/$infile" created." >> DSNdata/RUN_LOG
         done
         
     - name: Commit files # commit the INFLUX and ARCHIVE folders
