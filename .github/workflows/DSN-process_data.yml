@@ -38,46 +38,14 @@ jobs:
           echo "Error: No files found." >&2
           exit 1
         fi
-
-        echo "Run DSN_V02.py on each file:"
+        echo "Run DSN_V03.py on each file:"
         for file in $FILES; do
           new_file="DSNdata/NEW/$file"
-          arc_file="DSNdata/ARCHIVE/$file"
-          echo "Processing $new_file"
-          python3 DSN_V02.py $new_file
-          if [ -f $arc_file ]; then
-            echo "$arc_file exists. Concatenate $new_file and $arc_file."
-            cat "$new_file" >> "$arc_file"
-          else
-            echo "$arc_file does not exist. Move $new_file to $arc_file."
-            mv "$new_file" "$arc_file"
-          fi
-          if [ -f $new_file ]; then
-            rm -f $new_file
-          fi
-          if [ -f "$arc_file" ]; then
-            echo "$arc_file is in place."
-          else
-            echo "Error: $arc_file was not created."
-            exit 1
-          fi
+          echo "Process $new_file"
+          python3 DSN_V03.py $new_file
+          rm -f $new_file
         done
 
-    - name: Commit files # commit the INFLUX and ARCHIVE folders
-      run: |
-        git config --local user.email "soazcomms@darksky.org"
-        git config --local user.name "GitHub Action test"
-        if [[ -n $(git status --porcelain) ]]; then
-          git add ./DSNdata/INFLUX ./DSNdata/ARCHIVE
-          git commit -m "Add changes"
-        else
-          echo "No changes to commit"
-        fi
-
-    - name: Push changes # push the output folder to repo
-      uses: ad-m/github-push-action@master
-      with:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Install Influx CLI
       run: |
@@ -124,10 +92,12 @@ jobs:
       env:
         INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
       run: |
+        echo "CURRENT_DATE=$(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV      
         echo "Listing files in $(pwd)/DSNdata/INFLUX"
         IN_FILES=$(ls -1 $(pwd)/DSNdata/INFLUX)
         if [ -z "$IN_FILES" ]; then
           echo "Error: $IN_FILES not found." >&2
+          echo $CURRENT_DATE "No data files archived." >> DSNdata/RUN_LOG
           exit 1
         fi
         echo "Run influx write on " $IN_FILES
@@ -142,4 +112,24 @@ jobs:
             --file /tmp/intake.csv \
             --format csv
           echo $file "written successfully."
+          echo $CURRENT_DATE ./DSNdata/NEW/$infile" archived." >> DSNdata/RUN_LOG
         done
+        
+    - name: Commit files # commit the INFLUX and ARCHIVE folders
+      env:
+          INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
+      run: |
+        git config --local user.email "soazcomms@darksky.org"
+        git config --local user.name "GitHub Action test"
+        if [[ -n $(git status --porcelain) ]]; then
+          git add ./DSNdata ./DSNdata/NEW ./DSNdata/INFLUX ./DSNdata/ARCHIVE 
+          git commit -m "Add changes"
+        else
+          echo "No changes to commit"
+        fi
+
+    - name: Push changes # push the output folder to repo
+      uses: ad-m/github-push-action@master
+      with:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
