@@ -46,11 +46,14 @@ jobs:
           echo "Processing $new_file"
           python3 DSN_V02.py $new_file
           if [ -f $arc_file ]; then
-            echo "$arc_file exists. Concatenating $new_file and $arc_file."
+            echo "$arc_file exists. Concatenate $new_file and $arc_file."
             cat "$new_file" >> "$arc_file"
           else
-            echo "$arc_file does not exist. Moving $new_file to $arc_file."
+            echo "$arc_file does not exist. Move $new_file to $arc_file."
             mv "$new_file" "$arc_file"
+          fi
+          if [ -f $new_file ]; then
+            rm -f $new_file
           fi
           if [ -f "$arc_file" ]; then
             echo "$arc_file is in place."
