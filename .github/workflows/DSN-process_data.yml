@@ -91,6 +91,12 @@ jobs:
         INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
       run: |
         CURRENT_DATE=$(date '+%Y-%m-%d %H:%M:%S')
+        ORIG_FILES=$(ls -1 $(pwd)/DSNdata/NEW)
+        if [ -z "$ORIG_FILES" ]; then
+          echo "Error: $ORIG_FILES not found." >&2
+          echo $CURRENT_DATE "No data files archived." >> DSNdata/RUN_LOG
+          exit 1
+        fi
         echo "DATE: "$CURRENT_DATE": Listing files in $(pwd)/DSNdata/INFLUX"
         IN_FILES=$(ls -1 $(pwd)/DSNdata/INFLUX)
         if [ -z "$IN_FILES" ]; then
@@ -108,10 +114,10 @@ jobs:
             --token $INFLUX_TOKEN \
             --file /tmp/intake.csv \
             --format csv
-          echo $CURRENT_DATE ./DSNdata/NEW/$infile" created." >> DSNdata/RUN_LOG
+          echo $CURRENT_DATE $ORIG_FILES" archived." >> DSNdata/RUN_LOG
         done
         
-    - name: Commit files # commit the INFLUX and ARCHIVE folders
+    - name: Commit files # commit data folders
       env:
           INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
       run: |
@@ -124,8 +130,7 @@ jobs:
           echo "No changes to commit"
         fi
 
-    - name: Push changes # push the output folder to repo
+    - name: Push changes # push modified folders to repo
       uses: ad-m/github-push-action@master
       with:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
