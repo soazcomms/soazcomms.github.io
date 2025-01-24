@@ -46,7 +46,6 @@ jobs:
           rm -f $new_file
         done
 
-
     - name: Install Influx CLI
       run: |
         echo "Downloading and installing Influx CLI..."
@@ -102,7 +101,6 @@ jobs:
         fi
         echo "Run influx write on " $IN_FILES
         for infile in $IN_FILES; do
-          echo "*********influx write " ./DSNdata/INFLUX/$infile
           docker cp ./DSNdata/INFLUX/$infile influxdb:/tmp/intake.csv
           docker exec influxdb influx write \
             --host http://localhost:8086 \
@@ -111,7 +109,6 @@ jobs:
             --token $INFLUX_TOKEN \
             --file /tmp/intake.csv \
             --format csv
-          echo $file "written successfully."
           echo $CURRENT_DATE ./DSNdata/NEW/$infile" archived." >> DSNdata/RUN_LOG
         done
         
