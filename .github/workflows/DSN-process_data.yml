@@ -32,13 +32,11 @@ jobs:
 
     - name: Process SQM/TESS files
       run: |
-        echo "pwd: "$(pwd)
         FILES=$(ls -1 DSNdata/NEW)
         if [ -z "$FILES" ]; then
           echo "Error: No files found." >&2
           exit 1
         fi
-        echo "Run DSN_V03.py on each file:"
         for file in $FILES; do
           new_file="DSNdata/NEW/$file"
           echo "Process $new_file"
