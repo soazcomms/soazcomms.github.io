@@ -285,6 +285,7 @@ tempdata = 19
 if sensor_name == 'SQM': 
     frame_cols=['UT','Tloc','Etempc','volt','SQM','irec']
 if sensor_name == 'SQM3': 
+    sepcol=','
     frame_cols=['UT','Tloc','SQM','Etempc']
 if site_name == 'DSN003': # Sugarloaf
     tempdata = 11
