@@ -1,6 +1,6 @@
 # long      lat          el  sensor ihead dark bright   Site
 -108.9226 , +33.4793  , 1634, SQM,  38, 22.3, 19.0, CosmicCampground-NewMexico
--111.6000 , +31.9640  , 2098, SQM3,  38, 22.0, 19.0, DSN006
+-111.6000 , +31.9640  , 2098, SQM3,  1, 22.0, 19.0, DSN006
 -110.7893 , +32.4420  , 2791, SQM,  38, 22.0, 19.0, MtLemmon
 -110.96132, +32.265535, 716 , TESS, 35, 21.5, 18.0, TESS-WStars19-EastTucson_AZ
 -109.3208 , +32.01785 , 2089, SQM1,   4, 22.3, 19.0, DSN003
