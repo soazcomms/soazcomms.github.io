@@ -32,7 +32,7 @@ jobs:
 
     - name: Process SQM/TESS files
       run: |
-        echo "Listing files in DSNdata/NEW"
+        echo "pwd: "($pwd)
         FILES=$(ls -1 DSNdata/NEW)
         if [ -z "$FILES" ]; then
           echo "Error: No files found." >&2
