@@ -312,7 +312,7 @@ if sensor_name == 'SQM1' or sensor_name == 'TESS1': # .xlsx data
     frame_sensor_add=pd.DataFrame(columns=frame_cols)
 else:
     frame_sensor=pd.read_csv(in_file,header=None,skiprows=ihead,sep=sepcol)
-    frame_sensor.head()
+    print(frame_sensor.head())
     print("frame_cols: \n",frame_cols)
     frame_sensor.columns=frame_cols
 
