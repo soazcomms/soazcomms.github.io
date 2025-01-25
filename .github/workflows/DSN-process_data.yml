@@ -110,9 +110,8 @@ jobs:
             --token $INFLUX_TOKEN \
             --file /tmp/intake.csv \
             --format csv
-          echo $CURRENT_DATE $ORIG_FILES" archived." >> DSNdata/RUN_LOG
         done
-        
+        echo $CURRENT_DATE $ORIG_FILES" archived." >> DSNdata/RUN_LOG
     - name: Commit files # commit data folders
       env:
           INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
