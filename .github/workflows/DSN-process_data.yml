@@ -1,11 +1,12 @@
 name: Process SQM/TESS data
 # Trigger the workflow on a schedule (in production mode)
 on:
+ workflow_dispatch:
 #  schedule:
 #    - cron: '0 17 * * 0-7'  # Runs every day at 17:00 UTC
-  push:
-    branches:
-      - main  # Trigger on push to the 'main' branch
+#  push:
+#    branches:
+#      - main  # Trigger on push to the 'main' branch
 #  pull_request:
 #    branches:
 #      - main
