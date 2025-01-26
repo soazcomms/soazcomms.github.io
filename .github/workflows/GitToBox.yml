@@ -16,7 +16,9 @@ jobs:
       - name: Install Homebrew and Box CLI
         run: |
           echo "Installing Box CLI with Homebrew..."
-	  NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >>~/.bashrc
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
           brew update
           brew install box-cli
           box --version
