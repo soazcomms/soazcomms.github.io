@@ -42,7 +42,7 @@ jobs:
       # Step 6: Authenticate Box CLI
       - name: Authenticate Box CLI
         run: |
-          box configure:environments:add box_config.json --name "github-box" --debug
+          box configure:environments:add box_config.json --name "github-box"
           box configure:environments:set-current "github-box"
           box folders:get 0
 
