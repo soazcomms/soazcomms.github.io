@@ -43,7 +43,7 @@ jobs:
           box configure:environments:set-current "github-box"
 
       # Step 6: Upload All Files in a Folder to Box
-- name: Upload All Files to Box
+      - name: Upload All Files to Box
         env:
           BOX_FOLDER_ID: "304428997491"  # Box folder DSNdata/ARCHIVE ID
         run: |
