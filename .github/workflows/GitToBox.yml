@@ -42,7 +42,7 @@ jobs:
       # Step 6: Authenticate Box CLI
       - name: Authenticate Box CLI
         run: |
-          box configure:environments:add box_config.json --name "github-box" -v
+          box configure:environments:add box_config.json --name "github-box"
           box configure:environments:set-current "github-box"
 
       # Step 7: Upload All Files in a Folder to Box
@@ -54,7 +54,7 @@ jobs:
           for file in DSNdata/INFLUX/*; do
             if [ -f "$file" ]; then
               echo "Upload $file to Box..."
-              box files:upload "$file" "$BOX_FOLDER_ID"
+              box files:upload "$file" -p "$BOX_FOLDER_ID"
             else
               echo "No files found in DSNdata/INFLUX to upload."
             fi
