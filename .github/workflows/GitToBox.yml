@@ -18,6 +18,8 @@ jobs:
           echo "Installing Box CLI..."
           curl -sL https://github.com/box/boxcli/releases/download/v2.8.0/box -o box
           chmod +x box
+          echo "box file type: " $(file box)
+          cat box
           sudo mv box /usr/local/bin/
           box --version
 
