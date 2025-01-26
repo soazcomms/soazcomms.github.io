@@ -41,8 +41,8 @@ jobs:
       # Step 6: Authenticate Box CLI
       - name: Authenticate Box CLI
         run: |
-          box configure:environments:add "github-box" --file=box_config.json
-          box configure:auth --environment="github-box"
+          box configure:environments:add "github-box"
+          box configure:auth --environment="github-box" --file=box_config.json
 
       # Step 7: Upload All Files in a Folder to Box
       - name: Upload All Files to Box
