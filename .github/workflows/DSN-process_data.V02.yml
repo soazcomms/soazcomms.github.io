@@ -23,7 +23,7 @@ jobs:
       - name: Install Influx CLI
         run: |
           echo "Installing InfluxDB CLI..."
-          curl -sL https://dl.influxdata.com/influxdb/releases/influxdb2-client-linux-amd64.tar.gz -o influxdb2-client.tar.gz
+          curl -sL https://dl.influxdata.com/influxdb/releases/influxdb2-client-2.7.5-linux-amd64.tar.gz -o influxdb2-client.tar.gz
           tar -xzf influxdb2-client.tar.gz
           sudo mv influx /usr/local/bin/
           influx version
