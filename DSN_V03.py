@@ -613,9 +613,9 @@ start_time=time.time()
 #  Open the output file for writing
 # create output file name from input file
 # for influxDB
-influx_file="DSNdata/INFLUX/DSN-"+ in_file[12:in_file.find(".")]+".csv"
-# for DSNdata ARCHIVE
-archive_file="DSNdata/ARCHIVE/"+ in_file[12:in_file.find(".")]+".csv"
+influx_file="DSNdata/INFLUX/INF-"+ in_file[12:in_file.find(".")]+".csv"
+# for DSNdata BOX, to transfer to Box
+box_file="DSNdata/BOX/"+ in_file[12:in_file.find(".")]+".csv"
 print("InfluxDB file name ",influx_file)
 # write influxdb file header
 ofile=open(influx_file,'w')
@@ -654,14 +654,14 @@ for second in ['SQM','lum','chisquared','moonalt']:
     df1['_field']=second
     df1['_measurement']=site_name
 #
-#   write header only when second=='SQM'
+#   write header only for the first loop, when second=='SQM'
     df1.to_csv(influx_file,mode='a', header=(second=='SQM'),index=False)
 print(version," ",version_date," Wrote ",4*len(df1)," entries to ",influx_file)
 #
-# Archive the data. Append if extant, create if not.
-if os.path.isfile(archive_file):
-    df.to_csv(archive_file,mode='a',header=False,index=False)
+# box the data. Append if extant, create if not.
+if os.path.isfile(box_file):
+    df.to_csv(box_file,mode='a',header=False,index=False)
 else:
-    df.to_csv(archive_file,mode='w',header=cols_df,index=False)
+    df.to_csv(box_file,mode='w',header=cols_df,index=False)
 # THE END
 
