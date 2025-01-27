@@ -1,4 +1,4 @@
-name: DSN Process Data and Upload
+name: DSN Process Data and Upload V02
 
 on:
   workflow_dispatch:
