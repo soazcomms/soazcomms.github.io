@@ -68,3 +68,4 @@ jobs:
       - name: Clean Up
         run: |
           rm -f box_config.json
+          echo $CURRENT_DATE $ORIG_FILES" boxed." >> DSNdata/RUN_LOG
