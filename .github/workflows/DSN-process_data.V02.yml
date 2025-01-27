@@ -1,0 +1,60 @@
+name: DSN Process Data and Upload
+
+on:
+  workflow_dispatch:
+
+jobs:
+  process_and_upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout Repository
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # Step 2: Set Up Environment
+      - name: Set Up Dependencies
+        run: |
+          echo "Installing dependencies..."
+          sudo apt-get update
+          sudo apt-get install -y curl jq
+
+      # Step 3: Install Influx CLI
+      - name: Install Influx CLI
+        run: |
+          echo "Installing InfluxDB CLI..."
+          curl -sL https://dl.influxdata.com/influxdb/releases/influxdb2-client-linux-amd64.tar.gz -o influxdb2-client.tar.gz
+          tar -xzf influxdb2-client.tar.gz
+          sudo mv influx /usr/local/bin/
+          influx version
+
+      # Step 4: Check for CSV Files and Upload to InfluxDB Cloud
+      - name: Upload CSV Files to InfluxDB Cloud
+        env:
+          INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
+        run: |
+          echo "Searching for .csv files in DSNdata/INFLUX..."
+          IN_FILES=$(ls -1 DSNdata/INFLUX/*.csv 2>/dev/null || true)
+
+          if [ -z "$IN_FILES" ]; then
+            echo "Error: No .csv files found in DSNdata/INFLUX to upload." >&2
+            exit 1
+          fi
+
+          echo "Found the following files: $IN_FILES"
+          for infile in $IN_FILES; do
+            echo "Uploading $infile to InfluxDB Cloud..."
+            influx write \
+              --url https://us-east-1-1.aws.cloud2.influxdata.com \
+              --org DSN \
+              --bucket DSNdata \
+              --token $INFLUX_TOKEN \
+              --file "$infile" \
+              --format csv
+            if [ $? -ne 0 ]; then
+              echo "Error: Failed to upload $infile to InfluxDB Cloud." >&2
+              exit 1
+            fi
+          done
+
+          echo "All files successfully uploaded to InfluxDB Cloud."
