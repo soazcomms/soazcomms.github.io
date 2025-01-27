@@ -54,6 +54,8 @@ jobs:
             exit 1
           fi
           influx config rm default || true
+          influx config create -a -n "DSN" \
+          -u https://us-east-1-1.aws.cloud2.influxdata.com -t $INFLUX_TOKEN -o "DSN"
           influx config ls
           echo "Run influx write on $IN_FILES"
           for infile in $IN_FILES; do
