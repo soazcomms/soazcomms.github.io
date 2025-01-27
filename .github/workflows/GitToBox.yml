@@ -52,9 +52,9 @@ jobs:
       # Step 7: Upload All Files in a Folder to Box
       - name: Upload All Files to Box
         env:
-          BOX_FOLDER_ID: "304428997491"  # Box folder DSNdata/ARCHIVE ID
+          BOX_FOLDER_ID: "304428997491"  # Box folder DSNdata/ARCHIVE Box ID
         run: |
-          echo "Upload DSNdata/INFLUX files to Box"
+          echo "Upload DSNdata/BOX files to Box"
           for file in DSNdata/BOX/*; do
             if [ -f "$file" ]; then
               echo "Upload $file to Box..."
@@ -65,7 +65,9 @@ jobs:
           done
 
       # Step 8: Clean Up `config.json`
-      - name: Clean Up
+      - name: Clean Up and log
         run: |
           rm -f box_config.json
-          echo $CURRENT_DATE $ORIG_FILES" boxed." >> DSNdata/RUN_LOG
+          CURRENT_DATE=$(date '+%Y-%m-%d %H:%M:%S')
+          BOX_FILES=$(ls -1 $(pwd)/DSNdata/BOX)
+          echo $CURRENT_DATE $BOX_FILES" boxed." >> DSNdata/RUN_LOG
