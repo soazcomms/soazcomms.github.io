@@ -93,7 +93,7 @@ jobs:
         ORIG_FILES=$(ls -1 $(pwd)/DSNdata/NEW)
         if [ -z "$ORIG_FILES" ]; then
           echo "Error: $ORIG_FILES not found." >&2
-          echo $CURRENT_DATE "No data files to archive." >> DSNdata/RUN_LOG
+          echo $CURRENT_DATE "No data files to box." >> DSNdata/RUN_LOG
           exit 1
         fi
         IN_FILES=$(ls -1 $(pwd)/DSNdata/INFLUX)
@@ -112,7 +112,7 @@ jobs:
             --file /tmp/intake.csv \
             --format csv
         done
-        echo $CURRENT_DATE $ORIG_FILES" archived." >> DSNdata/RUN_LOG
+        echo $CURRENT_DATE $ORIG_FILES" boxed." >> DSNdata/RUN_LOG
     - name: Commit files # commit data folders
       env:
           INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
@@ -120,7 +120,7 @@ jobs:
         git config --local user.email "soazcomms@darksky.org"
         git config --local user.name "GitHub Action test"
         if [[ -n $(git status --porcelain) ]]; then
-          git add ./DSNdata ./DSNdata/NEW ./DSNdata/INFLUX ./DSNdata/ARCHIVE 
+          git add ./DSNdata ./DSNdata/NEW ./DSNdata/INFLUX ./DSNdata/BOX 
           git commit -m "Add changes"
         else
           echo "No changes to commit"
