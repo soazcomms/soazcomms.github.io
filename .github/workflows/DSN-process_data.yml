@@ -104,6 +104,7 @@ jobs:
         echo "Run influx write on " $IN_FILES
         for infile in $IN_FILES; do
           docker cp ./DSNdata/INFLUX/$infile influxdb:/tmp/intake.csv
+          docker exec influxdb influx bucket list
           docker exec influxdb influx write \
             --host http://localhost:8086 \
             --org DSN \
