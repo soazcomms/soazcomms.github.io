@@ -1,8 +1,8 @@
 name: Upload to Box
 
 on:
-  workflow_dispatch:
-
+  workflow_dispatch: # Allows triggering by another workflow, or run manually
+  
 jobs:
   upload:
     runs-on: ubuntu-latest  # Use `macos-latest` if Homebrew requires it.
