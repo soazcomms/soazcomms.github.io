@@ -1,11 +1,14 @@
 name: Upload to Box
 
 on:
-  workflow_dispatch: # Allows triggering by another workflow, or run manually
-  
+  workflow_dispatch: # Allows manual or programmatic triggering 
+  repository_dispatch:  # Allows triggering from DSN-process_data
+    types:
+      - trigger-git-to-box  # Custom event type
+      
 jobs:
   upload:
-    runs-on: ubuntu-latest  # Use `macos-latest` if Homebrew requires it.
+    runs-on: ubuntu-latest
 
     steps:
       # Step 1: Checkout Repository
@@ -57,7 +60,7 @@ jobs:
               echo "Upload $file to Box..."
               box files:upload "$file" -p "$BOX_FOLDER_ID"
             else
-              echo "No files found in DSNdata/BOX to upload."
+              echo "No files found in DSNdata/BOX."
             fi
           done
 
