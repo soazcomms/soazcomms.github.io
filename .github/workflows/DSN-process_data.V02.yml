@@ -54,6 +54,7 @@ jobs:
             exit 1
           fi
           influx config rm default || true
+          influx bucket list
           echo "Run influx write on $IN_FILES"
           for infile in $IN_FILES; do
             echo "Uploading $infile to InfluxDB Cloud..."
@@ -64,7 +65,7 @@ jobs:
               --token $INFLUX_TOKEN \
               --file "$infile" \
               --format csv \
-             --debug
+              --debug
 
           if [ $? -ne 0 ]; then
             echo "Error: Failed to upload $infile to InfluxDB Cloud." >&2
