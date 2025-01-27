@@ -52,12 +52,12 @@ jobs:
           BOX_FOLDER_ID: "304428997491"  # Box folder DSNdata/ARCHIVE ID
         run: |
           echo "Upload DSNdata/INFLUX files to Box"
-          for file in DSNdata/INFLUX/*; do
+          for file in DSNdata/BOX/*; do
             if [ -f "$file" ]; then
               echo "Upload $file to Box..."
               box files:upload "$file" -p "$BOX_FOLDER_ID"
             else
-              echo "No files found in DSNdata/INFLUX to upload."
+              echo "No files found in DSNdata/BOX to upload."
             fi
           done
 
