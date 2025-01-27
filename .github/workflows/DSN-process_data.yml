@@ -130,3 +130,9 @@ jobs:
       uses: ad-m/github-push-action@master
       with:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Trigger GitToBox Workflow
+      uses: peter-evans/repository-dispatch@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        event-type: trigger-git-to-box
