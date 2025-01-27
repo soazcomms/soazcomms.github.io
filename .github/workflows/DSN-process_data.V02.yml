@@ -50,7 +50,8 @@ jobs:
               --bucket DSNdata \
               --token $INFLUX_TOKEN \
               --file "$infile" \
-              --format csv
+              --format csv \
+              --debug
             if [ $? -ne 0 ]; then
               echo "Error: Failed to upload $infile to InfluxDB Cloud." >&2
               exit 1
