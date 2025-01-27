@@ -107,7 +107,7 @@ jobs:
           docker exec influxdb influx write \
             --host http://localhost:8086 \
             --org DSN \
-            --bucket TEST \
+            --bucket DSNdata \
             --token $INFLUX_TOKEN \
             --file /tmp/intake.csv \
             --format csv
