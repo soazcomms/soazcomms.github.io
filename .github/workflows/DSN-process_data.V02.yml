@@ -147,6 +147,7 @@ jobs:
           echo "Uploading files to Box..."
           box configure:environments:add box_config.json -n "github-box"
           for file in $IN_FILES; do
+            echo "Trying to box " "$file"
             if [ -f "$file" ]; then
               echo "Uploading $file to Box..."
               box files:upload "$file" -p 304428997491
