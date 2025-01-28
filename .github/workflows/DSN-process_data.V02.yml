@@ -147,7 +147,8 @@ jobs:
           echo "Uploading files to Box..."
           box configure:environments:add box_config.json -n "github-box"
           echo "set current environment to github-box"
-          box configure:environments:set-current "github-box" -v
+          box configure:environments:select -h
+          box configure:environments:select "github-box" --verbose
           for file in $IN_FILES; do
             if [ -f "$file" ]; then
               echo "Uploading $file to Box..."
