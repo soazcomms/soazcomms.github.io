@@ -1,0 +1,118 @@
+name: DSN Process Data and Upload to Box
+
+on:
+  workflow_dispatch:
+
+jobs:
+  process_and_upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout Repository
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # Step 2: Set Up Docker
+      - name: Set Up Docker
+        run: |
+          echo "Installing Docker..."
+          sudo apt-get update
+          sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+          sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+          sudo apt-get update
+          sudo apt-get remove -y containerd
+          sudo apt-get install -y docker-ce
+          sudo systemctl start docker
+          sudo systemctl enable docker
+          docker --version
+
+      # Step 3: Run InfluxDB CLI in Docker
+      - name: Start InfluxDB CLI Docker Container
+        run: |
+          echo "Pulling InfluxDB CLI Docker image..."
+          docker pull influxdb:2.7.5
+          echo "Starting InfluxDB CLI container..."
+          docker run --name influx-cli -d influxdb:2.7.5 tail -f /dev/null
+
+      # Step 4: Copy CSV Files to Docker Container
+      - name: Copy CSV Files to Docker
+        run: |
+          echo "Copying .csv files to Docker container..."
+          docker cp DSNdata/INFLUX/. influx-cli:/data/
+
+      # Step 5: Upload CSV Files to InfluxDB Cloud
+      - name: Upload CSV Files to InfluxDB Cloud
+        env:
+          INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
+        run: |
+          echo "Running InfluxDB CLI commands inside Docker..."
+          IN_FILES=$(docker exec influx-cli ls /data | grep .csv || true)
+          if [ -z "$IN_FILES" ]; then
+            echo "Error: No .csv files found in /data to upload." >&2
+            exit 1
+          fi
+
+          for infile in $IN_FILES; do
+            echo "Uploading /data/$infile to InfluxDB Cloud..."
+            docker exec influx-cli influx write \
+              --host https://us-east-1-1.aws.cloud2.influxdata.com \
+              --org DSN \
+              --bucket DSNdata \
+              --token $INFLUX_TOKEN \
+              --file /data/$infile \
+              --format csv \
+              --debug
+            if [ $? -ne 0 ]; then
+              echo "Error: Failed to upload $infile to InfluxDB Cloud." >&2
+              exit 1
+            fi
+          done
+
+          echo "All files successfully uploaded to InfluxDB Cloud."
+
+      # Step 6: Commit Changes (if applicable)
+      - name: Commit Changes to Repository
+        run: |
+          echo "Checking for changes in DSNdata..."
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add DSNdata/
+          if git diff-index --quiet HEAD; then
+            echo "No changes to commit."
+          else
+            git commit -m "Update DSNdata after processing and uploading to InfluxDB."
+            git push
+          fi
+
+      # Step 7: Install Box CLI
+      - name: Install Box CLI
+        run: |
+          echo "Installing Box CLI via npm..."
+          sudo apt-get update
+          sudo apt-get install -y libsecret-1-dev
+          npm install -g @box/cli
+          box --version
+
+      # Step 8: Upload Files to Box
+      - name: Upload Files to Box
+        env:
+          BOX_CONFIG: ${{ secrets.BOX_CONFIG }}
+        run: |
+          echo "$BOX_CONFIG" > box_config.json
+          box configure:environments:add box_config.json -n "github-box"
+          box configure:environments:set-current "github-box"
+
+          echo "Uploading files to Box..."
+          for file in DSNdata/INFLUX/*; do
+            if [ -f "$file" ]; then
+              echo "Uploading $file to Box..."
+              box files:upload "$file" 304428997491
+            fi
+          done
+
+      # Step 9: Clean Up
+      - name: Clean Up
+        run: |
+          echo "Cleaning up temporary files..."
+          rm -f box_config.json
