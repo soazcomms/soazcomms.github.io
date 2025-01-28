@@ -44,6 +44,7 @@ jobs:
             echo "Error: No files found." >&2
             exit 1
           fi
+          echo "NEW files: "$FILES
           for file in $FILES; do
             new_file="DSNdata/NEW/$file"
             echo "Process $new_file"
@@ -84,7 +85,7 @@ jobs:
           INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
         run: |
           echo "Running InfluxDB CLI commands inside Docker..."
-          IN_FILES=$(docker exec influx-cli ls /data | grep .csv || true)
+          IN_FILES=$(docker exec influx-cli ls -1/data | grep .csv || true)
           if [ -z "$IN_FILES" ]; then
             echo "Error: No .csv files found in /data to upload." >&2
             exit 1
