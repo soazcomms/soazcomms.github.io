@@ -1,0 +1,140 @@
+name: DSN Process Data and Upload to Box
+
+on:
+  workflow_dispatch:
+
+jobs:
+  process_and_upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Check Out Repository
+      - name: Check Out Repository
+        uses: actions/checkout@v3
+
+      # (Optional) Step 2: Install Docker
+      # --------------------------------------------------
+      # GitHub Actions runners on ubuntu-latest typically
+      # already include Docker. You can remove this step
+      # unless you specifically need a newer Docker version.
+      - name: Install/Update Docker (Optional)
+        run: |
+          echo "Updating system and installing Docker..."
+          sudo apt-get update
+          sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+          sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+          sudo apt-get update
+          sudo apt-get remove -y containerd
+          sudo apt-get install -y docker-ce
+          sudo systemctl start docker
+          sudo systemctl enable docker
+          docker --version
+
+      # Step 3: Start a "CLI Only" Container
+      # --------------------------------------------------
+      # We use the official InfluxDB image just for its CLI
+      # (not to run an InfluxDB server locally).
+      - name: Start InfluxDB CLI Container
+        run: |
+          echo "Pulling InfluxDB Docker image (which includes the CLI)..."
+          docker pull influxdb:2.7.5
+          
+          echo "Starting a container in idle mode (CLI only)..."
+          docker run --name influx-cli -d influxdb:2.7.5 tail -f /dev/null
+          docker ps
+
+      # Step 4: Copy CSV Files into the Container
+      # --------------------------------------------------
+      # Make sure you have CSV files in DSNdata/INFLUX before running.
+      - name: Copy CSV Files to Docker
+        run: |
+          echo "Copying CSV files to the CLI container..."
+          docker cp DSNdata/INFLUX/. influx-cli:/data/
+          echo "Files in container:"
+          docker exec influx-cli ls /data
+
+      # Step 5: Upload CSV Files to InfluxDB Cloud
+      # --------------------------------------------------
+      # Make sure you have set INFLUX_TOKEN1 in your repo's secrets.
+      - name: Upload CSV Files to InfluxDB Cloud
+        env:
+          INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN1 }}
+        run: |
+          echo "Running Influx CLI commands inside the container..."
+          CSV_FILES=$(docker exec influx-cli sh -c "ls /data | grep .csv || true")
+          if [ -z "$CSV_FILES" ]; then
+            echo "Error: No .csv files found in /data to upload." >&2
+            exit 1
+          fi
+
+          for infile in $CSV_FILES; do
+            echo "Uploading /data/$infile to InfluxDB Cloud..."
+            docker exec influx-cli influx write \
+              --host "https://us-east-1-1.aws.cloud2.influxdata.com" \
+              --org "DSN" \
+              --bucket "DSNdata" \
+              --token "$INFLUX_TOKEN" \
+              --file "/data/$infile" \
+              --format "csv" \
+              --debug
+            if [ $? -ne 0 ]; then
+              echo "Error: Failed to upload $infile to InfluxDB Cloud." >&2
+              exit 1
+            fi
+          done
+
+          echo "All CSV files successfully uploaded to InfluxDB Cloud."
+
+      # Step 6: Commit Changes to Repository
+      # --------------------------------------------------
+      # If uploading changes modifies your local DSNdata folder,
+      # you can commit them here (only if needed).
+      - name: Commit Changes to Repository
+        run: |
+          echo "Checking for changes in DSNdata..."
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add DSNdata/
+          if git diff-index --quiet HEAD; then
+            echo "No changes to commit."
+          else
+            git commit -m "Update DSNdata after processing and uploading to InfluxDB."
+            git push
+
+      # Step 7: Install Box CLI
+      # --------------------------------------------------
+      - name: Install Box CLI
+        run: |
+          echo "Installing Box CLI..."
+          npm install -g @box/cli
+          box --version
+
+      # Step 8: Upload Files to Box
+      # --------------------------------------------------
+      # Adjust the folder ID (304428997491) to match your Box folder.
+      - name: Upload Files to Box
+        env:
+          BOX_CONFIG: ${{ secrets.BOX_CONFIG }}
+        run: |
+          echo "Configuring Box CLI..."
+          echo "$BOX_CONFIG" > box_config.json
+          box configure:environments:add "github-box" --file=box_config.json
+          box configure:auth --environment="github-box"
+
+          echo "Uploading DSNdata/INFLUX files to Box..."
+          for file in DSNdata/INFLUX/*; do
+            if [ -f "$file" ]; then
+              echo "Uploading $file to Box..."
+              box files:upload "$file" 304428997491
+            fi
+          done
+
+      # Step 9: Clean Up
+      # --------------------------------------------------
+      - name: Clean Up
+        run: |
+          echo "Stopping and removing the Influx CLI container..."
+          docker rm -f influx-cli || true
+          echo "Removing temporary Box config..."
+          rm -f box_config.json
