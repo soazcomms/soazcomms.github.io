@@ -22,7 +22,7 @@ influxDB.
 ### Step 4
 Once each .dat file is processed, the file in DSNdata/NEW is deleted. 
 ### Step 5
-The files in DSNdata/BOX are uploaded to Box, in the DSNdata/ARCHIVE
-folder. This is a permanent repository of the processed data.
+The files in DSNdata/BOX are uploaded to the Box repository, in the DSNdata/ARCHIVE
+folder. This is intended as a permanent archive of the processed data.
 ### Step 6
 A log of these file operations is written to DSNdata/RUN_LOG.
