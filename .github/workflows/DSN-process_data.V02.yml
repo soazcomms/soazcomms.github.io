@@ -143,14 +143,16 @@ jobs:
           BOX_CONFIG: ${{ secrets.BOX_CONFIG }}
         run: |
           echo "$BOX_CONFIG" > box_config.json
-          IN_FILES=$(ls -1 DSNdata/BOX)
+          BOX_PATH="DSNdata/BOX/"
+          IN_FILES=$(ls -1 $BOX_PATH)
           echo "Uploading files to Box..."
           box configure:environments:add box_config.json -n "github-box"
           for file in $IN_FILES; do
-            echo "Trying to box " "$file"
-            if [ -f "$file" ]; then
-              echo "Uploading $file to Box..."
-              box files:upload "$file" -p 304428997491
+            box_file="$BOX_PATH$file"
+            echo "Trying to box $box_file"
+            if [ -f $box_file ]; then
+              echo "Uploading $box_file to Box..."
+              box files:upload "$box_file" -p 304428997491
             fi
           done
           echo $CURRENT_DATE "Uploaded $IN_FILES to Box" \
