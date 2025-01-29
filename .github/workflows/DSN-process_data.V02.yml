@@ -155,6 +155,7 @@ jobs:
             if [ -f $box_file ]; then
               box_ID=$(jq --arg file "$file" -r '.[] | \
               select(.name == []) | .id' results.json)
+              box_ID=$(jq --arg file "$file" -r '.entries[] | select(.name == $file) | .id' results.json)
               if [-n "$box_ID"]; then
                 box files:download $box_ID --destination ./DSNdata
                 python DSN-box_merge.py ./DSNdata/$file $box_file
