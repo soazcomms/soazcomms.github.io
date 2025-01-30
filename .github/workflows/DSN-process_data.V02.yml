@@ -1,0 +1,184 @@
+name: DSN Process SQM/TESS Raw Data and Upload to Box
+# Trigger the workflow on a schedule (in production mode)
+on:
+  workflow_dispatch:
+#  schedule:
+#    - cron: '0 17 * * 0-7'  # Runs every day at 17:00 UTC
+#  push:
+#    branches:
+#      - main  # Trigger on push to the 'main' branch
+#  pull_request:
+#    branches:
+#      - main
+
+jobs:
+  process_and_upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout Repository, get python
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          CURRENT_DATE=$(date '+%Y-%m-%d %H:%M:%S')
+          echo $CURRENT_DATE "Start DSN-process_data." >> DSNdata/RUN_LOG
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libgtk-3-dev libc-bin curl
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Step 2: run DSN_V03.py on all files in DSNdata/NEW
+      - name: Process files, write results to DSNdata/INFLUX
+        run: |
+          FILES=$(ls -1 DSNdata/NEW)
+          if [ -z "$FILES" ]; then
+            CURRENT_DATE=$(date '+%Y-%m-%d %H:%M:%S')
+            echo $CURRENT_DATE "No files in DSNdata/NEW." >> DSNdata/RUN_LOG
+            echo "Error: No files found." >&2
+            exit 1
+          fi
+          for file in $FILES; do
+            new_file="DSNdata/NEW/$file"
+            echo "Process $new_file"
+            python3 DSN_V03.py $new_file
+          done
+  
+      # Step 3: Set Up Docker
+      - name: Set Up Docker
+        run: |
+          echo "Installing Docker..."
+          sudo apt-get update
+          sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+          sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+          sudo apt-get update
+          sudo apt-get remove -y containerd
+          sudo apt-get install -y docker-ce
+          sudo systemctl start docker
+          sudo systemctl enable docker
+          docker --version
+
+      # Step 4: Run InfluxDB CLI in Docker
+      - name: Start InfluxDB CLI Docker Container
+        run: |
+          echo "Pulling InfluxDB CLI Docker image..."
+          docker pull influxdb:2.7.5
+          echo "Starting InfluxDB CLI container..."
+          docker run --name influx-cli -d influxdb:2.7.5 tail -f /dev/null
+
+      # Step 5: Copy CSV Files to Docker Container
+      - name: Copy CSV Files to Docker
+        run: |
+          echo "Copying .csv files to Docker container..."
+          docker cp DSNdata/INFLUX/. influx-cli:/data/
+
+      # Step 6: Upload CSV Files to InfluxDB Cloud
+      - name: Upload CSV Files to InfluxDB Cloud
+        env:
+          INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
+        run: |
+          echo "Running InfluxDB CLI commands inside Docker..."
+          IN_FILES=$(docker exec influx-cli ls /data | grep .csv || true)
+          if [ -z "$IN_FILES" ]; then
+            echo "Error: No .csv files found in /data to upload." >&2
+            exit 1
+          fi
+          for infile in $IN_FILES; do
+            echo "Uploading /data/$infile to InfluxDB Cloud..."
+            success=false
+            for attempt in {1..5}; do
+              docker exec influx-cli influx write \
+              --host https://us-east-1-1.aws.cloud2.influxdata.com \
+              --org DSN \
+              --bucket DSNdata \
+              --token $INFLUX_TOKEN \
+              --file /data/$infile \
+              --format csv \
+              --debug && success=true && break
+              echo "Attempt $attempt failed, retrying..."
+              sleep 10
+            done
+            if [ "$success" = false ]; then
+              echo "Error: Failed to upload $infile to InfluxDB Cloud." >&2
+              exit 1
+            fi
+          done
+          CURRENT_DATE=$(date '+%Y-%m-%d %H:%M:%S')
+          echo $CURRENT_DATE "Uploaded "$IN_FILES" to influx" >> DSNdata/RUN_LOG
+          echo "All files successfully uploaded to InfluxDB Cloud."
+
+      # Step 7: Install Box CLI
+      - name: Install Box CLI
+        run: |
+          echo "Installing Box CLI via npm..."
+          sudo apt-get update
+          sudo apt-get install -y libsecret-1-dev
+          npm install -g @box/cli
+          box --version
+
+      # Step 8: Boxing...
+      - name: Upload Files to Box
+        env:
+          BOX_CONFIG: ${{ secrets.BOX_CONFIG }}
+        run: |
+          echo "$BOX_CONFIG" > box_config.json
+          BOX_PATH="DSNdata/BOX/"
+	  MERGE_PATH="DSNdata/MERGE/"
+          BOX_ARCHIVE_ID="304428997491"
+          IN_FILES=$(ls -1 $BOX_PATH)
+          echo "Configure and upload to Box."
+          box configure:environments:add box_config.json -n "github-box"
+          box folders:items $BOX_ARCHIVE_ID --json > results.json
+          # loop around file list 
+          for file in $IN_FILES; do
+            box_file="$BOX_PATH$file"
+            echo "Trying to box $box_file."
+            if [ -f $box_file ]; then
+              box_ID=$(jq --arg file "$file" -r '.[] | 
+              select(.name == $file) | .id' results.json)
+              if [ -n "$box_ID" ]; then
+                echo " download $box_ID"      
+                box files:download $box_ID --destination $MERGE_PATH -y
+                python DSN-box_merge.py $MERGE_PATH$file $box_file
+                box files:delete $box_ID -f -y
+                box files:upload "./DSNdata/$file" -p $BOX_ARCHIVE_ID -y
+              else
+                echo "Uploading $box_file to Box..."
+                box files:upload "$box_file" -p $BOX_ARCHIVE_ID -y
+              fi
+            fi
+          done
+          echo $CURRENT_DATE "Uploaded $IN_FILES to Box" >> DSNdata/RUN_LOG
+
+      # Step 9: Clean Up
+      - name: Clean Up
+        run: |
+          echo "Deleting temporary files..."
+          rm -f box_config.json
+          rm -f DSNdata/NEW/*
+          rm -f DSNdata/INFLUX/*
+          rm -f DSNdata/BOX/*
+          rm -f DSNdata/MERGE/*
+  
+      # Step 10: Commit Changes to DSNdata
+      - name: Commit Changes to Repository
+        run: |
+          echo "Checking for changes in DSNdata..."
+          echo $CURRENT_DATE "Deleted temp files." >> DSNdata/RUN_LOG
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add DSNdata/
+          if git diff-index --quiet HEAD; then
+            echo "No changes to commit."
+          else
+            git commit -m "Updated DSNdata"
+            git push
+          fi
+
