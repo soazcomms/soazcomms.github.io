@@ -62,8 +62,8 @@ jobs:
       # STEP 4: Copy staged files from temp_dsn into soazcomms/DSNdata/NEW
       - name: Copy files into soazcomms.github.io
         run: |
-          cp -R temp_dsn/* DSNdata/NEW/
-          ls -al DSNdata/NEW
+          cp -R temp_dsn/* soazcomms.github.io/DSNdata/NEW/
+          ls -al soazcomms.github.io/DSNdata/NEW
 
       # STEP 5: Commit and push changes
       - name: Commit and push
@@ -73,7 +73,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           # Stage changes in DSNdata/NEW
-          git add DSNdata/NEW
+          git add soazcomms.github.io/DSNdata/NEW
 
           # Only commit if there are changes
           if [ -n "$(git status --porcelain)" ]; then
