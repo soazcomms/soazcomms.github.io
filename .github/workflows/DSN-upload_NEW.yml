@@ -33,6 +33,7 @@ jobs:
 
           # Check if there are any staged changes
           if [ -n "$(git status --porcelain)" ]; then
+            echo "commit DSNdata/NEW..."
             git commit -m "Daily update for DSNdata/NEW"
             git push
           else
