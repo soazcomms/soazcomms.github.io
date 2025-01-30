@@ -13,9 +13,9 @@ on:
 env:
   INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN1 }}
   BOX_CONFIG: ${{ secrets.BOX_CONFIG }}
-  BOX_PATH="DSNdata/BOX/"
-  MERGE_PATH="DSNdata/MERGE/"
-  BOX_ARCHIVE_ID="304428997491"
+  MERGE_PATH: "DSNdata/MERGE/"
+  BOX_ARCHIVE_ID: "304428997491"
+  BOX_PATH: "DSNdata/BOX/"
 
 jobs:
   process_and_upload:
