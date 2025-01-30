@@ -1,0 +1,39 @@
+name: Upload DSNdata/NEW Daily
+
+on:
+  workflow_dispatch:
+  # Run every day at 18:00 UTC (11:00 MST with no DST).
+#  schedule:
+#    - cron: '0 18 * * *'
+
+jobs:
+  upload-dsndata-new:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Check out the repository
+      - name: Check out repo
+        uses: actions/checkout@v3
+
+      # Step 2 (Optional): Do any needed processing on DSNdata/NEW here
+      # - name: Process DSNdata files
+      #   run: |
+      #     # For example, rename, transform data, etc.
+      #     # echo "Processing DSNdata/NEW..."
+
+      # Step 3: Commit and push changes (if any) in DSNdata/NEW
+      - name: Commit and push changes
+        run: |
+          # Configure Git identity
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Stage changes in DSNdata/NEW
+          git add DSNdata/NEW
+
+          # Check if there are any staged changes
+          if [ -n "$(git status --porcelain)" ]; then
+            git commit -m "Daily update for DSNdata/NEW"
+            git push
+          else
+            echo "No changes to commit."
