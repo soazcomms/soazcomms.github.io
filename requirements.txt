@@ -8,3 +8,4 @@ scipy
 ephem
 fuzzywuzzy
 PyGithub
+openpyxl
