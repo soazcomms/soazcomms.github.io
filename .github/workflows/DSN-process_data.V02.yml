@@ -166,8 +166,6 @@ jobs:
           rm -f DSNdata/INFLUX/*
           rm -f DSNdata/BOX/*
           rm -f DSNdata/MERGE/*
-          echo "Run git pull -r to clean up clone DSNdata/NEWr"
-          git pull -r
   
       # Step 10: Commit Changes to DSNdata
       - name: Commit Changes to Repository
