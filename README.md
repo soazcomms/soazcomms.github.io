@@ -9,7 +9,7 @@ SQM and TESS units are being acquired, starting in January 2025.
 > This code is a work in progress.
 
 # The Process
-The GitHub workflow [**DSN-process_data**](https://github.com/soazcomms/soazcomms.github.io/blob/main/.github/workflows/DSN-process_data.V02.yml) runs every day at 17:00 UTC. 
+The GitHub workflow [**DSN-process_data**](https://github.com/soazcomms/soazcomms.github.io/blob/main/.github/workflows/DSN-process_data.V02.yml) runs every day at 17:00 UTC (in production mode; currently runs manually).
 - ### Step 1
 SQM/TESS raw data are uploaded to DSNdata/NEW. This process may be manual
 (e.g. SQMs w/o internet) or automatic (we are working on this step). The files are labeled with the sensor
