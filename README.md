@@ -14,8 +14,9 @@ name, e.g. DSN001_SiteName_yy.dat where yy is the year when the data are obtaine
 * ### Step 2
 DSN-process_data looks for data in DSNdata/NEW. If it finds data there, 
 it runs [DSN_python](https://github.com/soazcomms/soazcomms.github.io/blob/main/DSN_V03.py) on each file to calculate chisquared, moonalt and LST. 
-1. For each file DSN_python creates a .csv file in DSNdata/INFLUX, e.g. INF-DSNnnn_SiteName_yy.csv.
-2. DSN_python also writes to a .csv file with UTC, SQM, lum, chisquared, moonalt and LST to DSNdata/BOX. 
+1. For each file, DSN_python writes a .csv file in DSNdata/INFLUX, e.g. INF-DSNnnn_SiteName_yy.csv.
+2. For each file, DSN_python writes a .csv file with UTC, SQM, lum, chisquared, moonalt and LST to DSNdata/BOX.
+These files are an archive of processed data.
 * ### Step 3
 The .csv format is appropriate for input to influxDB, which 
 feeds into Grafana for visualization. Each .csv file is uploaded into
