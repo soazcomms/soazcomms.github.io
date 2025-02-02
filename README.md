@@ -6,13 +6,13 @@ where nnn runs from 000 to 032 as of 28 January 2025. Several units are extant, 
 been running for up to 7 years. Their data are being incorporated in our data space. More 
 SQM and TESS units are being acquired, starting in January 2025.
 ## The Process
-The GitHub workflow [DSN-process_data](https://github.com/soazcomms/soazcomms.github.io/blob/main/.github/workflows/DSN-process_data.V02.yml) runs every day at 17:00 UTC. 
+The GitHub workflow [**DSN-process_data**](https://github.com/soazcomms/soazcomms.github.io/blob/main/.github/workflows/DSN-process_data.V02.yml) runs every day at 17:00 UTC. 
 - ### Step 1
 SQM/TESS raw data are uploaded to DSNdata/NEW. This process may be manual
-(e.g. SQMs w/o internet) or automatic. The files are labeled with the sensor
-name, e.g. DSN001_SiteName_yy.dat where yy is the year when the data are obtained.
+(e.g. SQMs w/o internet) or automatic (we are working on this step). The files are labeled with the sensor
+name, e.g. DSN001_SiteName_yy.dat where yy is the year when the data are obtained. We add SiteName to make it easy to identify each site.
 * ### Step 2
-DSN-process_data looks for data in DSNdata/NEW. If it finds data there, 
+**DSN-process_data** looks for data in DSNdata/NEW. If it finds data there, 
 it runs [DSN_python](https://github.com/soazcomms/soazcomms.github.io/blob/main/DSN_V03.py) on each file to calculate chisquared, moonalt and LST. 
 1. For each file, DSN_python writes a .csv file in DSNdata/INFLUX, e.g. INF-DSNnnn_SiteName_yy.csv.
 2. For each file, DSN_python writes a .csv file with UTC, SQM, lum, chisquared, moonalt and LST to DSNdata/BOX.
