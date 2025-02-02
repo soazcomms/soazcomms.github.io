@@ -32,4 +32,4 @@ folder. This is intended as a permanent archive of the processed data.
 + ### Step 6
 A log of these file operations is written to a running [LOG](https://github.com/soazcomms/soazcomms.github.io/blob/main/DSNdata/RUN_LOG).
 # Visualizing data
-The processed data may be visualized with [DSNweb](https://soazcomms.github.io/DSNweb.v03.htmlhttps://soazcomms.github.io/DSNweb.v03.html/`"target="_blank`).
+The processed data may be visualized with [DSNweb](https://soazcomms.github.io/DSNweb.v03.htmlhttps://soazcomms.github.io/DSNweb.v03.html).
