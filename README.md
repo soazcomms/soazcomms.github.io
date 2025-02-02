@@ -35,4 +35,4 @@ A log of these file operations is written to a running [LOG](https://github.com/
 The processed data may be visualized with 
 <a href="https://soazcomms.github.io/DSNweb.v03.html" target="_blank">
   DSNweb
-</a> (use CTRL-right click to open in a new tab).
+</a> (Use CTRL-right click to open in a new tab or window. The behavior is browser-dependent.)
