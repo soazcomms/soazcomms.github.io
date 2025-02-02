@@ -30,7 +30,7 @@ Once each .dat file is processed, the file in DSNdata/NEW is deleted.
 The files in DSNdata/BOX are uploaded to the Box repository, in the DSNdata/ARCHIVE
 folder. This is intended as a permanent archive of the processed data.
 + ### Step 6
-A log of these file operations is written to a running [LOG](https://github.com/soazcomms/soazcomms.github.io/blob/main/DSNdata/RUN_LOG).
+A record of the file operations above is written to a running [LOG](https://github.com/soazcomms/soazcomms.github.io/blob/main/DSNdata/RUN_LOG).
 # Visualizing data
 The processed data may be visualized with 
 <a href="https://soazcomms.github.io/DSNweb.v03.html" target="_blank">
