@@ -13,11 +13,9 @@ SQM/TESS raw data are uploaded to DSNdata/NEW. This process may be manual
 name, e.g. DSN001_SiteName_yy.dat where yy is the year when the data are obtained.
 * ### Step 2
 DSN-process_data looks for data in DSNdata/NEW. If it finds data there, 
-it runs DSN_V03.py on each file to calculate chisquared and moonalt. 
-Its output for each file is a .csv file in DSNdata/INFLUX, e.g. 
-INF-DSNnnn_SiteName_yy.csv. DSN_V03 also writes to a .csv file with UTC, SQM, lum, 
-chisquared and moonalt to DSNdata/BOX. If there is a previous .csv
-file DSNnnn_SiteName_yy.csv, the new data are appended.
+it runs [DSN_python](https://github.com/soazcomms/soazcomms.github.io/blob/main/DSN_V03.py) on each file to calculate chisquared, moonalt and LST. 
+1. For each file DSN_python creates a .csv file in DSNdata/INFLUX, e.g. INF-DSNnnn_SiteName_yy.csv.
+2. DSN_python also writes to a .csv file with UTC, SQM, lum, chisquared, moonalt and LST to DSNdata/BOX. 
 * ### Step 3
 The .csv format is appropriate for input to influxDB, which 
 feeds into Grafana for visualization. Each .csv file is uploaded into
