@@ -36,4 +36,4 @@ A record of the file operations above is written to a running [LOG](https://gith
 The processed data may be visualized with 
 <a href="https://soazcomms.github.io/DSNweb.v03.html" target="_blank">
   DSNweb
-</a> (Use CTRL-right click to open in a new tab or window. The behavior is browser-dependent.)
+</a> (Use SHIFT-click to open in a new window.)
