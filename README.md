@@ -8,7 +8,7 @@ SQM and TESS units are being acquired, starting in January 2025.
 > [!CAUTION]
 > This code is a work in progress.
 
-## The Process
+# The Process
 The GitHub workflow [**DSN-process_data**](https://github.com/soazcomms/soazcomms.github.io/blob/main/.github/workflows/DSN-process_data.V02.yml) runs every day at 17:00 UTC. 
 - ### Step 1
 SQM/TESS raw data are uploaded to DSNdata/NEW. This process may be manual
@@ -29,7 +29,7 @@ Once each .dat file is processed, the file in DSNdata/NEW is deleted.
 * ### Step 5
 The files in DSNdata/BOX are uploaded to the Box repository, in the DSNdata/ARCHIVE
 folder. This is intended as a permanent archive of the processed data.
-* ### Step 6
++ ### Step 6
 A log of these file operations is written to a running [LOG](https://github.com/soazcomms/soazcomms.github.io/blob/main/DSNdata/RUN_LOG).
-+ ## Step 7
+# Visualizing data
 The processed data may be visualized with [DSNweb](https://github.com/soazcomms/soazcomms.github.io/blob/main/DSNweb.v03.html).
