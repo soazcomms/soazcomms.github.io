@@ -3,8 +3,8 @@
 The Dark Sky Network (DSN): monitoring the night sky brightness over Southern Arizona 
 for the next ten years, starting in 2025. We use SQM and TESS units, labeled DSNnnn,
 where nnn runs from 000 to 032 as of 28 January 2025. Several units are extant, and have
-been running for up to 7 years. Their data are being incorporated in our data space. We  
-started acquiring SQM and TESS units in late January 2025. As of 02 Feb 2025, 6 extant units 
+been running for up to 7 years. Their data are being incorporated in our data space. 
+We started acquiring SQM and TESS units in late January 2025. As of 02 Feb 2025, 6 extant units 
 form the DSN.
 > [!CAUTION]
 > This code is a work in progress.
