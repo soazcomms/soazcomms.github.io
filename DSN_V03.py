@@ -1,6 +1,6 @@
 #----
-version="DSN_v03"
-version_date="01/24/2025"
+version="DSN_python V03"
+version_date="02/02/2025"
 #----
 #     Original FORTRAN written by A.D. Grauer
 #     Converted to python and expanded by E.E. Falco
