@@ -32,7 +32,7 @@ folder. This is intended as a permanent archive of the processed data.
 + ### Step 6
 A log of these file operations is written to a running [LOG](https://github.com/soazcomms/soazcomms.github.io/blob/main/DSNdata/RUN_LOG).
 # Visualizing data
-The processed data may be visualized with <button onclick="window.open('https://soazcomms.github.io/DSNweb.v03.html', '_blank');">
-  Open DSNweb
-</button>
-
+The processed data may be visualized with 
+<a href="#" onclick="window.open('https://soazcomms.github.io/DSNweb.v03.html', '_blank'); return false;">
+  DSNweb
+</a>
