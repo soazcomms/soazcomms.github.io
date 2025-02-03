@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DSN Map</title>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCbSJRMkCIX_qFZRf54qBYOnB9bvK3rb4I"></script>
+    <style>
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+async function initMap() {
+  // Request needed libraries.
+  const { Map, InfoWindow } = await google.maps.importLibrary("maps");
+  const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
+
+  const SQM = [
+      {site: "Ajo, Pima County", position: {lat: 32.3735, lng: -112.8616}, stat:"P", title: "SQM"},
+      {site: "Bisbee, Cochise County", position: {lat: 31.4488, lng: -109.8885}, stat: "P", title: "SQM"},
+      {site: "Chiricahua NM, Cochise County", position: {lat: 32.0179, lng: -109.3208}, stat:"E", title: "Sugarloaf"},
+      {site: "Chiricahua NM, Cochise County",position: {lat: 32.0094, lng: -109.3888}, stat:"E", title: "Bonita Creek"},
+      {site: "Cosmic Campground, Catron County NM", position: {lat: 33.4793, lng: -108.9266}, stat: "E", title: "SQM"},
+      {site: "Douglas, Cochise County", position: {lat: 31.3448, lng: -109.5549}, stat: "P", title: "SQM"},
+      {site: "Kartchner Caverns State Park, Cochise County", position: {lat: 31.8367, lng: -110.3490}, stat: "P", title: "SQM"},
+      {site: "Kitt Peak National Observatory, Pima County", position: {lat: 31.9624, lng: -111.6002}, stat: "E", title: "SQM"},
+      {site: "Morenci, Greenlee County", position: {lat: 33.0524, lng: -109.3297}, stat: "P", title: "SQM"},
+      {site: "Oracle State Park, Pinal County", position: {lat: 32.6096, lng: -110.7336}, stat: "P", title: "SQM"},
+      {site: "Organ Pipe Cactus National Monument, Pima County", position: {lat: 31.9549, lng: -112.8011}, stat: "P", title: "SQM"},
+      {site: "Picacho Peak State Park, Pinal County", position: {lat: 32.6462, lng: -111.4017}, stat: "P", title: "SQM"},
+      {site: "Rio Rico High School, Santa Cruz County", position: {lat: 31.504722, lng: -111.018772}, stat: "P", title: "SQM"},
+      {site: "Sells, Pima County", position: {lat: 31.9149, lng: -111.8819}, stat: "P", title: "SQM"},
+      {site: "Safford , Graham County", position: {lat: 32.8327 , lng: -109.7155}, stat: "P", title: "SQM"},
+      {site: "Saguaro National Park Rincon Mountain District , Pima County", position: {lat: 32.1708, lng: -110.7355}, stat: "P" , title: "SQM"},
+      {site: "Sierra Vista , Cochise County", position: {lat: 31.5651 , lng: -110.2732}, stat: "P" , title: "SQM"},
+      {site: "Steward Observatory (Mt. Bigelow Station),  Pima County", position: {lat: 32.4172, lng: -110.7325}, stat: "E", title: "SQM"},
+      {site: "Steward Observatory (Mt. Lemmon Station), Pima County", position: {lat: 32.4426, lng: -110.7886}, stat: "E", title: "SQM"},
+      {site: "Tubac, Santa Cruz County", position: {lat: 31.5806, lng: -111.0811}, stat: "P", title: "SQM"},
+      {site: "Tucson, Pima County", position: {lat: 32.3067, lng: -110.8513}, stat: "E", title: "Al Grauer"},
+      {site: "Tucson E, Pima County", position: {lat: 32.2236, lng: -110.7677}, stat: "E", title: "SQM"},
+      {site: "Tucson W, Pima County", position: {lat: 32.2325, lng: -110.9471}, stat: "E", title: "SQM"},
+      {site: "Tumaca\u0301cori NHP, Santa Cruz County",position: {lat: 31.5681, lng: -111.0506}, stat:"P", title: "Tumaca\u0301cori"},
+      {site: "Vatican Observatory (Mt. Graham Station), Graham County", position: {lat: 32.7013, lng: -109.8921}, stat: "P", title: "VAT"},
+      {site: "Willcox, Cochise County", position: {lat: 32.2515, lng: -109.8314}, stat: "P", title: "SQM"},
+      {site: "Winer Observatory, Santa Cruz County", position: {lat: 31.6658, lng: -110.6019}, stat: "P", title: "SQM"},
+      {site: "Winkelman, Gila County", position: {lat: 32.9873, lng: -110.7724}, stat: "P", title: "SQM"},
+      {site: "Yuma, Yuma County", position: {lat: 32.7031, lng: -114.6281}, stat: "P", title: "SQM"},
+  ];
+
+  const map = new Map(document.getElementById("map"), {
+    zoom: 8,
+    center: {lat: 32.2540, lng: -110.9742},
+    mapId: "4504f8b37365c3d0",
+  });
+
+  // Create an info window to share between markers.
+  const infoWindow = new InfoWindow();
+
+  // Create the markers.
+  SQM.forEach(({ position, title, site, stat }, i) => {
+    let status = (stat == "E") ? "Existing" : "Proposed";
+    let fillColor = (stat == "E") ? "orange" : "red";
+    // Apply spacer logic (DSN00X for <10, DSN0X for >=10)
+    let spacer = (i < 9) ? "DSN00" : "DSN0";
+    let label = `${spacer}${i + 1}`; // Example: DSN001, DSN002, ..., DSN010, DSN011, etc.
+    // Create an SVG rectangle for the marker
+    const svgRect = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svgRect.setAttribute("width", "45");
+    svgRect.setAttribute("height", "30");
+    svgRect.innerHTML = `
+      <rect width="45" height="30" fill="${fillColor}" stroke="black" stroke-width="2"/>
+      <text x="15" y="20" font-size="12" font-family="Arial" fill="white" text-anchor="middle">${label}</text>
+    `;
+
+    // Wrap the SVG in a div so Google Maps can display it
+    const markerDiv = document.createElement("div");
+    markerDiv.appendChild(svgRect);
+
+    // Create an advanced marker with SVG rectangle
+    const marker = new AdvancedMarkerElement({
+      position,
+      map,
+      title: `<h1>${title}</h1><br><h2>${site}<br>${status}</h2>
+              <br><h4>Lat: ${position.lat}<br> Lon: ${position.lng}</h4>`,
+      content: markerDiv,
+      gmpClickable: true,
+    });
+
+    // Add a click listener for each marker, and set up the info window.
+    marker.addListener("click", ({ domEvent, latLng }) => {
+      const { target } = domEvent;
+
+      infoWindow.close();
+      infoWindow.setContent(marker.title);
+      infoWindow.open(marker.map, marker);
+    });
+  });
+}
+
+initMap();
+</script>
+</body>
+</html>
