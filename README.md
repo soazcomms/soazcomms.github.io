@@ -24,12 +24,12 @@ These files are an archive of processed data.
 * ### Step 3
 The .csv format is appropriate for input to **influxDB**, which 
 feeds into **Grafana** for visualization. Each .csv file is uploaded into
-influxDB. 
+influxDB, and then deleted from DSNdata/INFLUX.
 * ### Step 4
-Once each .dat file is processed, the file in DSNdata/NEW is deleted. 
+Once each .dat file in DSNdata/NEW is processed it is deleted. 
 * ### Step 5
-The files in DSNdata/BOX are uploaded to the Box repository, in the DSNdata/ARCHIVE
-folder. This is intended as a permanent archive of the processed data.
+Each file in DSNdata/BOX is uploaded to the Box repository, in the DSNdata/ARCHIVE
+folder, and is deleted from DSNdata/BOX. This is intended as a permanent archive of the processed data.
 + ### Step 6
 A record of the file operations above is written to a running [LOG](https://github.com/soazcomms/soazcomms.github.io/blob/main/DSNdata/RUN_LOG).
 # Visualizing data
