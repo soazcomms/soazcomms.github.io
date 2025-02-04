@@ -382,7 +382,7 @@ JD_midnight_2=np.full(icount,JD_midnight) # default is offset 7h to UT
 #
 if (site_number>1): # for AZ
     df=frame_sensor[['UT','Tloc']]
-    ut_tloc=(pd.to_datetime(df.UT)-pd.to_datetime(df.Tloc))/\
+    ut_tloc=(pd.to_datetime(df.UT,utc=True)-pd.to_datetime(df.Tloc))/\
             pd.Timedelta(hours=1)
     ut_tloc_bad=np.where(ut_tloc!=7)[0]
     if (len(ut_tloc_bad)>0):
@@ -413,7 +413,8 @@ if not JD.is_monotonic_increasing:
         i1=i+1
         if JD[i1]<JD[i]:
             print(i,JD[i],JD[i1],Tloc[i],Tloc[i1],frame_sensor.iloc[i-5:i+5])
-    raise UserWarning('JD not monotonic, QUIT')
+    print('JD not monotonic, QUIT')
+    quit()
 
 # new altsun uses astropy sun routines
 sunalt = altsun1(tlat,tlong,tele,list(UTC)) # calculates the whole vector of values
