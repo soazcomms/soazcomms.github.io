@@ -135,17 +135,16 @@ jobs:
 
           if [ -d "$BOX_PATH" ] && [ "$(ls -A $BOX_PATH)" ]; then
             IN_FILES=$(ls -1 "${BOX_PATH}")
+            echo "++++++++++ $IN_FILES ++++++++"
           else
             echo "Warning: No files found in $BOX_PATH"
             IN_FILES=""
           fi
-
-          IN_FILES=$(ls -1 "${BOX_PATH}" 2>/dev/null || echo "")
           echo "Configure and upload to Box."
           box configure:environments:add box_config.json -n "github-box"
           box folders:items $BOX_ARCHIVE_ID --json > results.json
           # loop around file list 
-          echo "++++++++++ IN_FILES: ",$IN_FILES,"in $BOX_PATH+++++++++++++++"
+          echo "++++++++++ IN_FILES: ",$IN_FILES,"in ${BOX_PATH}+++++++++++++++"
           for file in $IN_FILES; do
             box_file="$BOX_PATH$file"
             echo "Trying to box $box_file."
