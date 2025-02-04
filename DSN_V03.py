@@ -705,7 +705,9 @@ print(version," ",version_date," Wrote ",4*len(df1)," entries to ",influx_file)
 #
 # Save the data to an archive file for Box.
 if 'TESTING' in os.environ:
+    print("TESTING not in environment")
     if not os.environ['TESTING']:
+        print("OK stupid imbecile, TESTING not in os.environ")
         df.to_csv(box_file,mode='w',header=cols_df,index=False)
         print(version," ",version_date," Wrote ",len(df)," entries to ",
               box_file)
