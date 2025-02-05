@@ -1,0 +1,59 @@
+name: DSN Process SQM/TESS Test DSN_V03
+# Trigger the workflow on a schedule (in production mode)
+on:
+  workflow_dispatch:
+#  schedule:
+#    - cron: '0 17 * * 0-7'  # Runs every day at 17:00 UTC
+#  push:
+#    branches:
+#      - main  # Trigger on push to the 'main' branch
+#  pull_request:
+#    branches:
+#      - main
+env:
+  INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN1 }}
+  BOX_CONFIG: ${{ secrets.BOX_CONFIG }}
+  BOX_PATH: "DSNdata/BOX/"
+  MERGE_PATH: "DSNdata/MERGE/"
+  BOX_ARCHIVE_ID: "304428997491"
+
+jobs:
+  process_and_upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout Repository, get python
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          CURRENT_DATE=$(date '+%Y-%m-%d %H:%M:%S')
+          echo $CURRENT_DATE "Start DSN-process_data." >> DSNdata/RUN_LOG
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libgtk-3-dev libc-bin curl
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Step 2: run DSN_V03.py on all files in DSNdata/NEW
+      - name: Process files, write results to DSNdata/INFLUX
+        run: |
+          FILES=$(ls -1 DSNdata/NEW)
+          if [ -z "$FILES" ]; then
+            CURRENT_DATE=$(date '+%Y-%m-%d %H:%M:%S')
+            echo $CURRENT_DATE "No files in DSNdata/NEW." >> DSNdata/RUN_LOG
+            echo "Error: No files found." >&2
+            exit 1
+          fi
+          
+          for file in $FILES; do
+            new_file="DSNdata/NEW/$file"
+            echo "Process $new_file"
+            python3 DSN_V04.py $new_file
+          done
+  
