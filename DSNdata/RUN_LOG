@@ -127,3 +127,8 @@ DSN019_MtLemmon_22.csv
 DSN019_MtLemmon_23.csv
 DSN019_MtLemmon_24.csv to Box
 Deleted temp files.
+2025-02-05 18:07:50 Start DSN-process_data.
+2025-02-05 18:10:02 Uploaded INF-DSN021_JBTESS_23.csv INF-DSN021_JBTESS_24.csv to influx
+ Uploaded DSN021_JBTESS_23.csv
+DSN021_JBTESS_24.csv to Box
+Deleted temp files.
