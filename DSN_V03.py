@@ -367,7 +367,7 @@ JD_midnight_2=np.full(icount,JD_midnight) # default is offset 7h to UT
 #
 if (site_number>1): # for AZ
     df=frame_sensor[['UT','Tloc']]
-    df["UT"] = pd.to_datetime(df["UT"], format="%Y-%m-%d %H:%M:%S")
+#    df["UT"] = pd.to_datetime(df["UT"], format="%Y-%m-%d %H:%M:%S")
     ut_tloc=(pd.to_datetime(df.UT)-pd.to_datetime(df.Tloc))/\
             pd.Timedelta(hours=1)
     ut_tloc_bad=np.where(ut_tloc!=7)[0]
