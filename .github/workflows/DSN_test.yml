@@ -1,4 +1,4 @@
-name: DSN Process SQM/TESS Test DSN_V03
+name: Test DSN_V03
 # Trigger the workflow on a schedule (in production mode)
 on:
   workflow_dispatch:
@@ -54,6 +54,6 @@ jobs:
           for file in $FILES; do
             new_file="DSNdata/NEW/$file"
             echo "Process $new_file"
-            python3 DSN_V04.py $new_file
+            python3 DSN_V03.py $new_file
           done
   
