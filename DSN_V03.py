@@ -238,6 +238,7 @@ if 'TESTING' in os.environ:
         print(" Real site name: ",site_file[:iunder])
 else:
     site_file = os.path.basename(in_file)
+    print("PUTA PUTA PUTA ",site_file)
 # find the last underscore, e.g. in DSNnnn_SiteName_yy.dat
 matches = process.extract(site_file[:iunder], site_dict, limit=1)
 site_number=matches[0][2]+1
