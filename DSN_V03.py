@@ -650,6 +650,7 @@ else:
     influx_file=INFpath + site_name + ".csv"
 # for DSNdata BOX, to transfer to Box
 box_file="DSNdata/BOX/"+ in_file[12:in_file.find(".")]+".csv"
+print(" MIERDA MIERDA MIERDA ",site_name,influx_file)
 print("InfluxDB file name ",influx_file)
 # write influxdb file header
 ofile=open(influx_file,'w')
