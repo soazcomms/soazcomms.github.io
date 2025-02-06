@@ -144,7 +144,7 @@ jobs:
           box configure:environments:add box_config.json -n "github-box"
           box folders:items $BOX_ARCHIVE_ID --json > results.json
           # loop around file list 
-          echo "++++++++++ IN_FILES: ",$IN_FILES,"in ${BOX_PATH}+++++++++++++++"
+          echo "++++++++++ IN_FILES: "$IN_FILES" in ${BOX_PATH}+++++++++++++++"
           for file in $IN_FILES; do
             box_file="$BOX_PATH$file"
             echo "Trying to box $box_file."
