@@ -83,7 +83,7 @@ jobs:
       - name: Copy CSV Files to Docker
         run: |
           echo "Copying .csv files to Docker container..."
-          docker cp DSNdata/INFLUX/* influx-cli:/data/
+          docker cp DSNdata/INFLUX/. influx-cli:/data/
 
       # Step 6: Upload CSV Files to InfluxDB Cloud
       - name: Upload CSV Files to InfluxDB Cloud
