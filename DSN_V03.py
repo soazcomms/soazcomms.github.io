@@ -660,7 +660,7 @@ start_time=time.time()
 #  Open the output file for writing
 # create output file name from input file
 # for influxDB
-INFpath=os.getenv('DSNdata')+'INFLUX/INF-'
+INFpath=os.getenv('DSNdata')+'INFLUX/'
 if 'TESTING' in os.environ:
     if os.environ['TESTING']: 
         influx_file='/tmp/INF-TESTING.csv' # for testing
