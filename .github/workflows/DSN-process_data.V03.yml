@@ -153,6 +153,8 @@ jobs:
 
             box_ID=$(box search "$raw_file" --json | jq -r 'if type=="array" then .[] | 
             select(.type=="file") | .id else .entries[] | select(.type=="file") | .id end')
+            # Debugging output
+            echo "Raw Box ID: $box_ID"
 
             echo "Boxing $raw_file copied from $box_file"
             echo "before if -n $(date '+%Y-%m-%d %H:%M:%S')"
