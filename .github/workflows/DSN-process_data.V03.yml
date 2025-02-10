@@ -148,10 +148,11 @@ jobs:
             box_file="$BOX_PATH$file"
             raw_file="${file/-[0-9][0-9]/}"
             cp $box_file $raw_file
-            echo "Boxing $raw_file"
+            echo "Boxing $raw_file in $BOX_PATH"
             box_ID=$(jq --arg file "$raw_file" -r '.[] | 
             select(.name == $file) | .id' results.json)
             if [ -n "$box_ID" ]; then
+              echo "Download $box_ID for $raw_file"
               box files:download "$box_ID" --destination $MERGE_PATH -y
               python DSN-box_merge.py "$MERGE_PATH$raw_file" "$raw_file"
               box files:delete $box_ID -f -y
