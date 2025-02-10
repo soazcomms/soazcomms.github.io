@@ -155,7 +155,9 @@ jobs:
               select(.name == "$raw_file") | .id' results.json)
             echo " download $box_ID"      
             box files:download "$box_ID" --destination $MERGE_PATH -y
-            if [ -n $box_ID ]; then
+	    echo " DOWNLOADED $box_ID"      
+            echo "================================================================"
+	    if [ -n $box_ID ]; then
               python DSN-box_merge.py "$MERGE_PATH$raw_file" "$raw_file"
               box files:delete $box_ID -f -y
               box files:upload "$MERGE_PATH$raw_file" -p $BOX_ARCHIVE_ID -y
