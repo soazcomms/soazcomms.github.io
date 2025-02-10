@@ -134,7 +134,7 @@ jobs:
         run: |
           echo "$BOX_CONFIG" > box_config.json
           echo "BOX_PATH is set to: ${BOX_PATH}"
-
+          set +o history  # Allow full output
           if [ -d "$BOX_PATH" ] && [ "$(ls -A $BOX_PATH)" ]; then
             IN_FILES=$(ls -1 "${BOX_PATH}")
           else
