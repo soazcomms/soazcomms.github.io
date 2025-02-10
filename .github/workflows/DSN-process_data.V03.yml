@@ -147,7 +147,7 @@ jobs:
           echo "++++++++++ IN_FILES: "$IN_FILES" in ${BOX_PATH}+++++++++++++++"
           for file in $IN_FILES; do
             box_file="$BOX_PATH$file"
-            raw_file="$BOX_PATH${file/-[0-9][0-9]/}"
+            raw_file="${file/-[0-9][0-9]/}"
             echo "Orig $box_file Raw $raw_file"
             cp $box_file $raw_file
             echo "Trying to box $raw_file"
