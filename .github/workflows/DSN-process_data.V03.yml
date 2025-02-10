@@ -149,8 +149,7 @@ jobs:
             raw_file="${file/-[0-9][0-9]/}"
             cp $box_file $raw_file
             echo "Boxing $raw_file copied from $box_file"
-            box_ID=$(box search "$raw_file" --json | jq -r '.entries[] | 
-            select(.type=="file") | .id')
+            box_ID=$(box search "$raw_file" --json | jq -r '.[] | select(.type=="file") | .id')
             echo "before if -n $(date '+%Y-%m-%d %H:%M:%S')"
             if [ -n "$box_ID" ]; then
               echo "Download $box_ID for $raw_file"
@@ -161,7 +160,7 @@ jobs:
               ATTEMPTS=0
               while [ $ATTEMPTS -lt 10 ]; do  # Max 10 attempts
                 sleep 5  # Wait before checking again
-                box_ID=$(box search "$raw_file" --json | jq -r '.[0].id')
+                box_ID=$(box search "$raw_file" --json | jq -r '.[] | select(.type=="file") | .id')
                 if [ -z "$box_ID" ] || [ "$box_ID" == "null" ]; then
                   echo "✅ File successfully deleted from Box."
                   break
