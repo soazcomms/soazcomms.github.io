@@ -150,8 +150,8 @@ jobs:
             raw_file="${file/-[0-9][0-9]/}"
             cp $box_file $raw_file
             echo "Trying to box $raw_file"
-            box_ID=$(jq --arg file $raw_file -r '.[] | 
-              select(.name == $raw_file) | .id' results.json)
+            box_ID=$(jq --arg file "$raw_file" -r '.[] | 
+              select(.name == $file) | .id' results.json)
             echo "Download " "$box_ID"
             box files:download "$box_ID" --destination $MERGE_PATH -y
             echo "Downloaded " "$box_ID"
