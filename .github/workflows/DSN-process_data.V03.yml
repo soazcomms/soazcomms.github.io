@@ -143,22 +143,21 @@ jobs:
           box configure:environments:add box_config.json -n "github-box"
           box folders:items $BOX_ARCHIVE_ID --json > results.json
           # loop around file list 
-          echo "++++++++++ IN_FILES: "$IN_FILES" in ${BOX_PATH}+++++++++++++++"
+          echo "++++ IN_FILES: "$IN_FILES" in ${BOX_PATH}"
           for file in $IN_FILES; do
             box_file="$BOX_PATH$file"
             raw_file="${file/-[0-9][0-9]/}"
             cp $box_file $raw_file
-            echo "Trying to box $raw_file"
+            echo "Boxing $raw_file"
             box_ID=$(jq --arg file "$raw_file" -r '.[] | 
             select(.name == $file) | .id' results.json)
             if [ -n "$box_ID" ]; then
               box files:download "$box_ID" --destination $MERGE_PATH -y
-              echo "Downloaded $raw_file to $MERGE_PATH"
               python DSN-box_merge.py "$MERGE_PATH$raw_file" "$raw_file"
-              box files:delete $box_ID -f -y -v
+              box files:delete $box_ID -f -y
               # Wait and check until raw_file is fully removed
               ATTEMPTS=0
-              while [ $ATTEMPTS -lt 10 ]; do  # Max 10 attempts
+              while [ $ATTEMPTS -lt 5 ]; do  # Max 10 attempts
                 sleep 5  # Wait before checking again
                 box_ID=$(box search "$raw_file" --json | jq -r '.[0].id')
                 if [ -z "$box_ID" ] || [ "$box_ID" == "null" ]; then
@@ -168,11 +167,10 @@ jobs:
                 ATTEMPTS=$((ATTEMPTS+1))
                 echo "🔄 Waiting for file removal ($ATTEMPTS)..."
               done
-              echo "Uploading MERGED $raw_file to Box..."
+              echo "Boxed MERGED $raw_file"
               box files:upload "$MERGE_PATH$raw_file" -p $BOX_ARCHIVE_ID -y
             else
-              box files:upload "$raw_file" -p $BOX_ARCHIVE_ID -y
-              echo "Uploading $raw_file to Box..."
+              echo "No previous $raw_file, Box it"
               box files:upload "$raw_file" -p $BOX_ARCHIVE_ID -y
             fi
           done
