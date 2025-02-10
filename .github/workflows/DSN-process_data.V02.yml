@@ -147,7 +147,7 @@ jobs:
           # loop around file list 
           echo "++++++++++ IN_FILES: "$IN_FILES" in ${BOX_PATH}+++++++++++++++"
           for file in $IN_FILES; do
-            box_file="$BOX_PATH$file"
+            box_file="$BOX_PATH${file/-[0-9][0-9]/}"
             echo "Trying to box $box_file."
             if [ -f $box_file ]; then
               box_ID=$(jq --arg file "$file" -r '.[] | 
