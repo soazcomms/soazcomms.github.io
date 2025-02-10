@@ -148,9 +148,13 @@ jobs:
             box_file="$BOX_PATH$file"
             raw_file="${file/-[0-9][0-9]/}"
             cp $box_file $raw_file
+            box search "$FILE_NAME" --json | jq '.' > box_search_output.json
+            echo "📄 JSON structure saved in box_search_output.json"
+
+            box_ID=$(box search "$raw_file" --json | jq -r 'if type=="array" then .[] | 
+            select(.type=="file") | .id else .entries[] | select(.type=="file") | .id end')
+
             echo "Boxing $raw_file copied from $box_file"
-            box_ID=$(box search "$raw_file" --json | jq -r '.[] | select(.type=="file") | .id')
-            box search "$raw_file" --json | jq '.'
             echo "before if -n $(date '+%Y-%m-%d %H:%M:%S')"
             if [ -n "$box_ID" ]; then
               echo "Download $box_ID for $raw_file"
