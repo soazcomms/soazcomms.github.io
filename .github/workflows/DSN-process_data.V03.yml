@@ -150,7 +150,7 @@ jobs:
             box_file="$BOX_PATH$file"
             raw_file="$BOX_PATH${file/-[0-9][0-9]/}"
             cp $box_file $raw_file
-            echo "Trying to box $box_file"
+            echo "Trying to box $raw_file"
             box_ID=$(jq --arg file "$raw_file" -r '.[] | 
               select(.name == "$raw_file") | .id' results.json)
             echo "Download " "$box_ID"
