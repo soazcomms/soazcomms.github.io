@@ -133,7 +133,6 @@ jobs:
       - name: Upload Files to Box
         run: |
           echo "$BOX_CONFIG" > box_config.json
-          echo "BOX_PATH is set to: ${BOX_PATH}"
           set +o history  # Allow full output
           if [ -d "$BOX_PATH" ] && [ "$(ls -A $BOX_PATH)" ]; then
             IN_FILES=$(ls -1 "${BOX_PATH}")
@@ -149,6 +148,7 @@ jobs:
           for file in $IN_FILES; do
             box_file="$BOX_PATH$file"
             raw_file="$BOX_PATH${file/-[0-9][0-9]/}"
+            echo "Orig $box_file Raw $raw_file"
             cp $box_file $raw_file
             echo "Trying to box $raw_file"
             box_ID=$(jq --arg file "$raw_file" -r '.[] | 
