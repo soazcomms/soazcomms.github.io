@@ -50,18 +50,10 @@ jobs:
           echo "Configure and upload to Box."
           box configure:environments:add box_config.json -n "github-box"
           box folders:items $BOX_ARCHIVE_ID --csv > results.csv
-
-          # Debugging CSV output
-          echo "📄 Checking if results.csv exists..."
-          ls -lah results.csv || echo "❌ results.csv NOT FOUND!"
-
-          echo "📄 Printing first few lines of results.csv..."
-          head -5 results.csv || echo "❌ Unable to read results.csv"
-
-          echo "++++++++++ IN_FILES: "$IN_FILES" in ${BOX_PATH}+++++++++++++++"
+          echo "+++++++ IN_FILES: "$IN_FILES" in ${BOX_PATH}"
           for file in $IN_FILES; do
             box_file="$BOX_PATH$file"
-            raw_file="$BOX_PATH${file/-[0-9][0-9]/}"
+            raw_file="${file/-[0-9][0-9]/}"
             cp $box_file $raw_file
             echo "Trying to box $box_file"
 
