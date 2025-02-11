@@ -70,7 +70,8 @@ jobs:
             echo "Extracted Box ID: '$box_ID'"
 
             if [ -z "$box_ID" ] || [ "$box_ID" == "null" ]; then
-              echo "❌ Error: File $raw_file not found in Box!"
+              echo "❌ File $raw_file not found in Box, upload it"
+              box files:upload "$raw_file" -p $BOX_ARCHIVE_ID -y
             else
               echo "✅ Found Box File ID: $box_ID"
               box files:download "$box_ID" --destination $MERGE_PATH -y
@@ -89,8 +90,7 @@ jobs:
                 ATTEMPTS=$((ATTEMPTS+1))
                 echo "🔄 Waiting for file removal ($ATTEMPTS)..."
               done
-              box files:upload "$MERGE_PATH$raw_file" -p $BOX_ARCHIVE_ID -y
               echo "Uploading MERGED $raw_file to Box..."
-              box files:upload "$raw_file" -p $BOX_ARCHIVE_ID -y
+              box files:upload "$MERGE_PATH$raw_file" -p $BOX_ARCHIVE_ID -y
             fi
           done
