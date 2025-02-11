@@ -72,6 +72,18 @@ jobs:
             if [ -z "$box_ID" ] || [ "$box_ID" == "null" ]; then
               echo "❌ File $raw_file not found in Box, upload it"
               box files:upload "$raw_file" -p $BOX_ARCHIVE_ID -y
+              echo "Waiting for file upload to complete..."
+              ATTEMPTS=0
+              while [ $ATTEMPTS -lt 10 ]; do
+                sleep 5  # Wait 5 seconds before checking again
+                box_ID_CHECK=$(box search "$raw_file" --csv | awk -F ',' 'NR>1 {print $1}') 
+                if [ -n "$box_ID_CHECK" ]; then
+                  echo "✅ File successfully uploaded to Box."
+                  break
+                fi
+                ATTEMPTS=$((ATTEMPTS+1))
+                echo "🔄 Waiting for file upload ($ATTEMPTS)..."
+              done
             else
               echo "✅ Found Box File ID: $box_ID"
               box files:download "$box_ID" --destination $MERGE_PATH -y
