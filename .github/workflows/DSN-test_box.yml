@@ -39,6 +39,7 @@ jobs:
       - name: Upload Files to Box
         run: |
           echo "$BOX_CONFIG" > box_config.json
+          cat box_config.json
           echo "BOX_PATH is set to: ${BOX_PATH}"
 
           if [ -d "$BOX_PATH" ] && [ "$(ls -A $BOX_PATH)" ]; then
