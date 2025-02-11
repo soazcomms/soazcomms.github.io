@@ -57,20 +57,18 @@ jobs:
             box_file="$BOX_PATH$file"
             raw_file="$BOX_PATH${file/-[0-9][0-9]/}"
             cp $box_file $raw_file
-            echo "Trying to box $box_file"
-            box_ID=$(jq --arg file "$raw_file" -r '.[] | 
-              select(.name == "$raw_file") | .id' results.json)
+            echo "Copied $box_file to $raw_file"
+            box_ID=$(box search "$raw_file" --json | jq -r --arg fname "$raw_file" 
+            '  map(select(.type=="file" and .name == $fname)) | .[].id')
             echo "Download " "$box_ID"
             box files:download "$box_ID" --destination $MERGE_PATH -y
             echo "Downloaded " "$box_ID"
             if [ -n "$box_ID" ]; then
               python DSN-box_merge.py "$MERGE_PATH$raw_file" "$raw_file"
               box files:delete $box_ID -f -y
-              box files:upload "$MERGE_PATH$raw_file" -p $BOX_ARCHIVE_ID -y
               echo "Uploading MERGED $raw_file to Box..."
-              box files:upload "$raw_file" -p $BOX_ARCHIVE_ID -y
+              box files:upload "$MERGE_PATH$raw_file" -p $BOX_ARCHIVE_ID -y
             else
-              box files:upload "$raw_file" -p $BOX_ARCHIVE_ID -y
               echo "Uploading $raw_file to Box..."
               box files:upload "$raw_file" -p $BOX_ARCHIVE_ID -y
             fi
