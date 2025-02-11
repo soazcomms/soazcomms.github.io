@@ -148,6 +148,11 @@ jobs:
             box_file="$BOX_PATH$file"
             raw_file="${file/-[0-9][0-9]/}"
             cp $box_file $raw_file
+            box_ID=$(box search "$raw_file" --json | jq -r --arg fname "$raw_file" '
+            if type=="array" then .[] | select(.type=="file" and .name == $fname) | .id
+            elif type=="object" and has("entries") then .entries[] | 
+            select(.type=="file" and .name == $fname) | .id else empty end')
+
             box_ID=$(box search "$raw_file" --json | jq -r 'if type=="array" then .[] | 
             select(.type=="file" and .name == $fname) | .id else .entries[] | 
             select(.type=="file" and .name == $fname) | .id end')
@@ -165,9 +170,12 @@ jobs:
               ATTEMPTS=0
               while [ $ATTEMPTS -lt 10 ]; do  # Max 10 attempts
                 sleep 5  # Wait before checking again
-                box_ID=$(box search "$raw_file" --json | jq -r 'if type=="array" then .[] | 
-                select(.type=="file" and .name == $fname) | .id else .entries[] | 
-                select(.type=="file" and .name == $fname) | .id end')
+                
+                box_ID=$(box search "$raw_file" --json | jq -r --arg fname "$raw_file" '
+                if type=="array" then .[] | select(.type=="file" and .name == $fname) | .id
+                elif type=="object" and has("entries") then .entries[] | 
+                select(.type=="file" and .name == $fname) | .id else empty end')
+
                 if [ -z "$box_ID" ] || [ "$box_ID" == "null" ]; then
                   echo "✅ File successfully deleted from Box."
                   break
