@@ -81,7 +81,7 @@ jobs:
               ATTEMPTS=0
               while [ $ATTEMPTS -lt 10 ]; do
                 sleep 5  # Wait 5 seconds before checking again
-                box_ID_CHECK=$(box search "$raw_file" --json | jq -r '.entries[] | select(.name == "$raw_file") | .id')
+                box_ID_CHECK=$(box search "$raw_file" --csv | awk -F ',' 'NR>1 {print $1}') 
                 if [ -z "$box_ID_CHECK" ] || [ "$box_ID_CHECK" == "null" ]; then
                   echo "✅ File successfully deleted from Box."
                   break
