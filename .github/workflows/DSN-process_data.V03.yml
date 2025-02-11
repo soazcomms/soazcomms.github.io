@@ -148,11 +148,7 @@ jobs:
             box_file="$BOX_PATH$file"
             raw_file="${file/-[0-9][0-9]/}"
             cp $box_file $raw_file
-            box_ID=$(box search "$raw_file" --json | jq -r --arg fname "$raw_file" '
-            if type=="array" then .[] | select(.type=="file" and .name == $fname) | .id
-            elif type=="object" and has("entries") then .entries[] | 
-            select(.type=="file" and .name == $fname) | .id else empty end')
-
+            echo "Copied $box_file to $raw_file"
             box_ID=$(box search "$raw_file" --json | jq -r --arg fname "$raw_file" '
             if type=="array" then map(select(.type=="file" and .name == $fname)) | .[].id 
             elif type=="object" and has("entries") then 
@@ -161,7 +157,6 @@ jobs:
      
             # Debugging output
             echo "Raw Box ID: $box_ID"
-            
             echo "Boxing $raw_file copied from $box_file"
             echo "before if -n $(date '+%Y-%m-%d %H:%M:%S')"
             if [ -n "$box_ID" ]; then
