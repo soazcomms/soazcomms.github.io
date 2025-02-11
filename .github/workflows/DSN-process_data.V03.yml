@@ -153,9 +153,12 @@ jobs:
             elif type=="object" and has("entries") then .entries[] | 
             select(.type=="file" and .name == $fname) | .id else empty end')
 
-            box_ID=$(box search "$raw_file" --json | jq -r 'if type=="array" then .[] | 
-            select(.type=="file" and .name == $fname) | .id else .entries[] | 
-            select(.type=="file" and .name == $fname) | .id end')
+            box_ID=$(box search "$raw_file" --json | jq -r --arg fname "$raw_file" '
+            if type=="array" then map(select(.type=="file" and .name == $fname)) | .[].id 
+            elif type=="object" and has("entries") then 
+            .entries | map(select(.type=="file" and .name == $fname)) | .[].id 
+            else empty end')
+     
             # Debugging output
             echo "Raw Box ID: $box_ID"
             
@@ -172,9 +175,10 @@ jobs:
                 sleep 5  # Wait before checking again
                 
                 box_ID=$(box search "$raw_file" --json | jq -r --arg fname "$raw_file" '
-                if type=="array" then .[] | select(.type=="file" and .name == $fname) | .id
-                elif type=="object" and has("entries") then .entries[] | 
-                select(.type=="file" and .name == $fname) | .id else empty end')
+                if type=="array" then map(select(.type=="file" and .name == $fname)) | .[].id 
+                elif type=="object" and has("entries") then 
+                .entries | map(select(.type=="file" and .name == $fname)) | .[].id 
+                else empty end')
 
                 if [ -z "$box_ID" ] || [ "$box_ID" == "null" ]; then
                   echo "✅ File successfully deleted from Box."
