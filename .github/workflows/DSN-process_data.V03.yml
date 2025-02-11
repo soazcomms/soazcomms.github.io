@@ -149,12 +149,8 @@ jobs:
             raw_file="${file/-[0-9][0-9]/}"
             cp $box_file $raw_file
             echo "Copied $box_file to $raw_file"
-            box_ID=$(box search "$raw_file" --json | jq -r --arg fname "$raw_file" '
-            if type=="array" then map(select(.type=="file" and .name == $fname)) | .[].id 
-            elif type=="object" and has("entries") then 
-            .entries | map(select(.type=="file" and .name == $fname)) | .[].id 
-            else empty end')
-     
+            box_ID=$(box search "$raw_file" --json | jq -r --arg fname "$raw_file" '  
+            map(select(.type=="file" and .name == $fname)) | .[].id') 
             # Debugging output
             echo "Raw Box ID: $box_ID"
             echo "Boxing $raw_file copied from $box_file"
@@ -167,18 +163,13 @@ jobs:
               # Wait and check until raw_file is fully removed
               ATTEMPTS=0
               while [ $ATTEMPTS -lt 10 ]; do  # Max 10 attempts
-                sleep 5  # Wait before checking again
-                
-                box_ID=$(box search "$raw_file" --json | jq -r --arg fname "$raw_file" '
-                if type=="array" then map(select(.type=="file" and .name == $fname)) | .[].id 
-                elif type=="object" and has("entries") then 
-                .entries | map(select(.type=="file" and .name == $fname)) | .[].id 
-                else empty end')
-
+                box_ID=$(box search "$raw_file" --json | jq -r --arg fname "$raw_file" '  
+                map(select(.type=="file" and .name == $fname)) | .[].id') 
                 if [ -z "$box_ID" ] || [ "$box_ID" == "null" ]; then
                   echo "✅ File successfully deleted from Box."
                   break
                 fi
+                sleep 5  # Wait before checking again
                 ATTEMPTS=$((ATTEMPTS+1))
                 echo "🔄 Waiting for file removal ($ATTEMPTS)..."
               done
@@ -190,30 +181,3 @@ jobs:
             fi
             echo "after if -n $(date '+%Y-%m-%d %H:%M:%S')"
           done
-          echo "$CURRENT_DATE Uploaded $IN_FILES to Box" >> DSNdata/RUN_LOG
-          echo "$CURRENT_DATE Uploaded $IN_FILES to Box: written to log"
-
-      # Step 9: Clean Up
-      - name: Clean Up
-        run: |
-          echo "Delete temporary files..."
-          rm -f box_config.json
-          rm -f DSNdata/NEW/*
-          rm -f DSNdata/INFLUX/*
-          rm -f DSNdata/BOX/*
-          rm -f DSNdata/MERGE/*
-  
-      # Step 10: Commit Changes to DSNdata
-      - name: Commit Changes to Repository
-        run: |
-          echo "Checking for changes in DSNdata..."
-          echo $CURRENT_DATE "Deleted temp files." >> DSNdata/RUN_LOG
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add DSNdata/
-          if git diff-index --quiet HEAD; then
-            echo "No changes to commit."
-          else
-            git commit -m "Updated DSNdata"
-            git push
-          fi
