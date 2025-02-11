@@ -1,0 +1,78 @@
+name: DSN test upload to Box
+# Trigger the workflow on a schedule (in production mode)
+on:
+  workflow_dispatch:
+#  schedule:
+#    - cron: '0 17 * * 0-7'  # Runs every day at 17:00 UTC
+#  push:
+#    branches:
+#      - main  # Trigger on push to the 'main' branch
+#  pull_request:
+#    branches:
+#      - main
+env:
+  INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN1 }}
+  BOX_CONFIG: ${{ secrets.BOX_CONFIG }}
+  BOX_PATH: "DSNdata/BOX/"
+  MERGE_PATH: "DSNdata/MERGE/"
+  BOX_ARCHIVE_ID: "304428997491"
+
+jobs:
+  process_and_upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout Repository, get python
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # Step 7: Install Box CLI
+      - name: Install Box CLI
+        run: |
+          echo "Installing Box CLI via npm..."
+          sudo apt-get update
+          sudo apt-get install -y libsecret-1-dev
+          npm install -g @box/cli
+          box --version
+
+      # Step 8: Boxing...
+      - name: Upload Files to Box
+        run: |
+          echo "$BOX_CONFIG" > box_config.json
+          echo "BOX_PATH is set to: ${BOX_PATH}"
+
+          if [ -d "$BOX_PATH" ] && [ "$(ls -A $BOX_PATH)" ]; then
+            IN_FILES=$(ls -1 "${BOX_PATH}")
+          else
+            echo "Warning: No files found in ${BOX_PATH}"
+            IN_FILES=""
+          fi
+          echo "Configure and upload to Box."
+          box configure:environments:add box_config.json -n "github-box"
+          box folders:items $BOX_ARCHIVE_ID --json > results.json
+          # loop around file list 
+          echo "++++++++++ IN_FILES: "$IN_FILES" in ${BOX_PATH}+++++++++++++++"
+          for file in $IN_FILES; do
+            box_file="$BOX_PATH$file"
+            raw_file="$BOX_PATH${file/-[0-9][0-9]/}"
+            cp $box_file $raw_file
+            echo "Trying to box $box_file"
+            box_ID=$(jq --arg file "$raw_file" -r '.[] | 
+              select(.name == "$raw_file") | .id' results.json)
+            echo "Download " "$box_ID"
+            box files:download "$box_ID" --destination $MERGE_PATH -y
+            echo "Downloaded " "$box_ID"
+            if [ -n "$box_ID" ]; then
+              python DSN-box_merge.py "$MERGE_PATH$raw_file" "$raw_file"
+              box files:delete $box_ID -f -y
+              box files:upload "$MERGE_PATH$raw_file" -p $BOX_ARCHIVE_ID -y
+              echo "Uploading MERGED $raw_file to Box..."
+              box files:upload "$raw_file" -p $BOX_ARCHIVE_ID -y
+            else
+              box files:upload "$raw_file" -p $BOX_ARCHIVE_ID -y
+              echo "Uploading $raw_file to Box..."
+              box files:upload "$raw_file" -p $BOX_ARCHIVE_ID -y
+            fi
+          done
+          echo "$CURRENT_DATE Uploaded $IN_FILES to Box" >> DSNdata/RUN_LOG
+          echo "$CURRENT_DATE Uploaded $IN_FILES to Box: written to log?"
