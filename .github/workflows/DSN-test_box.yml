@@ -39,16 +39,8 @@ jobs:
       - name: Upload Files to Box
         run: |
           echo "$BOX_CONFIG" > box_config.json
+          cp box_config.json DSNdata/MERGE/box_config.json
           echo "BOX_PATH is set to: ${BOX_PATH}"
-
-          # Temporarily assign a new value to prevent masking
-          UNMASKED_BOX_CONF="$box_CONF"
-          echo "::remove-mask::$box_CONF"  # Remove masking (no official command, but a trick)
-          echo "Box File CONF (raw): $UNMASKED_BOX_CONF"
-    
-          # Store in a file to verify
-          echo "Box CONF: $box_CONF" > debug_box_conf.txt
-          cat debug_box_conf.txt
           
           if [ -d "$BOX_PATH" ] && [ "$(ls -A $BOX_PATH)" ]; then
             IN_FILES=$(ls -1 "${BOX_PATH}")
@@ -61,6 +53,7 @@ jobs:
           box folders:items $BOX_ARCHIVE_ID --json > results.json
           # loop around file list 
           echo "++++++++++ IN_FILES: "$IN_FILES" in ${BOX_PATH}+++++++++++++++"
+          IN_FILES=""
           for file in $IN_FILES; do
             box_file="$BOX_PATH$file"
             raw_file="$BOX_PATH${file/-[0-9][0-9]/}"
@@ -85,3 +78,16 @@ jobs:
           done
           echo "$CURRENT_DATE Uploaded $IN_FILES to Box" >> DSNdata/RUN_LOG
           echo "$CURRENT_DATE Uploaded $IN_FILES to Box: written to log?"
+      # Step 10: Commit Changes to DSNdata
+      - name: Commit Changes to Repository
+        run: |
+          echo "Checking for changes in DSNdata..."
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add DSNdata/MERGE
+          if git diff-index --quiet HEAD; then
+            echo "No changes to commit."
+          else
+            git commit -m "Updated DSNdata/MERGE"
+            git push
+          fi
