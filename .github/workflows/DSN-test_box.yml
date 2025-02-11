@@ -58,8 +58,7 @@ jobs:
             raw_file="$BOX_PATH${file/-[0-9][0-9]/}"
             cp $box_file $raw_file
             echo "Copied $box_file to $raw_file"
-            box_ID=$(box search "$raw_file" --json | jq -r --arg fname "$raw_file" \
-            ' map(select(.type=="file" and .name == $fname)) | .[].id')
+            box_ID=$(jq --arg file "$raw_file" -r '.[] | select(.name == $file) | .id' results.json)
             echo "Download " "$box_ID"
             box files:download "$box_ID" --destination $MERGE_PATH -y
             echo "Downloaded " "$box_ID"
