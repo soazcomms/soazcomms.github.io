@@ -4,7 +4,8 @@ The Dark Sky Network (DSN): monitoring the night sky brightness over Southern Ar
 for the next ten years, starting in 2025. We use SQM and TESS units, labeled DSNnnn,
 where nnn runs from 000 to 037 as of 3 February 2025. Several units are extant, and have
 been running for up to 7 years. Their data are being incorporated in our data space. 
-We started acquiring SQM and TESS units in late January 2025. As of 02 Feb 2025, 6 extant units 
+We took delivery of SQM units on 2/6/25 and have TESS units on order as of 1/22/25. 
+As of 2/2/25, there are 6 extant units 
 form the DSN.
 > [!CAUTION]
 > This code is a work in progress.
@@ -14,7 +15,8 @@ The GitHub workflow [**DSN-process_data**](https://github.com/soazcomms/soazcomm
 - ### Step 1
 SQM/TESS raw data are uploaded to DSNdata/NEW. This process may be manual
 (e.g. SQMs w/o internet) or automatic (we are working on this step). The files are labeled with the sensor
-name, e.g. DSN001_SiteName_yy.dat where yy is the year when the data are obtained. We add SiteName to make it easy to identify each site.
+name, e.g. DSN001-U_SiteName_yy-nn.dat where U is the type of the unit, S (T) for SQM (TESS), yy is the year when the data are obtained and nn is a sequence number
+for files within year yy. We add SiteName to make it easy to identify each site.
 * ### Step 2
 **DSN-process_data** looks for data in DSNdata/NEW. If it finds data there, 
 it runs [DSN_python](https://github.com/soazcomms/soazcomms.github.io/blob/main/DSN_V03.py) on each file to calculate chisquared, moonalt and LST. 
