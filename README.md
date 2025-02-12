@@ -14,13 +14,18 @@ form the DSN.
 The GitHub workflow [**DSN-process_data**](https://github.com/soazcomms/soazcomms.github.io/blob/main/.github/workflows/DSN-process_data.V02.yml) runs every day at 17:00 UTC (in production mode; currently runs manually).
 - ### Step 1
 SQM/TESS raw data are uploaded to DSNdata/NEW. This process may be manual
-(e.g. SQMs w/o internet) or automatic (we are working on this step). The files are labeled with the sensor
-name, e.g. DSN001-U_SiteName_yy-nn.dat where U is the type of the unit, S (T) for SQM (TESS), yy is the year when the data are obtained and nn is a sequence number
-for files within year yy. We add SiteName to make it easy to identify each site.
+(e.g. SQMs w/o internet) or automatic (we are working on this step). The files are labeled with the site and sensor
+name, DSNnnn-U_SiteName_yy-ss.dat where: 
+- nnn is a sequence number for the sites,
+* SiteName describes the site
+* U is the type of the unit, S (T) for SQM (TESS)
+* yy is the year when the data are obtained 
++ ss is a sequence number for each year
+
 * ### Step 2
 **DSN-process_data** looks for data in DSNdata/NEW. If it finds data there, 
 it runs [DSN_python](https://github.com/soazcomms/soazcomms.github.io/blob/main/DSN_V03.py) on each file to calculate chisquared, moonalt and LST. 
-1. For each file, **DSN_python** writes a .csv file in DSNdata/INFLUX, e.g. INF-DSNnnn_SiteName_yy.csv.
+1. For each file, **DSN_python** writes a .csv file in DSNdata/INFLUX, e.g. DSNnnn-U_SiteName_yy-nn.csv.
 2. For each file, **DSN_python** writes a .csv file with UTC, SQM, lum, chisquared, moonalt and LST to DSNdata/BOX.
 These files are an archive of processed data.
 * ### Step 3
@@ -31,7 +36,8 @@ influxDB, and then deleted from DSNdata/INFLUX.
 Once each .dat file in DSNdata/NEW is processed it is deleted. 
 * ### Step 5
 Each file in DSNdata/BOX is uploaded to the Box repository, in the DSNdata/ARCHIVE
-folder, and is deleted from DSNdata/BOX. This is intended as a permanent archive of the processed data.
+folder, and is deleted from DSNdata/BOX. Files are stored in the format DSNnnn-U_SiteName_yy.csv. 
+The files in the This is intended as a permanent archive of the processed data.
 + ### Step 6
 A record of the file operations above is written to a running [LOG](https://github.com/soazcomms/soazcomms.github.io/blob/main/DSNdata/RUN_LOG).
 # Visualizing data
