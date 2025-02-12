@@ -76,8 +76,9 @@ jobs:
               ATTEMPTS=0
               while [ $ATTEMPTS -lt 10 ]; do
                 sleep 5  # Wait 5 seconds before checking again
-                box_ID_CHECK=$(box search "$raw_file" --csv | awk -F ',' 'NR>1 {print $1}') 
-                if [ -n "$box_ID_CHECK" ]; then
+                box folders:items $BOX_ARCHIVE_ID --csv > results.csv
+                box_ID=$(awk -F ',' -v fname="$raw_file" 'NR > 1 && $9 == fname {print $2}' results.csv)
+                if [ -n "$box_ID" ]; then
                   echo "✅ File successfully uploaded to Box."
                   break
                 fi
@@ -94,8 +95,9 @@ jobs:
               ATTEMPTS=0
               while [ $ATTEMPTS -lt 10 ]; do
                 sleep 5  # Wait 5 seconds before checking again
-                box_ID_CHECK=$(box search "$raw_file" --csv | awk -F ',' 'NR>1 {print $1}') 
-                if [ -z "$box_ID_CHECK" ] || [ "$box_ID_CHECK" == "null" ]; then
+                box folders:items $BOX_ARCHIVE_ID --csv > results.csv
+                box_ID=$(awk -F ',' -v fname="$raw_file" 'NR > 1 && $9 == fname {print $2}' results.csv)
+                if [ -z "$box_ID" ] || [ "$box_ID" == "null" ]; then
                   echo "✅ File successfully deleted from Box."
                   break
                 fi
