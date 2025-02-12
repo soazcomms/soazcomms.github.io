@@ -1,0 +1,128 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DSN Process Data Workflow User Manual</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; margin: 40px; }
+        h1, h2, h3 { color: #2c3e50; }
+        h1 { text-align: center; }
+        pre { background: #f4f4f4; padding: 10px; border-radius: 5px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        table, th, td { border: 1px solid #ddd; padding: 10px; }
+        th { background: #2c3e50; color: #fff; }
+    </style>
+</head>
+<body>
+    <h1>DSN Process Data Workflow User Manual</h1>
+
+    <h2>Overview</h2>
+    <p>The DSN Process Data Workflow is an automated GitHub Actions workflow designed to process, store, and upload SQM/TESS raw data. It integrates with InfluxDB, Docker, and Box Storage to streamline the data pipeline. The workflow is triggered manually, but it also supports scheduled execution and can run on repository updates.</p>
+
+    <h2>1. Workflow Triggers</h2>
+    <ul>
+        <li><strong>Manual Trigger:</strong> Through GitHub Actions UI.</li>
+        <li><strong>Scheduled Execution (Optional):</strong> Can be set up using a cron job.</li>
+        <li><strong>Push and Pull Requests (Optional):</strong> Can be enabled to trigger on changes in the main branch.</li>
+    </ul>
+
+    <h2>2. Environment Variables</h2>
+    <p>Several environment variables are used to store sensitive credentials securely:</p>
+    <ul>
+        <li><strong>INFLUX_TOKEN:</strong> Authentication token for InfluxDB.</li>
+        <li><strong>BOX_CONFIG:</strong> Configuration for Box CLI.</li>
+        <li><strong>BOX_PATH:</strong> Path for Box storage (Default: <code>DSNdata/BOX/</code>).</li>
+        <li><strong>MERGE_PATH:</strong> Path for merged files (Default: <code>DSNdata/MERGE/</code>).</li>
+        <li><strong>BOX_ARCHIVE_ID:</strong> ID of the Box folder where files are uploaded.</li>
+    </ul>
+
+    <h2>3. Workflow Execution Steps</h2>
+
+    <h3>Step 1: Setup Environment</h3>
+    <ul>
+        <li>Checkout the Repository</li>
+        <li>Setup Python (Installs Python 3.10)</li>
+        <li>Install Dependencies</li>
+    </ul>
+
+    <h3>Step 2: Process Data Files</h3>
+    <ul>
+        <li>Checks for files in <code>DSNdata/NEW/</code></li>
+        <li>If no files are found, logs an error and exits.</li>
+        <li>If files exist, they are processed using <code>DSN_V03.py</code>.</li>
+    </ul>
+
+    <h3>Step 3: Setup Docker</h3>
+    <p>Installs Docker and its dependencies, and configures it as a background service.</p>
+
+    <h3>Step 4: Setup InfluxDB CLI in Docker</h3>
+    <p>Pulls and starts an InfluxDB CLI Docker container, then copies processed CSV files.</p>
+
+    <h3>Step 5: Upload CSV Data to InfluxDB Cloud</h3>
+    <p>Runs the InfluxDB CLI inside Docker to upload CSV data with retry mechanisms.</p>
+
+    <h3>Step 6: Install and Configure Box CLI</h3>
+    <p>Installs Box CLI and configures authentication using stored credentials.</p>
+
+    <h3>Step 7: Upload Processed Files to Box</h3>
+    <p>Extracts file IDs from Box, uploads missing files, merges existing files, and re-uploads them.</p>
+
+    <h3>Step 8: Cleanup</h3>
+    <p>Deletes temporary files from various directories.</p>
+
+    <h3>Step 9: Commit Changes to Repository</h3>
+    <p>Commits and pushes any changes back to GitHub.</p>
+
+    <h2>4. Running the Workflow Manually</h2>
+    <ol>
+        <li>Navigate to <strong>GitHub Actions</strong> in your repository.</li>
+        <li>Select the <strong>DSN Process Data Workflow</strong>.</li>
+        <li>Click <strong>Run Workflow</strong>.</li>
+    </ol>
+
+    <h2>5. Configuring Automatic Execution</h2>
+
+    <h3>Enabling Scheduled Execution</h3>
+    <p>Uncomment the <code>schedule</code> block in the YAML file and modify the cron expression.</p>
+
+    <h3>Triggering on Push or Pull Request</h3>
+    <p>Uncomment the <code>push</code> and <code>pull_request</code> sections in the YAML file.</p>
+
+    <h2>6. Troubleshooting</h2>
+    <table>
+        <tr>
+            <th>Issue</th>
+            <th>Solution</th>
+        </tr>
+        <tr>
+            <td>Workflow fails with "No files found"</td>
+            <td>Ensure files exist in <code>DSNdata/NEW/</code> before execution.</td>
+        </tr>
+        <tr>
+            <td>InfluxDB upload fails</td>
+            <td>Verify <code>INFLUX_TOKEN</code> and ensure InfluxDB is running.</td>
+        </tr>
+        <tr>
+            <td>Box CLI upload fails</td>
+            <td>Check <code>BOX_CONFIG</code> and ensure Box CLI is installed correctly.</td>
+        </tr>
+        <tr>
+            <td>GitHub Actions failure</td>
+            <td>Check the logs in GitHub Actions for error details.</td>
+        </tr>
+    </table>
+
+    <h2>7. Customization</h2>
+    <ul>
+        <li>Modify <code>python-version</code> to use a different Python version.</li>
+        <li>Change <code>BOX_PATH</code> and <code>MERGE_PATH</code> as per your storage needs.</li>
+        <li>Adjust scheduling settings for automatic execution.</li>
+    </ul>
+
+    <h2>Conclusion</h2>
+    <p>This workflow automates the processing, storage, and upload of DSN data. It ensures efficiency and security. Customize the workflow as needed and refer to logs for troubleshooting.</p>
+
+</body>
+</html>
