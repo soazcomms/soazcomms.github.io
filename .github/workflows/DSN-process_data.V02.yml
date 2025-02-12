@@ -170,7 +170,7 @@ jobs:
             fi
           done
           echo "$CURRENT_DATE Uploaded $IN_FILES to Box" >> DSNdata/RUN_LOG
-          echo "$CURRENT_DATE Uploaded $IN_FILES to Box: written to log?"
+          echo "$CURRENT_DATE Uploaded $IN_FILES to Box: written to log."
 
       # Step 9: Clean Up
       - name: Clean Up
