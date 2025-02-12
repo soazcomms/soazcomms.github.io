@@ -16,22 +16,24 @@ The GitHub workflow [**DSN-process_data**](https://github.com/soazcomms/soazcomm
 SQM/TESS raw data are uploaded to DSNdata/NEW. This process may be manual
 (e.g. SQMs w/o internet) or automatic (we are working on this step). The files are labeled with the site and sensor
 name, DSNnnn-U_SiteName_yy-ss.dat where: 
-- SiteName describes the site
+- nnn is a site sequence number
 * U is the type of the unit, S (T) for SQM (TESS)
-* nnn is a sequence number for the sites
+* SiteName describes the site
 * yy is the year when the data are obtained 
-+ ss is a sequence number for each year
++ ss is a sequence number for files uploaded each year
 
 ### Step 2
 **DSN-process_data** looks for data in DSNdata/NEW. If it finds data there, 
 it runs [DSN_python](https://github.com/soazcomms/soazcomms.github.io/blob/main/DSN_V03.py) on each file to calculate chisquared, moonalt and LST. 
-1. For each file, **DSN_python** writes a .csv file in DSNdata/INFLUX, e.g. DSNnnn-U_SiteName_yy-nn.csv.
+1. For each file, **DSN_python** writes a .csv file in DSNdata/INFLUX, with the format DSNnnn-U_SiteName_yy-nn.csv.
 2. For each file, **DSN_python** writes a .csv file with UTC, SQM, lum, chisquared, moonalt and LST to DSNdata/BOX.
 These files are an archive of processed data.
 ### Step 3
 The .csv format is appropriate for input to **influxDB**, which 
 feeds into **Grafana** for visualization. Each .csv file is uploaded into
-influxDB, and then deleted from DSNdata/INFLUX.
+influxDB, and then deleted from DSNdata/INFLUX. Each .csv file that [DSN_python](https://github.com/soazcomms/soazcomms.github.io/blob/main/DSN_V03.py)
+writes is tagged with the site label, DSNnnn-U-SiteName, for influxDB to include it in the appropriate "dashboard" 
+that is specific to the site.
 ### Step 4
 Once each .dat file in DSNdata/NEW is processed it is deleted. 
 ### Step 5
