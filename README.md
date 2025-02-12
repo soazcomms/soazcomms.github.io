@@ -16,9 +16,9 @@ The GitHub workflow [**DSN-process_data**](https://github.com/soazcomms/soazcomm
 SQM/TESS raw data are uploaded to DSNdata/NEW. This process may be manual
 (e.g. SQMs w/o internet) or automatic (we are working on this step). The files are labeled with the site and sensor
 name, DSNnnn-U_SiteName_yy-ss.dat where: 
-- nnn is a sequence number for the sites,
-* SiteName describes the site
+- SiteName describes the site
 * U is the type of the unit, S (T) for SQM (TESS)
+* nnn is a sequence number for the sites
 * yy is the year when the data are obtained 
 + ss is a sequence number for each year
 
