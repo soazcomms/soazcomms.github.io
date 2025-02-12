@@ -33,7 +33,7 @@ The .csv format is appropriate for input to **influxDB**, which
 feeds into **Grafana** for visualization. Each .csv file is uploaded into
 influxDB, and then deleted from DSNdata/INFLUX. Each .csv file that [DSN_python](https://github.com/soazcomms/soazcomms.github.io/blob/main/DSN_V03.py)
 writes is tagged with the site label, DSNnnn-U-SiteName, for influxDB to include it in the appropriate "dashboard" 
-that is specific to the site.
+that is specific to the site so that **Grafana** can display it.
 ### Step 4
 Once each .dat file in DSNdata/NEW is processed it is deleted. 
 ### Step 5
