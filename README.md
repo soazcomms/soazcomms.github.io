@@ -12,7 +12,7 @@ form the DSN.
 
 # The Process
 The GitHub workflow [**DSN-process_data**](https://github.com/soazcomms/soazcomms.github.io/blob/main/.github/workflows/DSN-process_data.V02.yml) runs every day at 17:00 UTC (in production mode; currently runs manually).
-- ### Step 1
+### Step 1
 SQM/TESS raw data are uploaded to DSNdata/NEW. This process may be manual
 (e.g. SQMs w/o internet) or automatic (we are working on this step). The files are labeled with the site and sensor
 name, DSNnnn-U_SiteName_yy-ss.dat where: 
@@ -22,23 +22,23 @@ name, DSNnnn-U_SiteName_yy-ss.dat where:
 * yy is the year when the data are obtained 
 + ss is a sequence number for each year
 
-* ### Step 2
+### Step 2
 **DSN-process_data** looks for data in DSNdata/NEW. If it finds data there, 
 it runs [DSN_python](https://github.com/soazcomms/soazcomms.github.io/blob/main/DSN_V03.py) on each file to calculate chisquared, moonalt and LST. 
 1. For each file, **DSN_python** writes a .csv file in DSNdata/INFLUX, e.g. DSNnnn-U_SiteName_yy-nn.csv.
 2. For each file, **DSN_python** writes a .csv file with UTC, SQM, lum, chisquared, moonalt and LST to DSNdata/BOX.
 These files are an archive of processed data.
-* ### Step 3
+### Step 3
 The .csv format is appropriate for input to **influxDB**, which 
 feeds into **Grafana** for visualization. Each .csv file is uploaded into
 influxDB, and then deleted from DSNdata/INFLUX.
-* ### Step 4
+### Step 4
 Once each .dat file in DSNdata/NEW is processed it is deleted. 
-* ### Step 5
+### Step 5
 Each file in DSNdata/BOX is uploaded to the Box repository, in the DSNdata/ARCHIVE
 folder, and is deleted from DSNdata/BOX. Files are stored in the format DSNnnn-U_SiteName_yy.csv. 
 The files in the This is intended as a permanent archive of the processed data.
-+ ### Step 6
+### Step 6
 A record of the file operations above is written to a running [LOG](https://github.com/soazcomms/soazcomms.github.io/blob/main/DSNdata/RUN_LOG).
 # Visualizing data
 The processed data may be visualized with 
