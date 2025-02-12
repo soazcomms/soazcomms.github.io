@@ -56,26 +56,27 @@ jobs:
           fi
           echo "Configure and upload to Box."
           box configure:environments:add box_config.json -n "github-box"
-          box folders:items $BOX_ARCHIVE_ID --csv > results.csv
 
           echo "++++++++++ IN_FILES: "$IN_FILES" in ${BOX_PATH}"
           for file in $IN_FILES; do
+
             box_file="$BOX_PATH$file"
             raw_file="${file/-[0-9][0-9]/}"
             cp $box_file $raw_file
             echo "Trying to box $box_file"
 
             # Extract Box File ID from CSV
+            box folders:items $BOX_ARCHIVE_ID --csv > results.csv
             box_ID=$(awk -F ',' -v fname="$raw_file" 'NR > 1 && $9 == fname {print $2}' results.csv)
             echo "Extracted Box ID: '$box_ID'"
 
             if [ -z "$box_ID" ] || [ "$box_ID" == "null" ]; then
               echo "❌ File $raw_file not found in Box, upload it"
-              box files:upload "$raw_file" -p $BOX_ARCHIVE_ID -y
+              box files:upload "$raw_file" -p $BOX_ARCHIVE_ID -y -q
               echo "❌❌❌ Wait for file upload to complete..."
               ATTEMPTS=0
               while [ $ATTEMPTS -lt 10 ]; do
-                sleep 10  # Wait 10 seconds before checking again
+                sleep 5  # Wait 5 seconds before checking again
                 box folders:items $BOX_ARCHIVE_ID --csv > results.csv
                 box_ID=$(awk -F ',' -v fname="$raw_file" 'NR > 1 && $9 == fname {print $2}' results.csv)
                 if [ -n "$box_ID" ]; then
@@ -94,7 +95,7 @@ jobs:
               echo "❌❌❌ Wait for file deletion to complete..."
               ATTEMPTS=0
               while [ $ATTEMPTS -lt 10 ]; do
-                sleep 10  # Wait 10 seconds before checking again
+                sleep 5  # Wait 5 seconds before checking again
                 box folders:items $BOX_ARCHIVE_ID --csv > results.csv
                 box_ID=$(awk -F ',' -v fname="$raw_file" 'NR > 1 && $9 == fname {print $2}' results.csv)
                 if [ -z "$box_ID" ] || [ "$box_ID" == "null" ]; then
@@ -105,6 +106,6 @@ jobs:
                 echo "🔄 Waiting for file removal ($ATTEMPTS)..."
               done
               echo "Uploading MERGED $raw_file to Box..."
-              box files:upload "$MERGE_PATH$raw_file" -p $BOX_ARCHIVE_ID -y
+              box files:upload "$MERGE_PATH$raw_file" -p $BOX_ARCHIVE_ID -y -q
             fi
           done
