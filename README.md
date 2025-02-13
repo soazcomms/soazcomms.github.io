@@ -5,8 +5,7 @@ for the next ten years, starting in 2025. We use SQM and TESS units, labeled DSN
 where nnn runs from 000 to 037 as of 3 February 2025. Several units are extant, and have
 been running for up to 7 years. Their data are being incorporated in our data space. 
 We took delivery of SQM units on 2/6/25 and have TESS units on order as of 1/22/25. 
-As of 2/2/25, there are 6 extant units 
-form the DSN.
+As of 2/2/25, there are 6 extant units forming the DSN.
 > [!CAUTION]
 > This code is a work in progress.
 
