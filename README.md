@@ -1,9 +1,8 @@
 # Dark Sky Network
 ## DSN
 The Dark Sky Network (DSN): monitoring the night sky brightness over Southern Arizona 
-for the next ten years, starting in 2025. We use SQM and TESS units, labeled DSNnnn,
-where nnn runs from 000 to 037 as of 3 February 2025. Several units are extant, and have
-been running for up to 7 years. Their data are being incorporated in our data space. 
+for the next ten years, starting in 2025. We use SQM and TESS units. Several units are in place, and have
+been running for up to 7 years. Their data are periodically incorporated in our data space. 
 We took delivery of SQM units on 2/6/25 and have TESS units on order as of 1/22/25. 
 As of 2/2/25, there are 6 extant units forming the DSN.
 > [!CAUTION]
@@ -38,7 +37,7 @@ Once each .dat file in DSNdata/NEW is processed it is deleted.
 ### Step 5
 Each file in DSNdata/BOX is uploaded to the Box repository, in the DSNdata/ARCHIVE
 folder, and is deleted from DSNdata/BOX. Files are stored in the format DSNnnn-U_SiteName_yy.csv. 
-The files in the This is intended as a permanent archive of the processed data.
+This is intended as a permanent archive of the processed data.
 ### Step 6
 A record of the file operations above is written to a running [LOG](https://github.com/soazcomms/soazcomms.github.io/blob/main/DSNdata/RUN_LOG).
 # Visualizing data
