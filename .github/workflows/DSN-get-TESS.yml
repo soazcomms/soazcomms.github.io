@@ -31,4 +31,4 @@ jobs:
       - name: Run tess-get-ida.py
         run: |
           # no need to invoke python?
-          tess-ida-get range -n Stars19 -s 2025-01 -o DSNdata/NEW
+          tess-ida-get range -n stars19 -s 2025-01 -o DSNdata/NEW
