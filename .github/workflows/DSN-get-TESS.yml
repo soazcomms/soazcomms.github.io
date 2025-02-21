@@ -1,0 +1,37 @@
+name: Process StarsXXX Files
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Runs daily at midnight UTC
+  workflow_dispatch:  # Allows manual triggering of the workflow
+
+jobs:
+  process-stars-files:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'  # Specify the required Python version
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # Install any dependencies required by get-tess-ida.py
+          # For example:
+          # pip install -r requirements.txt
+
+      - name: Download StarsXXX files
+        run: |
+          # Replace with the actual command to download the files
+          # Ensure you have the necessary permissions and authentication
+          wget -r -np -nH --cut-dirs=3 -R "index.html*" https://fta-cloud.fis.ucm.es/index.php/s/Gr9DAbfiX8Pdm86
+
+      - name: Run get-tess-ida.py
+        run: |
+          # Adjust the command based on how get-tess-ida.py is executed
+          python get-tess-ida.py path/to/StarsXXX/files
