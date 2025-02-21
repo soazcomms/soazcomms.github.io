@@ -1,7 +1,7 @@
 name: Process StarsXXX Files
 
 on:
-  schedule:
+#  schedule:
 #   - cron: '0 0 * * 7'  # Runs every Sunday at 7:00 UTC
   workflow_dispatch:  # Allows manual triggering of the workflow
 
