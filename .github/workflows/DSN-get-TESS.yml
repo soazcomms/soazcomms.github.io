@@ -28,7 +28,6 @@ jobs:
           # pip install -r requirements.txt
           pip install tess-ida-tools
  
-      - name: Run tess-get-ida.py
+      - name: Run tess-ida-get.py
         run: |
-          # no need to invoke python?
           tess-ida-get range -n stars19 -s 2025-01 -o DSNdata/NEW
