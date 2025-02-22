@@ -28,6 +28,19 @@ jobs:
           IDA_URL: ${{ secrets.IDA_URL }}
         run: |
           # Execute the script
-          export IDA_URL=${{ secrets.IDA_URL }}
+          # export IDA_URL=${{ secrets.IDA_URL }}
           tess-ida-get range -n stars19 -s 2025-01 -o DSNdata/NEW
           ls -l DSNdata/NEW
+      # Commit Changes to DSNdata/NEW
+      - name: Commit Changes to Repository
+        run: |
+          echo "Checking for changes in DSNdata/NEW..."
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add DSNdata/NEW
+          if git diff-index --quiet HEAD; then
+            echo "No changes to commit."
+          else
+            git commit -m "Updated DSNdata"
+            git push
+          fi
