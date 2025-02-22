@@ -30,3 +30,4 @@ jobs:
           # Execute the script
           export IDA_URL=${{ secrets.IDA_URL }}
           tess-ida-get range -n stars19 -s 2025-01 -o DSNdata/NEW
+          ls -l DSNdata/NEW
