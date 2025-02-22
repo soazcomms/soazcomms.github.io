@@ -28,5 +28,5 @@ jobs:
           IDA_URL: ${{ secrets.IDA_URL }}
         run: |
           # Execute the script
-          echo $IDA_URL
+          export IDA_URL=${{ secrets.IDA_URL }}
           tess-ida-get range -n stars19 -s 2025-01 -o DSNdata/NEW
