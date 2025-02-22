@@ -29,6 +29,13 @@ jobs:
         run: |
           # Execute the script
           tess-ida-get range -n stars19 -s 2025-01 -o DSNdata/NEW
+          FILES=$(ls -1 DSNdata/NEW)
+          if [ -z "$FILES" ]; then
+            CURRENT_DATE=$(date '+%Y-%m-%d %H:%M:%S')
+            echo $CURRENT_DATE "No files in DSNdata/NEW." >> DSNdata/RUN_LOG
+            echo "Error: No files found." >&2
+            exit 1
+          fi
           mv DSNdata/NEW/stars19/* DSNdata/NEW
           rm -rf DSNdata/NEW/stars19
       # Commit Changes to DSNdata/NEW
