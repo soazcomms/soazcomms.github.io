@@ -14,7 +14,7 @@ else:
 box_df=pd.read_csv(box_file,header=None,skiprows=1,sep=',')
 if len(box_df.columns)<8:
     cols_df=['UTC','SQM','lum','chisquared','moonalt','LST','sunalt']
-else
+else:
     cols_df=['UTC','SQM','lum','chisquared','moonalt','LST','sunalt','Skytemp']
 loc_df=pd.read_csv(loc_file,header=None,skiprows=1,sep=',')
 box_df=pd.concat([box_df,loc_df])
