@@ -39,7 +39,7 @@ jobs:
       - name: Download SQM files from Google Drive
         run: |
           rclone sync "gdrive:DSNdata/SQM" "$BOX_PATH" --progress
-	  echo "***rclone sync gdrive:DSNdata/SQM to +++$BOX_PATH+++"
+          echo "***rclone sync gdrive:DSNdata/SQM to +++$BOX_PATH+++"
           ls -1 $BOX_PATH
   
       # Install Box CLI
