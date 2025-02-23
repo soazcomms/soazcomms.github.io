@@ -1,0 +1,56 @@
+name: Sync SQM Data
+
+on:
+  schedule:
+    - cron: '0 7 * * 0'  # Runs at 07:00 UTC every Sunday
+  workflow_dispatch:  # Allows manual triggering
+
+jobs:
+  sync-sqm-data:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install rclone
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rclone
+
+      - name: Configure rclone for Google Drive
+        env:
+          GDRIVE_CONFIG: ${{ secrets.GDRIVE_CONFIG }}
+        run: |
+          mkdir -p ~/.config/rclone
+          echo "$GDRIVE_CONFIG" > ~/.config/rclone/rclone.conf
+          rclone listremotes  # Verify connection
+
+      - name: Download SQM files from Google Drive
+        run: |
+          rclone sync "gdrive:DSNdata/SQM" "soazcomms.github.io/DSNdata/NEW" --progress
+
+      - name: Configure rclone for Box
+        env:
+          BOX_CONFIG: ${{ secrets.BOX_CONFIG }}
+        run: |
+          mkdir -p ~/.config/rclone
+          echo "$BOX_CONFIG" > ~/.config/rclone/rclone.conf
+          rclone listremotes  # Verify connection
+
+      - name: Upload files to Box
+        run: |
+          rclone sync "soazcomms.github.io/DSNdata/NEW" "box:DSNdata/SQM" --progress
+
+      - name: Commit changes to DSNdata/NEW
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add soazcomms.github.io/DSNdata/NEW/*
+          git commit -m "Synced new SQM data from Google Drive and uploaded to Box"
+          git push
