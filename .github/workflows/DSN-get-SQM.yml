@@ -1,4 +1,4 @@
-name: Sync SQM Data
+name: DSN-getSQM Data
 
 on:
   schedule:
@@ -40,7 +40,7 @@ jobs:
           BOX_CONFIG: ${{ secrets.BOX_CONFIG }}
         run: |
           mkdir -p ~/.config/rclone
-          echo "$BOX_CONFIG" > ~/.config/rclone/rclone.conf
+          echo "$BOX_CONFIG" | base64 --decode > ~/.config/rclone/rclone.conf
           rclone listremotes  # Verify connection
 
       - name: Upload files to Box
