@@ -147,3 +147,4 @@ jobs:
           else
             git commit -m "Updated DSNdata"
             git push
+          fi
