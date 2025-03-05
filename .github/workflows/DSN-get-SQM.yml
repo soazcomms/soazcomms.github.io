@@ -1,0 +1,138 @@
+name: DSN-get-SQM Data
+
+on:
+  workflow_dispatch:  # Allows manual triggering
+
+env:
+  GDRIVE_CONFIG: ${{ secrets.GDRIVE_CONFIG }}
+  NEW_PATH: "DSNdata/NEW/"
+  BOX_CONFIG: ${{ secrets.BOX_CONFIG }}
+  BOX_SQM_ID: "308791242646"
+  BOX_PATH: "DSNdata/BOX/"
+  MERGE_PATH: "DSNdata/MERGE/"
+  SQMTABLE_CSV: "DSNdata/SQMtable.csv"
+  LOG_FILE: "DSNdata/SQMdownloaded.log"
+
+jobs:
+  sync-sqm-data:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libgtk-3-dev libc-bin curl
+          pip install --upgrade pip
+          pip install pandas
+          sudo apt-get install -y rclone
+
+      - name: Configure rclone for Google Drive
+        run: |
+          mkdir -p ~/.config/rclone
+          echo "$GDRIVE_CONFIG" > ~/.config/rclone/rclone.conf
+          rclone listremotes  # Verify connection
+
+      - name: Ensure Log File Exists
+        run: |
+          touch "$LOG_FILE"
+
+      - name: Process each site in SQMtable.csv
+        run: |
+          if [ ! -f "$SQMTABLE_CSV" ]; then
+            echo "Error: SQMtable.csv not found!" >&2
+            exit 1
+          fi
+
+          echo "Processing each site in $SQMTABLE_CSV..."
+          awk 'NF' "$SQMTABLE_CSV" | sed 's/\r$//' > cleaned_sqm.csv
+
+          while IFS=, read -r site_name sequence; do
+            if [[ -z "$site_name" || "$site_name" == "Site" ]]; then
+              continue
+            fi
+
+            echo "---- Processing Site: $site_name (Seq: $sequence)"
+            SITE_FOLDER="DSNdrive:$site_name"
+            LOCAL_FOLDER="DSNdata/$site_name"
+            mkdir -p "$LOCAL_FOLDER"
+
+            echo "Checking for new files in $SITE_FOLDER..."
+            rclone lsf "$SITE_FOLDER" > available_files.txt || true
+
+            if [ -f "$LOG_FILE" ]; then
+              grep -Fxvf "$LOG_FILE" available_files.txt > new_files.txt || true
+            else
+              mv available_files.txt new_files.txt
+            fi
+
+            if [ -s new_files.txt ]; then
+              echo "Downloading new files..."
+              while IFS= read -r file; do
+                if [[ -n "$file" ]]; then
+                  echo "Downloading: $file"
+                  rclone copy "$SITE_FOLDER/$file" "$LOCAL_FOLDER" --progress
+                  echo "$file" >> "$LOG_FILE"
+                else
+                  echo "Warning: Empty filename encountered, skipping."
+                fi
+              done < new_files.txt
+
+              python DSNrename_sqm_files.py "$LOCAL_FOLDER" "$SQMTABLE_CSV"
+
+              for file in "$LOCAL_FOLDER"/*; do
+                if [ -f "$file" ]; then
+                  mv "$file" "$NEW_PATH"
+                  echo "Moved $file to $NEW_PATH"
+                fi
+              done
+            else
+              echo "No new files for $site_name, skipping."
+            fi
+          done < cleaned_sqm.csv
+
+      - name: Commit Updated Log and SQMtable.csv
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$LOG_FILE" "$SQMTABLE_CSV"
+          if git diff-index --quiet HEAD; then
+            echo "No changes to commit."
+          else
+            git commit -m "Updated log file and SQMtable.csv with new sequence numbers"
+            git push
+          fi
+
+      - name: Install Box CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsecret-1-dev
+          npm install -g @box/cli
+          box --version
+
+      - name: Upload Files to Box
+        run: |
+          for file in "$NEW_PATH"*; do
+            if [ -f "$file" ]; then
+              echo "Uploading $file to Box..."
+              box files:upload "$file" -p "$BOX_SQM_ID" -y -q
+            fi
+          done
+
+      - name: Commit Changes to Repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add DSNdata
+          if git diff-index --quiet HEAD; then
+            echo "No changes to commit."
+          else
+            git commit -m "Updated DSNdata"
+            git push
