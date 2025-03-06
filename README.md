@@ -21,8 +21,8 @@ name, DSNnnn-U_SiteName_yy-ss.dat where:
 + sss is a sequence number for files uploaded each year
 
 Two other GitHub workflows harvest data for processing: 
-- [**DSN-get-SQM**] finds and downloads new SQM data uploaded manually to a google drive that DSNsoaz owns.
-+ [**DSN-get-TESS**] finds and downloads new TESS data monthly.
+- [**DSN-get-SQM**] runs weekly, finds and downloads new SQM data uploaded manually to a google drive that DSNsoaz owns. Ethernet-enabled SQM units eventually will also upload to the google drive.
++ [**DSN-get-TESS**] runs monthly, finds and downloads new TESS data.
   
 ### Step 2
 **DSN-process_data** looks for data in DSNdata/NEW. If it finds data there, 
