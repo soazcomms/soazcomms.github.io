@@ -10,17 +10,18 @@ As of 3/6/25, we have 8 units in the DSN.
 
 # The Process
 The GitHub workflow [**DSN-process_data**](https://github.com/soazcomms/soazcomms.github.io/blob/main/.github/workflows/DSN-process_data.V02.yml) runs every day at 17:00 UTC (in production mode; currently runs manually). If it finds data in the github directory DSNdata/NEW, it processes it (see below).
+
 ### Step 1
 SQM/TESS raw data are uploaded to DSNdata/NEW. This process may be manual
 (e.g. SQMs w/o internet) or automatic (we are working on this step). The files are labeled with the site and sensor
-name, DSNnnn-U_SiteName_yy-ss.dat where: 
-- nnn is a site sequence number
+name, DSNnnn-U_SiteName_yy-sss.dat where: 
+* nnn is a site sequence number
 * U is the type of the unit, S (T) for SQM (TESS)
 * SiteName describes the site
 * yy is the year when the data are obtained 
-+ sss is a sequence number for files uploaded each year
+* sss is a sequence number for files uploaded each year
 
-Two other GitHub workflows harvest data for processing: 
+Two other GitHub workflows harvest data for processing into DSNdata/NEW: 
 - [**DSN-get-SQM**] runs weekly, finds and downloads new SQM data uploaded manually to a google drive that DSNsoaz owns. Ethernet-enabled SQM units eventually will also upload to the google drive.
 + [**DSN-get-TESS**] runs monthly, finds and downloads new TESS data.
   
