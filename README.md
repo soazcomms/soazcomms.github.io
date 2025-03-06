@@ -4,12 +4,12 @@ The Dark Sky Network (DSN): monitoring the night sky brightness over Southern Ar
 for the next ten years, starting in 2025. We use SQM and TESS units. Several units are in place, and have
 been running for up to 7 years. Their data are periodically incorporated in our data space. 
 We took delivery of SQM units on 2/6/25 and have TESS units on order as of 1/22/25. 
-As of 2/2/25, there are 6 extant units forming the DSN.
+As of 3/6/25, we have 8 units in the DSN.
 > [!CAUTION]
 > This code is a work in progress.
 
 # The Process
-The GitHub workflow [**DSN-process_data**](https://github.com/soazcomms/soazcomms.github.io/blob/main/.github/workflows/DSN-process_data.V02.yml) runs every day at 17:00 UTC (in production mode; currently runs manually).
+The GitHub workflow [**DSN-process_data**](https://github.com/soazcomms/soazcomms.github.io/blob/main/.github/workflows/DSN-process_data.V02.yml) runs every day at 17:00 UTC (in production mode; currently runs manually). If it finds data in the github directory DSNdata/NEW, it processes it (see below).
 ### Step 1
 SQM/TESS raw data are uploaded to DSNdata/NEW. This process may be manual
 (e.g. SQMs w/o internet) or automatic (we are working on this step). The files are labeled with the site and sensor
@@ -18,8 +18,12 @@ name, DSNnnn-U_SiteName_yy-ss.dat where:
 * U is the type of the unit, S (T) for SQM (TESS)
 * SiteName describes the site
 * yy is the year when the data are obtained 
-+ ss is a sequence number for files uploaded each year
++ sss is a sequence number for files uploaded each year
 
+Two other GitHub workflows harvest data for processing: 
+- [**DSN-get-SQM**] finds and downloads new SQM data uploaded manually to a google drive that DSNsoaz owns.
++ [**DSN-get-TESS**] finds and downloads new TESS data monthly.
+  
 ### Step 2
 **DSN-process_data** looks for data in DSNdata/NEW. If it finds data there, 
 it runs [DSN_python](https://github.com/soazcomms/soazcomms.github.io/blob/main/DSN_V03.py) on each file to calculate chisquared, moonalt and LST. 
