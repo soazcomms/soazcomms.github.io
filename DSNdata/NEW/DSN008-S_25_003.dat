@@ -1,0 +1,467 @@
+2025-03-27 17:09:43.153 : SN 7473 : Sent: m0x   To: /dev/ttyUSB0   Received: m0,255
+2025-03-27 17:09:43.169 : SN 7473 : Sent: m1x   To: /dev/ttyUSB0   Received: m1,255
+2025-03-27 17:09:43.185 : SN 7473 : Sent: m2x   To: /dev/ttyUSB0   Received: m2,255
+2025-03-27 17:09:43.201 : SN 7473 : Sent: Lvx   To: /dev/ttyUSB0   Received: Lv,2
+2025-03-27 17:09:43.202 : SN 7473 : ContCheck(Yx)
+2025-03-27 17:09:43.217 : SN 7473 : Sent: Yx   To: /dev/ttyUSB0   Received: Yrcpu
+2025-03-27 17:09:43.265 : SN 7473 : Sent: A5x   To: /dev/ttyUSB0   Received: A5,0,d
+2025-03-27 17:09:43.318 : SN 7473 : Sent: LIx   To: /dev/ttyUSB0   Received: LI,0000000000s,0000000255m,0000000000s,0000000016m,00000007.00m,
+2025-03-27 17:09:43.334 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:09:43.350 : SN 7473 : Sent: LZx   To: /dev/ttyUSB0   Received: LZ,0001048576
+2025-03-27 17:09:43.366 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000093
+2025-03-27 17:09:43.398 : SN 7473 : Sent: Lcx   To: /dev/ttyUSB0   Received: Lc,25-03-27 5 17:09:32
+2025-03-27 17:09:43.398 : SN 7473 : Real Time Clock difference: 11
+2025-03-27 17:09:43.414 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:09:43.430 : SN 7473 : Sent: LD0x   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:09:43.446 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:09:43.472 : SN 7473 : CheckLockVisibility()
+2025-03-27 17:09:43.494 : SN 7473 : Sent: Ix   To: /dev/ttyUSB0   Received: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:09:43.494 : SN 7473 : ParseReportInterval response: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:09:43.522 : SN 7473 : GetVersion result: i,00000004,00000006,00000084,00007473
+2025-03-27 17:09:43.522 : SN 7473 : Reading Interval Settings: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:09:43.558 : SN 7473 : Sent: rx   To: /dev/ttyUSB0   Received: r, 13.53m,0000000370Hz,0000000000c,0000000.000s, 019.6C
+2025-03-27 17:15:40.157 : SN 7473 : Attempting to import / replace serial 7473 config.
+2025-03-27 17:15:43.906 : SN 7473 : Import / replace serial 7473 config proceeding.
+2025-03-27 17:16:17.288 : SN 7473 : Attempting to import / merge serial 7473 config.
+2025-03-27 17:16:19.326 : SN 7473 : Import / merge serial 7473 config proceeding.
+2025-03-27 17:17:01.892 : SN 7473 : Attempting to import / replace serial 7473 config.
+2025-03-27 17:17:03.568 : SN 7473 : Import / replace serial 7473 config proceeding.
+2025-03-27 17:17:21.327 : SN 7473 : GetVersion called.
+2025-03-27 17:17:21.390 : SN 7473 : Sent: ix   To: /dev/ttyUSB0   Received: i,00000004,00000006,00000084,00007473
+2025-03-27 17:17:21.422 : SN 7473 : Sent: m0x   To: /dev/ttyUSB0   Received: m0,255
+2025-03-27 17:17:21.454 : SN 7473 : Sent: m1x   To: /dev/ttyUSB0   Received: m1,255
+2025-03-27 17:17:21.470 : SN 7473 : Sent: m2x   To: /dev/ttyUSB0   Received: m2,255
+2025-03-27 17:17:21.502 : SN 7473 : Sent: Lvx   To: /dev/ttyUSB0   Received: Lv,2
+2025-03-27 17:17:21.506 : SN 7473 : ContCheck(Yx)
+2025-03-27 17:17:21.534 : SN 7473 : Sent: Yx   To: /dev/ttyUSB0   Received: Yrcpu
+2025-03-27 17:17:21.550 : SN 7473 : Sent: A5x   To: /dev/ttyUSB0   Received: A5,0,d
+2025-03-27 17:17:21.646 : SN 7473 : Sent: LIx   To: /dev/ttyUSB0   Received: LI,0000000000s,0000000255m,0000000000s,0000000016m,00000007.00m,
+2025-03-27 17:17:21.678 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:17:21.694 : SN 7473 : Sent: LZx   To: /dev/ttyUSB0   Received: LZ,0001048576
+2025-03-27 17:17:21.710 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000093
+2025-03-27 17:17:21.742 : SN 7473 : Sent: Lcx   To: /dev/ttyUSB0   Received: Lc,25-03-27 5 17:17:10
+2025-03-27 17:17:21.745 : SN 7473 : Real Time Clock difference: 11
+2025-03-27 17:17:21.774 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:17:21.776 : SN 7473 : CheckLockVisibility()
+2025-03-27 17:17:21.806 : SN 7473 : Sent: Ix   To: /dev/ttyUSB0   Received: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:17:21.808 : SN 7473 : ParseReportInterval response: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:17:21.822 : SN 7473 : GetVersion result: i,00000004,00000006,00000084,00007473
+2025-03-27 17:17:21.824 : SN 7473 : Reading Interval Settings: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:17:21.850 : SN 7473 : GetConfReading called.
+2025-03-27 17:17:21.886 : SN 7473 : Sent: ux   To: /dev/ttyUSB0   Received: u, 13.53m,0000000369Hz,0000000000c,0000000.000s, 019.6C
+2025-03-27 17:17:21.918 : SN 7473 : Sent: m0x   To: /dev/ttyUSB0   Received: m0,255
+2025-03-27 17:17:21.950 : SN 7473 : Sent: m1x   To: /dev/ttyUSB0   Received: m1,255
+2025-03-27 17:17:21.966 : SN 7473 : Sent: m2x   To: /dev/ttyUSB0   Received: m2,255
+2025-03-27 17:17:21.968 : SN 7473 : GetConfCal called.
+2025-03-27 17:17:21.998 : SN 7473 : Sent: cx   To: /dev/ttyUSB0   Received: c,00000019.95m,0000300.000s, 015.1C,00000008.71m, 015.1C
+2025-03-27 17:17:27.643 : SN 7473 : Sent: LIx   To: /dev/ttyUSB0   Received: LI,0000000000s,0000000255m,0000000000s,0000000016m,00000007.00m,
+2025-03-27 17:17:27.691 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:17:27.707 : SN 7473 : Sent: LZx   To: /dev/ttyUSB0   Received: LZ,0001048576
+2025-03-27 17:17:27.739 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000093
+2025-03-27 17:17:27.771 : SN 7473 : Sent: Lcx   To: /dev/ttyUSB0   Received: Lc,25-03-27 5 17:17:16
+2025-03-27 17:17:27.774 : SN 7473 : Real Time Clock difference: 11
+2025-03-27 17:17:27.803 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:17:27.835 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000093
+2025-03-27 17:17:27.867 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000093
+2025-03-27 17:17:27.915 : SN 7473 : Sent: L40000000000x   To: /dev/ttyUSB0   Received: L4,25-03-26 4 23:54:59,07.90, 022.8C,209,0
+2025-03-27 17:17:35.555 : SN 7473 : Setting unit clock...
+2025-03-27 17:17:35.592 : SN 7473 : Sent: LC25-03-27 5 17:17:35x   To: /dev/ttyUSB0   Received: LC,25-03-27 5 17:17:35
+2025-03-27 17:17:38.255 : SN 7473 : Sent: LIx   To: /dev/ttyUSB0   Received: LI,0000000000s,0000000255m,0000000000s,0000000016m,00000007.00m,
+2025-03-27 17:17:38.303 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:17:38.319 : SN 7473 : Sent: LZx   To: /dev/ttyUSB0   Received: LZ,0001048576
+2025-03-27 17:17:38.335 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000093
+2025-03-27 17:17:38.367 : SN 7473 : Sent: Lcx   To: /dev/ttyUSB0   Received: Lc,25-03-27 5 17:17:38
+2025-03-27 17:17:38.376 : SN 7473 : Real Time Clock difference: 0
+2025-03-27 17:17:38.399 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:17:50.590 : SN 7473 : GetVersion called.
+2025-03-27 17:17:50.629 : SN 7473 : Sent: ix   To: /dev/ttyUSB0   Received: i,00000004,00000006,00000084,00007473
+2025-03-27 17:17:50.645 : SN 7473 : Sent: m0x   To: /dev/ttyUSB0   Received: m0,255
+2025-03-27 17:17:50.677 : SN 7473 : Sent: m1x   To: /dev/ttyUSB0   Received: m1,255
+2025-03-27 17:17:50.693 : SN 7473 : Sent: m2x   To: /dev/ttyUSB0   Received: m2,255
+2025-03-27 17:17:50.711 : SN 7473 : Sent: Lvx   To: /dev/ttyUSB0   Received: Lv,2
+2025-03-27 17:17:50.716 : SN 7473 : ContCheck(Yx)
+2025-03-27 17:17:50.741 : SN 7473 : Sent: Yx   To: /dev/ttyUSB0   Received: Yrcpu
+2025-03-27 17:17:50.757 : SN 7473 : Sent: A5x   To: /dev/ttyUSB0   Received: A5,0,d
+2025-03-27 17:17:50.846 : SN 7473 : Sent: LIx   To: /dev/ttyUSB0   Received: LI,0000000000s,0000000255m,0000000000s,0000000016m,00000007.00m,
+2025-03-27 17:17:50.878 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:17:50.894 : SN 7473 : Sent: LZx   To: /dev/ttyUSB0   Received: LZ,0001048576
+2025-03-27 17:17:50.910 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000093
+2025-03-27 17:17:50.942 : SN 7473 : Sent: Lcx   To: /dev/ttyUSB0   Received: Lc,25-03-27 5 17:17:50
+2025-03-27 17:17:50.948 : SN 7473 : Real Time Clock difference: 0
+2025-03-27 17:17:50.974 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:17:50.979 : SN 7473 : CheckLockVisibility()
+2025-03-27 17:17:51.006 : SN 7473 : Sent: Ix   To: /dev/ttyUSB0   Received: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:17:51.009 : SN 7473 : ParseReportInterval response: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:17:51.022 : SN 7473 : GetVersion result: i,00000004,00000006,00000084,00007473
+2025-03-27 17:17:51.026 : SN 7473 : Reading Interval Settings: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:17:51.030 : SN 7473 : GetConfReading called.
+2025-03-27 17:17:51.070 : SN 7473 : Sent: ux   To: /dev/ttyUSB0   Received: u, 13.53m,0000000371Hz,0000000000c,0000000.000s, 019.6C
+2025-03-27 17:17:51.102 : SN 7473 : Sent: m0x   To: /dev/ttyUSB0   Received: m0,255
+2025-03-27 17:17:51.118 : SN 7473 : Sent: m1x   To: /dev/ttyUSB0   Received: m1,255
+2025-03-27 17:17:51.134 : SN 7473 : Sent: m2x   To: /dev/ttyUSB0   Received: m2,255
+2025-03-27 17:17:51.137 : SN 7473 : GetConfCal called.
+2025-03-27 17:17:51.166 : SN 7473 : Sent: cx   To: /dev/ttyUSB0   Received: c,00000019.95m,0000300.000s, 015.1C,00000008.71m, 015.1C
+2025-03-27 17:21:09.416 : SN 7473 : Sent: m0x   To: /dev/ttyUSB0   Received: m0,255
+2025-03-27 17:21:09.432 : SN 7473 : Sent: m1x   To: /dev/ttyUSB0   Received: m1,255
+2025-03-27 17:21:09.448 : SN 7473 : Sent: m2x   To: /dev/ttyUSB0   Received: m2,255
+2025-03-27 17:21:09.464 : SN 7473 : Sent: Lvx   To: /dev/ttyUSB0   Received: Lv,2
+2025-03-27 17:21:09.465 : SN 7473 : ContCheck(Yx)
+2025-03-27 17:21:09.480 : SN 7473 : Sent: Yx   To: /dev/ttyUSB0   Received: Yrcpu
+2025-03-27 17:21:09.528 : SN 7473 : Sent: A5x   To: /dev/ttyUSB0   Received: A5,0,d
+2025-03-27 17:21:09.649 : SN 7473 : Sent: LIx   To: /dev/ttyUSB0   Received: LI,0000000000s,0000000255m,0000000000s,0000000016m,00000007.00m,
+2025-03-27 17:21:09.665 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:21:09.681 : SN 7473 : Sent: LZx   To: /dev/ttyUSB0   Received: LZ,0001048576
+2025-03-27 17:21:09.697 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000093
+2025-03-27 17:21:09.729 : SN 7473 : Sent: Lcx   To: /dev/ttyUSB0   Received: Lc,25-03-27 5 17:21:09
+2025-03-27 17:21:09.729 : SN 7473 : Real Time Clock difference: 0
+2025-03-27 17:21:09.745 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:21:09.761 : SN 7473 : Sent: LD0x   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:21:09.777 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:21:09.802 : SN 7473 : CheckLockVisibility()
+2025-03-27 17:21:09.825 : SN 7473 : Sent: Ix   To: /dev/ttyUSB0   Received: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:21:09.825 : SN 7473 : ParseReportInterval response: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:21:09.851 : SN 7473 : GetVersion result: i,00000004,00000006,00000084,00007473
+2025-03-27 17:21:09.851 : SN 7473 : Reading Interval Settings: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:21:09.889 : SN 7473 : Sent: rx   To: /dev/ttyUSB0   Received: r, 13.46m,0000000393Hz,0000000000c,0000000.000s, 019.3C
+2025-03-27 17:22:14.604 : SN 7473 : Sent: m0x   To: /dev/ttyUSB0   Received: m0,255
+2025-03-27 17:22:14.620 : SN 7473 : Sent: m1x   To: /dev/ttyUSB0   Received: m1,255
+2025-03-27 17:22:14.636 : SN 7473 : Sent: m2x   To: /dev/ttyUSB0   Received: m2,255
+2025-03-27 17:22:14.652 : SN 7473 : Sent: Lvx   To: /dev/ttyUSB0   Received: Lv,2
+2025-03-27 17:22:14.653 : SN 7473 : ContCheck(Yx)
+2025-03-27 17:22:14.668 : SN 7473 : Sent: Yx   To: /dev/ttyUSB0   Received: Yrcpu
+2025-03-27 17:22:14.716 : SN 7473 : Sent: A5x   To: /dev/ttyUSB0   Received: A5,0,d
+2025-03-27 17:22:14.820 : SN 7473 : Sent: LIx   To: /dev/ttyUSB0   Received: LI,0000000000s,0000000255m,0000000000s,0000000016m,00000007.00m,
+2025-03-27 17:22:14.836 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:22:14.852 : SN 7473 : Sent: LZx   To: /dev/ttyUSB0   Received: LZ,0001048576
+2025-03-27 17:22:14.868 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000093
+2025-03-27 17:22:14.900 : SN 7473 : Sent: Lcx   To: /dev/ttyUSB0   Received: Lc,25-03-27 5 17:22:14
+2025-03-27 17:22:14.900 : SN 7473 : Real Time Clock difference: 0
+2025-03-27 17:22:14.916 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:22:14.932 : SN 7473 : Sent: LD0x   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:22:14.948 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:22:14.971 : SN 7473 : CheckLockVisibility()
+2025-03-27 17:22:14.996 : SN 7473 : Sent: Ix   To: /dev/ttyUSB0   Received: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:22:14.996 : SN 7473 : ParseReportInterval response: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:22:15.023 : SN 7473 : GetVersion result: i,00000004,00000006,00000084,00007473
+2025-03-27 17:22:15.023 : SN 7473 : Reading Interval Settings: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:22:15.060 : SN 7473 : Sent: rx   To: /dev/ttyUSB0   Received: r, 13.54m,0000000364Hz,0000000000c,0000000.000s, 019.3C
+2025-03-27 17:23:09.092 : SN 7473 : Sent: m0x   To: /dev/ttyUSB0   Received: m0,255
+2025-03-27 17:23:09.108 : SN 7473 : Sent: m1x   To: /dev/ttyUSB0   Received: m1,255
+2025-03-27 17:23:09.124 : SN 7473 : Sent: m2x   To: /dev/ttyUSB0   Received: m2,255
+2025-03-27 17:23:09.140 : SN 7473 : Sent: Lvx   To: /dev/ttyUSB0   Received: Lv,2
+2025-03-27 17:23:09.141 : SN 7473 : ContCheck(Yx)
+2025-03-27 17:23:09.156 : SN 7473 : Sent: Yx   To: /dev/ttyUSB0   Received: Yrcpu
+2025-03-27 17:23:09.204 : SN 7473 : Sent: A5x   To: /dev/ttyUSB0   Received: A5,0,d
+2025-03-27 17:23:09.300 : SN 7473 : Sent: LIx   To: /dev/ttyUSB0   Received: LI,0000000000s,0000000255m,0000000000s,0000000016m,00000007.00m,
+2025-03-27 17:23:09.316 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:23:09.332 : SN 7473 : Sent: LZx   To: /dev/ttyUSB0   Received: LZ,0001048576
+2025-03-27 17:23:09.348 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000093
+2025-03-27 17:23:09.380 : SN 7473 : Sent: Lcx   To: /dev/ttyUSB0   Received: Lc,25-03-27 5 17:23:09
+2025-03-27 17:23:09.380 : SN 7473 : Real Time Clock difference: 0
+2025-03-27 17:23:09.396 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:23:09.412 : SN 7473 : Sent: LD0x   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:23:09.428 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:23:09.451 : SN 7473 : CheckLockVisibility()
+2025-03-27 17:23:09.476 : SN 7473 : Sent: Ix   To: /dev/ttyUSB0   Received: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:23:09.476 : SN 7473 : ParseReportInterval response: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:23:09.502 : SN 7473 : GetVersion result: i,00000004,00000006,00000084,00007473
+2025-03-27 17:23:09.503 : SN 7473 : Reading Interval Settings: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:23:09.540 : SN 7473 : Sent: rx   To: /dev/ttyUSB0   Received: r, 13.57m,0000000356Hz,0000000000c,0000000.000s, 019.3C
+2025-03-27 17:30:32.910 : SN 7473 : Sent: m0x   To: /dev/ttyUSB0   Received: m0,255
+2025-03-27 17:30:32.942 : SN 7473 : Sent: m1x   To: /dev/ttyUSB0   Received: m1,255
+2025-03-27 17:30:32.974 : SN 7473 : Sent: m2x   To: /dev/ttyUSB0   Received: m2,255
+2025-03-27 17:30:32.990 : SN 7473 : Sent: Lvx   To: /dev/ttyUSB0   Received: Lv,2
+2025-03-27 17:30:32.993 : SN 7473 : ContCheck(Yx)
+2025-03-27 17:30:33.022 : SN 7473 : Sent: Yx   To: /dev/ttyUSB0   Received: Yrcpu
+2025-03-27 17:30:33.070 : SN 7473 : Sent: A5x   To: /dev/ttyUSB0   Received: A5,0,d
+2025-03-27 17:30:33.146 : SN 7473 : Sent: LIx   To: /dev/ttyUSB0   Received: LI,0000000000s,0000000255m,0000000000s,0000000016m,00000007.00m,
+2025-03-27 17:30:33.178 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:30:33.210 : SN 7473 : Sent: LZx   To: /dev/ttyUSB0   Received: LZ,0001048576
+2025-03-27 17:30:33.242 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000093
+2025-03-27 17:30:33.274 : SN 7473 : Sent: Lcx   To: /dev/ttyUSB0   Received: Lc,25-03-27 5 17:30:32
+2025-03-27 17:30:33.277 : SN 7473 : Real Time Clock difference: 1
+2025-03-27 17:30:33.306 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:30:33.338 : SN 7473 : Sent: LD0x   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:30:33.354 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:30:33.377 : SN 7473 : CheckLockVisibility()
+2025-03-27 17:30:33.402 : SN 7473 : Sent: Ix   To: /dev/ttyUSB0   Received: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:30:33.405 : SN 7473 : ParseReportInterval response: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:30:33.431 : SN 7473 : GetVersion result: i,00000004,00000006,00000084,00007473
+2025-03-27 17:30:33.434 : SN 7473 : Reading Interval Settings: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:30:33.466 : SN 7473 : Sent: rx   To: /dev/ttyUSB0   Received: r, 13.56m,0000000360Hz,0000000000c,0000000.000s, 019.3C
+2025-03-27 17:30:33.498 : SN 7473 : -DLRSS: Getting time zone for the selected meter.
+2025-03-27 17:30:33.513 : SN 7473 : -DLRSS: Retrieve all DL readings.
+2025-03-27 17:30:33.515 : SN 7473 : DL binary retrieve initiated.
+2025-03-27 17:30:33.546 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:30:33.578 : SN 7473 : Sent: ix   To: /dev/ttyUSB0   Received: i,00000004,00000006,00000084,00007473
+2025-03-27 17:30:33.610 : SN 7473 : Sent: rx   To: /dev/ttyUSB0   Received: r, 13.56m,0000000360Hz,0000000000c,0000000.000s, 019.3C
+2025-03-27 17:30:33.642 : SN 7473 : Sent: cx   To: /dev/ttyUSB0   Received: c,00000019.95m,0000300.000s, 015.1C,00000008.71m, 015.1C
+2025-03-27 17:30:33.674 : SN 7473 : Sent: Ix   To: /dev/ttyUSB0   Received: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:30:33.706 : SN 7473 : Sent: Lcx   To: /dev/ttyUSB0   Received: Lc,25-03-27 5 17:30:33
+2025-03-27 17:30:33.722 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:30:33.761 : SN 7473 : Sent: LIx   To: /dev/ttyUSB0   Received: LI,0000000000s,0000000255m,0000000000s,0000000016m,00000007.00m,
+2025-03-27 17:30:33.777 : SN 7473 : 93 Packets 16 bytes long.
+2025-03-27 17:30:33.779 : SN 7473 : DLRetASCII: ERROR! IORESULT: 0 at record #: 1
+2025-03-27 17:30:33.781 : SN 7473 : -DLRSS: Exiting as requested by.
+2025-03-27 17:32:30.691 : SN 7473 : Sent: m0x   To: /dev/ttyUSB0   Received: m0,255
+2025-03-27 17:32:30.707 : SN 7473 : Sent: m1x   To: /dev/ttyUSB0   Received: m1,255
+2025-03-27 17:32:30.723 : SN 7473 : Sent: m2x   To: /dev/ttyUSB0   Received: m2,255
+2025-03-27 17:32:30.739 : SN 7473 : Sent: Lvx   To: /dev/ttyUSB0   Received: Lv,2
+2025-03-27 17:32:30.740 : SN 7473 : ContCheck(Yx)
+2025-03-27 17:32:30.755 : SN 7473 : Sent: Yx   To: /dev/ttyUSB0   Received: Yrcpu
+2025-03-27 17:32:30.803 : SN 7473 : Sent: A5x   To: /dev/ttyUSB0   Received: A5,0,d
+2025-03-27 17:32:30.905 : SN 7473 : Sent: LIx   To: /dev/ttyUSB0   Received: LI,0000000000s,0000000255m,0000000000s,0000000016m,00000007.00m,
+2025-03-27 17:32:30.921 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:32:30.937 : SN 7473 : Sent: LZx   To: /dev/ttyUSB0   Received: LZ,0001048576
+2025-03-27 17:32:30.953 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000093
+2025-03-27 17:32:30.985 : SN 7473 : Sent: Lcx   To: /dev/ttyUSB0   Received: Lc,25-03-27 5 17:32:30
+2025-03-27 17:32:30.986 : SN 7473 : Real Time Clock difference: 0
+2025-03-27 17:32:31.001 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:32:31.017 : SN 7473 : Sent: LD0x   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:32:31.033 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:32:31.056 : SN 7473 : CheckLockVisibility()
+2025-03-27 17:32:31.081 : SN 7473 : Sent: Ix   To: /dev/ttyUSB0   Received: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:32:31.081 : SN 7473 : ParseReportInterval response: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:32:31.112 : SN 7473 : GetVersion result: i,00000004,00000006,00000084,00007473
+2025-03-27 17:32:31.113 : SN 7473 : Reading Interval Settings: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:32:31.145 : SN 7473 : Sent: rx   To: /dev/ttyUSB0   Received: r, 13.41m,0000000413Hz,0000000000c,0000000.000s, 019.3C
+2025-03-27 17:33:01.869 : SN 7473 : Sent: m0x   To: /dev/ttyUSB0   Received: m0,255
+2025-03-27 17:33:01.901 : SN 7473 : Sent: m1x   To: /dev/ttyUSB0   Received: m1,255
+2025-03-27 17:33:01.917 : SN 7473 : Sent: m2x   To: /dev/ttyUSB0   Received: m2,255
+2025-03-27 17:33:01.933 : SN 7473 : Sent: Lvx   To: /dev/ttyUSB0   Received: Lv,2
+2025-03-27 17:33:01.936 : SN 7473 : ContCheck(Yx)
+2025-03-27 17:33:01.965 : SN 7473 : Sent: Yx   To: /dev/ttyUSB0   Received: Yrcpu
+2025-03-27 17:33:02.013 : SN 7473 : Sent: A5x   To: /dev/ttyUSB0   Received: A5,0,d
+2025-03-27 17:33:02.119 : SN 7473 : Sent: LIx   To: /dev/ttyUSB0   Received: LI,0000000000s,0000000255m,0000000000s,0000000016m,00000007.00m,
+2025-03-27 17:33:02.151 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:33:02.183 : SN 7473 : Sent: LZx   To: /dev/ttyUSB0   Received: LZ,0001048576
+2025-03-27 17:33:02.215 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000093
+2025-03-27 17:33:02.247 : SN 7473 : Sent: Lcx   To: /dev/ttyUSB0   Received: Lc,25-03-27 5 17:33:01
+2025-03-27 17:33:02.249 : SN 7473 : Real Time Clock difference: 1
+2025-03-27 17:33:02.279 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:33:02.311 : SN 7473 : Sent: LD0x   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:33:02.327 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:33:02.350 : SN 7473 : CheckLockVisibility()
+2025-03-27 17:33:02.375 : SN 7473 : Sent: Ix   To: /dev/ttyUSB0   Received: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:33:02.377 : SN 7473 : ParseReportInterval response: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:33:02.405 : SN 7473 : GetVersion result: i,00000004,00000006,00000084,00007473
+2025-03-27 17:33:02.407 : SN 7473 : Reading Interval Settings: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:33:02.439 : SN 7473 : Sent: rx   To: /dev/ttyUSB0   Received: r, 13.53m,0000000368Hz,0000000000c,0000000.000s, 019.3C
+2025-03-27 17:33:02.470 : SN 7473 : -DLRSS: Getting time zone for the selected meter.
+2025-03-27 17:33:02.522 : SN 7473 : -DLRSS: Retrieve all DL readings.
+2025-03-27 17:33:02.524 : SN 7473 : DL binary retrieve initiated.
+2025-03-27 17:33:02.551 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:33:02.583 : SN 7473 : Sent: ix   To: /dev/ttyUSB0   Received: i,00000004,00000006,00000084,00007473
+2025-03-27 17:33:02.615 : SN 7473 : Sent: rx   To: /dev/ttyUSB0   Received: r, 13.53m,0000000368Hz,0000000000c,0000000.000s, 019.3C
+2025-03-27 17:33:02.647 : SN 7473 : Sent: cx   To: /dev/ttyUSB0   Received: c,00000019.95m,0000300.000s, 015.1C,00000008.71m, 015.1C
+2025-03-27 17:33:02.679 : SN 7473 : Sent: Ix   To: /dev/ttyUSB0   Received: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:33:02.711 : SN 7473 : Sent: Lcx   To: /dev/ttyUSB0   Received: Lc,25-03-27 5 17:33:02
+2025-03-27 17:33:02.727 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:33:02.766 : SN 7473 : Sent: LIx   To: /dev/ttyUSB0   Received: LI,0000000000s,0000000255m,0000000000s,0000000016m,00000007.00m,
+2025-03-27 17:33:02.782 : SN 7473 : 93 Packets 16 bytes long.
+2025-03-27 17:33:03.524 : SN 7473 : -DLRSS: Exiting as requested by.
+2025-03-27 17:33:18.466 : SN 7473 : Sent: m0x   To: /dev/ttyUSB0   Received: m0,255
+2025-03-27 17:33:18.482 : SN 7473 : Sent: m1x   To: /dev/ttyUSB0   Received: m1,255
+2025-03-27 17:33:18.498 : SN 7473 : Sent: m2x   To: /dev/ttyUSB0   Received: m2,255
+2025-03-27 17:33:18.514 : SN 7473 : Sent: Lvx   To: /dev/ttyUSB0   Received: Lv,2
+2025-03-27 17:33:18.515 : SN 7473 : ContCheck(Yx)
+2025-03-27 17:33:18.546 : SN 7473 : Sent: Yx   To: /dev/ttyUSB0   Received: Yrcpu
+2025-03-27 17:33:18.594 : SN 7473 : Sent: A5x   To: /dev/ttyUSB0   Received: A5,0,d
+2025-03-27 17:33:18.690 : SN 7473 : Sent: LIx   To: /dev/ttyUSB0   Received: LI,0000000000s,0000000255m,0000000000s,0000000016m,00000007.00m,
+2025-03-27 17:33:18.706 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:33:18.722 : SN 7473 : Sent: LZx   To: /dev/ttyUSB0   Received: LZ,0001048576
+2025-03-27 17:33:18.738 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000093
+2025-03-27 17:33:18.770 : SN 7473 : Sent: Lcx   To: /dev/ttyUSB0   Received: Lc,25-03-27 5 17:33:18
+2025-03-27 17:33:18.770 : SN 7473 : Real Time Clock difference: 0
+2025-03-27 17:33:18.786 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:33:18.802 : SN 7473 : Sent: LD0x   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:33:18.818 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:33:18.838 : SN 7473 : CheckLockVisibility()
+2025-03-27 17:33:18.866 : SN 7473 : Sent: Ix   To: /dev/ttyUSB0   Received: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:33:18.866 : SN 7473 : ParseReportInterval response: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:33:18.891 : SN 7473 : GetVersion result: i,00000004,00000006,00000084,00007473
+2025-03-27 17:33:18.891 : SN 7473 : Reading Interval Settings: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:33:18.930 : SN 7473 : Sent: rx   To: /dev/ttyUSB0   Received: r, 13.51m,0000000374Hz,0000000000c,0000000.000s, 019.3C
+2025-03-27 17:33:25.098 : SN 7473 : Sent: LIx   To: /dev/ttyUSB0   Received: LI,0000000000s,0000000255m,0000000000s,0000000016m,00000007.00m,
+2025-03-27 17:33:25.146 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:33:25.178 : SN 7473 : Sent: LZx   To: /dev/ttyUSB0   Received: LZ,0001048576
+2025-03-27 17:33:25.210 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000093
+2025-03-27 17:33:25.258 : SN 7473 : Sent: Lcx   To: /dev/ttyUSB0   Received: Lc,25-03-27 5 17:33:24
+2025-03-27 17:33:25.264 : SN 7473 : Real Time Clock difference: 1
+2025-03-27 17:33:25.290 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:33:25.322 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000093
+2025-03-27 17:33:25.338 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000093
+2025-03-27 17:33:25.386 : SN 7473 : Sent: L40000000000x   To: /dev/ttyUSB0   Received: L4,25-03-26 4 23:54:59,07.90, 022.8C,209,0
+2025-03-27 17:33:31.191 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000093
+2025-03-27 17:34:03.611 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000093
+2025-03-27 17:34:03.627 : SN 7473 : Sent: L3x   To: /dev/ttyUSB0   Received: L3,0000000094
+2025-03-27 17:34:03.659 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000094
+2025-03-27 17:34:03.691 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000094
+2025-03-27 17:34:03.739 : SN 7473 : Sent: L40000000093x   To: /dev/ttyUSB0   Received: L4,25-03-27 5 17:34:03,13.53, 019.3C,221,0
+2025-03-27 17:34:08.951 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000094
+2025-03-27 17:34:13.697 : SN 7473 : DL binary retrieve initiated.
+2025-03-27 17:34:13.734 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:34:13.766 : SN 7473 : Sent: ix   To: /dev/ttyUSB0   Received: i,00000004,00000006,00000084,00007473
+2025-03-27 17:34:13.798 : SN 7473 : Sent: rx   To: /dev/ttyUSB0   Received: r, 13.53m,0000000371Hz,0000000000c,0000000.000s, 019.6C
+2025-03-27 17:34:13.830 : SN 7473 : Sent: cx   To: /dev/ttyUSB0   Received: c,00000019.95m,0000300.000s, 015.1C,00000008.71m, 015.1C
+2025-03-27 17:34:13.862 : SN 7473 : Sent: Ix   To: /dev/ttyUSB0   Received: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:34:13.894 : SN 7473 : Sent: Lcx   To: /dev/ttyUSB0   Received: Lc,25-03-27 5 17:34:13
+2025-03-27 17:34:13.910 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:34:13.950 : SN 7473 : Sent: LIx   To: /dev/ttyUSB0   Received: LI,0000000000s,0000000255m,0000000000s,0000000016m,00000007.00m,
+2025-03-27 17:34:13.966 : SN 7473 : 94 Packets 16 bytes long.
+2025-03-27 17:34:36.874 : SN 7473 : Sent: m0x   To: /dev/ttyUSB0   Received: m0,255
+2025-03-27 17:34:36.906 : SN 7473 : Sent: m1x   To: /dev/ttyUSB0   Received: m1,255
+2025-03-27 17:34:36.922 : SN 7473 : Sent: m2x   To: /dev/ttyUSB0   Received: m2,255
+2025-03-27 17:34:36.938 : SN 7473 : Sent: Lvx   To: /dev/ttyUSB0   Received: Lv,2
+2025-03-27 17:34:36.941 : SN 7473 : ContCheck(Yx)
+2025-03-27 17:34:36.970 : SN 7473 : Sent: Yx   To: /dev/ttyUSB0   Received: Yrcpu
+2025-03-27 17:34:37.018 : SN 7473 : Sent: A5x   To: /dev/ttyUSB0   Received: A5,0,d
+2025-03-27 17:34:37.142 : SN 7473 : Sent: LIx   To: /dev/ttyUSB0   Received: LI,0000000000s,0000000255m,0000000000s,0000000016m,00000007.00m,
+2025-03-27 17:34:37.174 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:34:37.206 : SN 7473 : Sent: LZx   To: /dev/ttyUSB0   Received: LZ,0001048576
+2025-03-27 17:34:37.238 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000094
+2025-03-27 17:34:37.270 : SN 7473 : Sent: Lcx   To: /dev/ttyUSB0   Received: Lc,25-03-27 5 17:34:36
+2025-03-27 17:34:37.273 : SN 7473 : Real Time Clock difference: 1
+2025-03-27 17:34:37.302 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:34:37.334 : SN 7473 : Sent: LD0x   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:34:37.350 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:34:37.375 : SN 7473 : CheckLockVisibility()
+2025-03-27 17:34:37.398 : SN 7473 : Sent: Ix   To: /dev/ttyUSB0   Received: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:34:37.401 : SN 7473 : ParseReportInterval response: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:34:37.426 : SN 7473 : GetVersion result: i,00000004,00000006,00000084,00007473
+2025-03-27 17:34:37.429 : SN 7473 : Reading Interval Settings: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:34:37.462 : SN 7473 : Sent: rx   To: /dev/ttyUSB0   Received: r, 13.53m,0000000370Hz,0000000000c,0000000.000s, 019.3C
+2025-03-27 17:34:37.493 : SN 7473 : -DLRSS: Getting time zone for the selected meter.
+2025-03-27 17:34:37.545 : SN 7473 : -DLRSS: Retrieve all DL readings.
+2025-03-27 17:34:37.546 : SN 7473 : DL binary retrieve initiated.
+2025-03-27 17:34:37.574 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:34:37.606 : SN 7473 : Sent: ix   To: /dev/ttyUSB0   Received: i,00000004,00000006,00000084,00007473
+2025-03-27 17:34:37.638 : SN 7473 : Sent: rx   To: /dev/ttyUSB0   Received: r, 13.53m,0000000370Hz,0000000000c,0000000.000s, 019.3C
+2025-03-27 17:34:37.670 : SN 7473 : Sent: cx   To: /dev/ttyUSB0   Received: c,00000019.95m,0000300.000s, 015.1C,00000008.71m, 015.1C
+2025-03-27 17:34:37.702 : SN 7473 : Sent: Ix   To: /dev/ttyUSB0   Received: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:34:37.734 : SN 7473 : Sent: Lcx   To: /dev/ttyUSB0   Received: Lc,25-03-27 5 17:34:37
+2025-03-27 17:34:37.750 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:34:37.789 : SN 7473 : Sent: LIx   To: /dev/ttyUSB0   Received: LI,0000000000s,0000000255m,0000000000s,0000000016m,00000007.00m,
+2025-03-27 17:34:37.805 : SN 7473 : 94 Packets 16 bytes long.
+2025-03-27 17:34:38.563 : SN 7473 : -DLRSS: Exiting as requested by.
+2025-03-27 17:35:29.806 : SN 7473 : Sent: m0x   To: /dev/ttyUSB0   Received: m0,255
+2025-03-27 17:35:29.822 : SN 7473 : Sent: m1x   To: /dev/ttyUSB0   Received: m1,255
+2025-03-27 17:35:29.838 : SN 7473 : Sent: m2x   To: /dev/ttyUSB0   Received: m2,255
+2025-03-27 17:35:29.854 : SN 7473 : Sent: Lvx   To: /dev/ttyUSB0   Received: Lv,2
+2025-03-27 17:35:29.855 : SN 7473 : ContCheck(Yx)
+2025-03-27 17:35:29.870 : SN 7473 : Sent: Yx   To: /dev/ttyUSB0   Received: Yrcpu
+2025-03-27 17:35:29.918 : SN 7473 : Sent: A5x   To: /dev/ttyUSB0   Received: A5,0,d
+2025-03-27 17:35:30.024 : SN 7473 : Sent: LIx   To: /dev/ttyUSB0   Received: LI,0000000000s,0000000255m,0000000000s,0000000016m,00000007.00m,
+2025-03-27 17:35:30.040 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:35:30.056 : SN 7473 : Sent: LZx   To: /dev/ttyUSB0   Received: LZ,0001048576
+2025-03-27 17:35:30.072 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000094
+2025-03-27 17:35:30.104 : SN 7473 : Sent: Lcx   To: /dev/ttyUSB0   Received: Lc,25-03-27 5 17:35:29
+2025-03-27 17:35:30.104 : SN 7473 : Real Time Clock difference: 1
+2025-03-27 17:35:30.120 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:35:30.136 : SN 7473 : Sent: LD0x   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:35:30.152 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:35:30.176 : SN 7473 : CheckLockVisibility()
+2025-03-27 17:35:30.200 : SN 7473 : Sent: Ix   To: /dev/ttyUSB0   Received: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:35:30.200 : SN 7473 : ParseReportInterval response: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:35:30.227 : SN 7473 : GetVersion result: i,00000004,00000006,00000084,00007473
+2025-03-27 17:35:30.227 : SN 7473 : Reading Interval Settings: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:35:30.264 : SN 7473 : Sent: rx   To: /dev/ttyUSB0   Received: r, 13.52m,0000000373Hz,0000000000c,0000000.000s, 019.3C
+2025-03-27 17:35:34.118 : SN 7473 : Sent: LIx   To: /dev/ttyUSB0   Received: LI,0000000000s,0000000255m,0000000000s,0000000016m,00000007.00m,
+2025-03-27 17:35:34.166 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:35:34.198 : SN 7473 : Sent: LZx   To: /dev/ttyUSB0   Received: LZ,0001048576
+2025-03-27 17:35:34.230 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000094
+2025-03-27 17:35:34.262 : SN 7473 : Sent: Lcx   To: /dev/ttyUSB0   Received: Lc,25-03-27 5 17:35:33
+2025-03-27 17:35:34.267 : SN 7473 : Real Time Clock difference: 1
+2025-03-27 17:35:34.294 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:35:34.326 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000094
+2025-03-27 17:35:34.358 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000094
+2025-03-27 17:35:34.406 : SN 7473 : Sent: L40000000000x   To: /dev/ttyUSB0   Received: L4,25-03-26 4 23:54:59,07.90, 022.8C,209,0
+2025-03-27 17:35:50.344 : SN 7473 : Sent: LIx   To: /dev/ttyUSB0   Received: LI,0000000000s,0000000255m,0000000000s,0000000016m,00000007.00m,
+2025-03-27 17:35:50.392 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:35:50.408 : SN 7473 : Sent: LZx   To: /dev/ttyUSB0   Received: LZ,0001048576
+2025-03-27 17:35:50.424 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000094
+2025-03-27 17:35:50.456 : SN 7473 : Sent: Lcx   To: /dev/ttyUSB0   Received: Lc,25-03-27 5 17:35:50
+2025-03-27 17:35:50.462 : SN 7473 : Real Time Clock difference: 0
+2025-03-27 17:35:50.488 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:35:52.093 : SN 7473 : GetVersion called.
+2025-03-27 17:35:52.151 : SN 7473 : Sent: ix   To: /dev/ttyUSB0   Received: i,00000004,00000006,00000084,00007473
+2025-03-27 17:35:52.167 : SN 7473 : Sent: m0x   To: /dev/ttyUSB0   Received: m0,255
+2025-03-27 17:35:52.183 : SN 7473 : Sent: m1x   To: /dev/ttyUSB0   Received: m1,255
+2025-03-27 17:35:52.199 : SN 7473 : Sent: m2x   To: /dev/ttyUSB0   Received: m2,255
+2025-03-27 17:35:52.215 : SN 7473 : Sent: Lvx   To: /dev/ttyUSB0   Received: Lv,2
+2025-03-27 17:35:52.219 : SN 7473 : ContCheck(Yx)
+2025-03-27 17:35:52.247 : SN 7473 : Sent: Yx   To: /dev/ttyUSB0   Received: Yrcpu
+2025-03-27 17:35:52.263 : SN 7473 : Sent: A5x   To: /dev/ttyUSB0   Received: A5,0,d
+2025-03-27 17:35:52.350 : SN 7473 : Sent: LIx   To: /dev/ttyUSB0   Received: LI,0000000000s,0000000255m,0000000000s,0000000016m,00000007.00m,
+2025-03-27 17:35:52.382 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:35:52.398 : SN 7473 : Sent: LZx   To: /dev/ttyUSB0   Received: LZ,0001048576
+2025-03-27 17:35:52.414 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000094
+2025-03-27 17:35:52.446 : SN 7473 : Sent: Lcx   To: /dev/ttyUSB0   Received: Lc,25-03-27 5 17:35:52
+2025-03-27 17:35:52.449 : SN 7473 : Real Time Clock difference: 0
+2025-03-27 17:35:52.478 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:35:52.483 : SN 7473 : CheckLockVisibility()
+2025-03-27 17:35:52.510 : SN 7473 : Sent: Ix   To: /dev/ttyUSB0   Received: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:35:52.513 : SN 7473 : ParseReportInterval response: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:35:52.525 : SN 7473 : GetVersion result: i,00000004,00000006,00000084,00007473
+2025-03-27 17:35:52.529 : SN 7473 : Reading Interval Settings: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 17:35:52.559 : SN 7473 : GetConfReading called.
+2025-03-27 17:35:52.606 : SN 7473 : Sent: ux   To: /dev/ttyUSB0   Received: u, 13.52m,0000000373Hz,0000000000c,0000000.000s, 019.6C
+2025-03-27 17:35:52.638 : SN 7473 : Sent: m0x   To: /dev/ttyUSB0   Received: m0,255
+2025-03-27 17:35:52.670 : SN 7473 : Sent: m1x   To: /dev/ttyUSB0   Received: m1,255
+2025-03-27 17:35:52.686 : SN 7473 : Sent: m2x   To: /dev/ttyUSB0   Received: m2,255
+2025-03-27 17:35:52.689 : SN 7473 : GetConfCal called.
+2025-03-27 17:35:52.718 : SN 7473 : Sent: cx   To: /dev/ttyUSB0   Received: c,00000019.95m,0000300.000s, 015.1C,00000008.71m, 015.1C
+2025-03-27 17:35:55.353 : SN 7473 : Sent: LIx   To: /dev/ttyUSB0   Received: LI,0000000000s,0000000255m,0000000000s,0000000016m,00000007.00m,
+2025-03-27 17:35:55.400 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 17:35:55.433 : SN 7473 : Sent: LZx   To: /dev/ttyUSB0   Received: LZ,0001048576
+2025-03-27 17:35:55.465 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000094
+2025-03-27 17:35:55.497 : SN 7473 : Sent: Lcx   To: /dev/ttyUSB0   Received: Lc,25-03-27 5 17:35:55
+2025-03-27 17:35:55.501 : SN 7473 : Real Time Clock difference: 0
+2025-03-27 17:35:55.529 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 17:35:55.560 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000094
+2025-03-27 17:35:55.592 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000094
+2025-03-27 17:35:55.641 : SN 7473 : Sent: L40000000000x   To: /dev/ttyUSB0   Received: L4,25-03-26 4 23:54:59,07.90, 022.8C,209,0
+2025-03-27 22:12:53.843 : SN 7473 : Sent: m0x   To: /dev/ttyUSB0   Received: m0,255
+2025-03-27 22:12:53.859 : SN 7473 : Sent: m1x   To: /dev/ttyUSB0   Received: m1,255
+2025-03-27 22:12:53.875 : SN 7473 : Sent: m2x   To: /dev/ttyUSB0   Received: m2,255
+2025-03-27 22:12:53.891 : SN 7473 : Sent: Lvx   To: /dev/ttyUSB0   Received: Lv,2
+2025-03-27 22:12:53.892 : SN 7473 : ContCheck(Yx)
+2025-03-27 22:12:53.911 : SN 7473 : Sent: Yx   To: /dev/ttyUSB0   Received: Yrcpu
+2025-03-27 22:12:53.971 : SN 7473 : Sent: A5x   To: /dev/ttyUSB0   Received: A5,0,d
+2025-03-27 22:12:54.067 : SN 7473 : Sent: LIx   To: /dev/ttyUSB0   Received: LI,0000000000s,0000000255m,0000000000s,0000000016m,00000007.00m,
+2025-03-27 22:12:54.083 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 22:12:54.099 : SN 7473 : Sent: LZx   To: /dev/ttyUSB0   Received: LZ,0001048576
+2025-03-27 22:12:54.115 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000150
+2025-03-27 22:12:54.147 : SN 7473 : Sent: Lcx   To: /dev/ttyUSB0   Received: Lc,25-03-27 5 22:12:53
+2025-03-27 22:12:54.148 : SN 7473 : Real Time Clock difference: 1
+2025-03-27 22:12:54.163 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 22:12:54.179 : SN 7473 : Sent: LD0x   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 22:12:54.195 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 22:12:54.212 : SN 7473 : CheckLockVisibility()
+2025-03-27 22:12:54.243 : SN 7473 : Sent: Ix   To: /dev/ttyUSB0   Received: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 22:12:54.243 : SN 7473 : ParseReportInterval response: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 22:12:54.271 : SN 7473 : GetVersion result: i,00000004,00000006,00000084,00007473
+2025-03-27 22:12:54.271 : SN 7473 : Reading Interval Settings: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 22:12:54.307 : SN 7473 : Sent: rx   To: /dev/ttyUSB0   Received: r, 10.53m,0000005855Hz,0000000000c,0000000.000s, 020.9C
+2025-03-27 22:13:16.366 : SN 7473 : Sent: LIx   To: /dev/ttyUSB0   Received: LI,0000000000s,0000000255m,0000000000s,0000000016m,00000007.00m,
+2025-03-27 22:13:16.414 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 22:13:16.446 : SN 7473 : Sent: LZx   To: /dev/ttyUSB0   Received: LZ,0001048576
+2025-03-27 22:13:16.478 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000150
+2025-03-27 22:13:16.510 : SN 7473 : Sent: Lcx   To: /dev/ttyUSB0   Received: Lc,25-03-27 5 22:13:16
+2025-03-27 22:13:16.514 : SN 7473 : Real Time Clock difference: 0
+2025-03-27 22:13:16.542 : SN 7473 : Sent: Ldx   To: /dev/ttyUSB0   Received: Ld,0
+2025-03-27 22:13:16.574 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000150
+2025-03-27 22:13:16.606 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000150
+2025-03-27 22:13:16.654 : SN 7473 : Sent: L40000000000x   To: /dev/ttyUSB0   Received: L4,25-03-26 4 23:54:59,07.90, 022.8C,209,0
+2025-03-27 22:13:24.759 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000150
+2025-03-27 22:13:27.995 : SN 7473 : DL binary retrieve initiated.
+2025-03-27 22:13:28.021 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 22:13:28.054 : SN 7473 : Sent: ix   To: /dev/ttyUSB0   Received: i,00000004,00000006,00000084,00007473
+2025-03-27 22:13:28.086 : SN 7473 : Sent: rx   To: /dev/ttyUSB0   Received: r, 10.53m,0000005855Hz,0000000000c,0000000.000s, 021.2C
+2025-03-27 22:13:28.118 : SN 7473 : Sent: cx   To: /dev/ttyUSB0   Received: c,00000019.95m,0000300.000s, 015.1C,00000008.71m, 015.1C
+2025-03-27 22:13:28.150 : SN 7473 : Sent: Ix   To: /dev/ttyUSB0   Received: 0000000000s,0000000000s,00000000.00m,00000000.00m
+2025-03-27 22:13:28.181 : SN 7473 : Sent: Lcx   To: /dev/ttyUSB0   Received: Lc,25-03-27 5 22:13:27
+2025-03-27 22:13:28.213 : SN 7473 : Sent: Lmx   To: /dev/ttyUSB0   Received: LM,3
+2025-03-27 22:13:28.253 : SN 7473 : Sent: LIx   To: /dev/ttyUSB0   Received: LI,0000000000s,0000000255m,0000000000s,0000000016m,00000007.00m,
+2025-03-27 22:13:28.269 : SN 7473 : 150 Packets 16 bytes long.
+2025-03-27 22:15:51.629 : SN 7473 : Sent: L1x   To: /dev/ttyUSB0   Received: L1,0000000150

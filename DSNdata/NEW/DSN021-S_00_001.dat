@@ -1,0 +1,16 @@
+[Serial:7456]
+Number Of Channels=1
+HardwareID=B003LOYY
+Instrument ID=DSN021-S
+Data Supplier=DarkSky SoAZ
+Location Name=VATT
+Position=32.7013, -109.892, 3178
+Local region=northamerica
+Local time zone=MST
+Time Synchronization=GPS
+Moving Stationary Position=STATIONARY
+Moving Stationary Direction=FIXED
+CoverOffset=-0.11
+Filters Per Channel=HOYA CM-500
+Measurement Direction Per Channel=0
+Field Of View=20
