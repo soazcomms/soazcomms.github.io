@@ -59,7 +59,7 @@ jobs:
             fi
 
             echo "---- Processing Site: $site_name (Seq: $sequence)"
-            SITE_FOLDER="soazdsn:DSNdata/DSNsites:$site_name"
+            SITE_FOLDER="soazdsn:DSNdata/DSNsites/$site_name"
             LOCAL_FOLDER="DSNdata/$site_name"
             mkdir -p "$LOCAL_FOLDER"
 
