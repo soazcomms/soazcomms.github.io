@@ -63,7 +63,7 @@ jobs:
             LOCAL_FOLDER="DSNdata/$site_name"
             mkdir -p "$LOCAL_FOLDER"
 
-            echo "Checking for new files in $SITE_FOLDER..."
+            echo "Checking for new .dat files in $SITE_FOLDER..."
             rclone lsf "$SITE_FOLDER" | grep ".dat" > available_files.txt || true
 
             if [ -f "$LOG_FILE" ]; then
