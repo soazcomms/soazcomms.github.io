@@ -4,7 +4,7 @@ The Dark Sky Network (DSN): monitoring the night sky brightness over Southern Ar
 for the next ten years, starting in 2025. We use SQM and TESS units. Several units are in place, and have
 been running for up to 7 years. Their data are periodically incorporated in our data space. 
 We took delivery of SQM units on 2/6/25 and have TESS units on order as of 1/22/25. 
-As of 3/6/25, we have 8 units in the DSN.
+As of 4/12/25, we have 13 units in the DSN.
 > [!CAUTION]
 > This code is a work in progress.
 
@@ -13,8 +13,7 @@ The GitHub workflow [**DSN-process_data**](https://github.com/soazcomms/soazcomm
 
 ### Step 1
 SQM/TESS raw data are uploaded to DSNdata/NEW. This process may be manual
-(e.g. SQMs w/o internet) or automatic (we are working on this step). The files are labeled with the site and sensor
-name, DSNnnn-U_SiteName_yy-sss.dat where: 
+(e.g. SQMs w/o internet) or automatic using a Raspberry Pi 4B. The files are labeled with the site and sensor name, DSNnnn-U_SiteName_yy-sss.dat where: 
 * nnn is a site sequence number
 * U is the type of the unit, S (T) for SQM (TESS)
 * SiteName describes the site
