@@ -64,7 +64,7 @@ jobs:
             mkdir -p "$LOCAL_FOLDER"
 
             echo "Checking for new .dat files in $SITE_FOLDER..."
-            rclone ls "$SITE_FOLDER" | grep ".dat" > available_files.txt || true
+            rclone lsf "$SITE_FOLDER" | grep ".dat" > available_files.txt || true
 
             if [ -f "$LOG_FILE" ]; then
               grep -Fxvf "$LOG_FILE" available_files.txt > new_files.txt || true
