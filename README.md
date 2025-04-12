@@ -3,13 +3,13 @@
 The Dark Sky Network (DSN): monitoring the night sky brightness over Southern Arizona 
 for the next ten years, starting in 2025. We use SQM and TESS units. Several units are in place, and have
 been running for up to 7 years. Their data are periodically incorporated in our data space. 
-We took delivery of SQM units on 2/6/25 and have TESS units on order as of 1/22/25. 
+We took delivery of SQM units on 2/6/25 and have TESS units on their on 4/11/25. 
 As of 4/12/25, we have 13 units in the DSN.
 > [!CAUTION]
 > This code is a work in progress.
 
 # The Process
-The GitHub workflow [**DSN-process_data**](https://github.com/soazcomms/soazcomms.github.io/blob/main/.github/workflows/DSN-process_data.V02.yml) runs every day at 17:00 UTC (in production mode; currently runs manually). If it finds data in the github directory DSNdata/NEW, it processes it (see below).
+The GitHub workflow [**DSN-process_data**](https://github.com/soazcomms/soazcomms.github.io/blob/main/.github/workflows/DSN-process_data.V02.yml) runs weekly. If it finds data in the github directory DSNdata/NEW, it processes it (see below).
 
 ### Step 1
 SQM/TESS raw data are uploaded to DSNdata/NEW. This process may be manual
