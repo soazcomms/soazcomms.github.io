@@ -1,9 +1,10 @@
 name: DSN Process SQM/TESS Raw Data and Upload to Box
 # Trigger the workflow on a schedule (in production mode)
 on:
+  schedule:
+    - cron: '0 8 * * 3'  # Runs every Wed at 08:00 UTC
   workflow_dispatch:
-#  schedule:
-#    - cron: '0 17 * * 0-7'  # Runs every day at 17:00 UTC
+  
 #  push:
 #    branches:
 #      - main  # Trigger on push to the 'main' branch
