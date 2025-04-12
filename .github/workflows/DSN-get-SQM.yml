@@ -1,7 +1,7 @@
 name: DSN-get-SQM Data
 
 on:
-schedule:
+  schedule:
     - cron: '0 8 2 * *'  # Runs at 08:00 UTC every Tuesday
   workflow_dispatch:  # Allows manual triggering
 
