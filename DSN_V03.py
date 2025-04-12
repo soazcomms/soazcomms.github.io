@@ -243,7 +243,7 @@ site_number=matches[0][2]+1
 iunder=site_names[site_number].rfind('_')+1
 site_name=site_names[site_number][iunder:]
 SorT=DSN_name[-1] # S or T
-inf_measurement=DSN_name[:6]+"\-"+SorT+"_"+site_name
+inf_measurement=DSN_name[:6]+"-"+SorT+"_"+site_name
 print(inf_measurement)
 inf_file=inf_measurement+"_"+site_file[idsn+9:idot]
 
