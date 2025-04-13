@@ -33,7 +33,7 @@ jobs:
           # Compute the previous month in YYYY-MM format
           PREV_MONTH=$(date --date="$(date +%Y-%m-01) last month" +%Y-%m)
           # TEMPORARY PATCH
-          PREV_MONTH="2024-08"
+          # PREV_MONTH="2024-08"
           echo "Process previous month: $PREV_MONTH"
           # Skip the first line of TESSnames.dat and process each entry
           tail -n +2 TESSnames.dat | while read -r stars_name new_label; do
