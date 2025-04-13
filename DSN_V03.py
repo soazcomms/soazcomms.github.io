@@ -244,7 +244,7 @@ iunder=site_names[site_number].rfind('_')+1
 site_name=site_names[site_number][iunder:]
 SorT=DSN_name[-1] # S or T
 # for influx formatting
-inf_measurement=DSN_name[:6]+"-"+SorT+"_"+site_name
+inf_measurement=DSN_name[:6]+"m"+SorT+"_"+site_name
 inf_file=inf_measurement+"_"+site_file[idsn+9:idot]
 
 print("DSN name: ",DSN_name,"Site name: ",site_name," Number: ",site_number)
