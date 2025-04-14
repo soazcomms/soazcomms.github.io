@@ -1,4 +1,4 @@
-name: Download SQM Data from Box
+name: DSN Download SQM Data from Box
 
 on:
   schedule:
