@@ -48,8 +48,8 @@ jobs:
           if [ -z "$FILES" ]; then
             CURRENT_DATE=$(date '+%Y-%m-%d %H:%M:%S')
             echo $CURRENT_DATE "No files in DSNdata/NEW." >> DSNdata/RUN_LOG
-            echo "Error: No files found." >&2
-            exit 1
+            echo "Exit: No files found in DSNdata/NEW." >&2
+            exit 0
           fi
           for file in $FILES; do
             new_file="DSNdata/NEW/$file"
