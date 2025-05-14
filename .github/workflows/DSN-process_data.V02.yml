@@ -179,7 +179,7 @@ jobs:
           echo "Delete temporary files..."
           rm -f box_config.json
           rm -f DSNdata/NEW/*
-          cp DSNdata/INFLUX/* DSNdata/SAVE
+          cp -f DSNdata/INFLUX/* DSNdata/SAVE
           rm -f DSNdata/INFLUX/*
           rm -f DSNdata/BOX/*
           rm -f DSNdata/MERGE/*
