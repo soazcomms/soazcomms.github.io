@@ -70,6 +70,7 @@ jobs:
             mkdir -p "$LOCAL_FOLDER"
 
             echo "Checking for new .csv files in $SITE_FOLDER..."
+            rclone lsf "$SITE_FOLDER"
             rclone lsf "$SITE_FOLDER" | grep "2....csv" > available_files.txt || true
             echo "   available_files.txt: "
             cat available_files.txt
