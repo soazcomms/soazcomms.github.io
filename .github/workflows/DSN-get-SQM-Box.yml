@@ -57,7 +57,7 @@ jobs:
               continue
             fi
             if [[ $Box_list =~ $alias ]]; then # OK if in list
-              echo "$site_name $sequence $alias" >> cleaned_sqm.csv
+              echo "$site_name, $sequence, $alias" >> cleaned_sqm.csv
             fi
           done < "$SQMTABLE_CSV"
           echo "---- Processing each Box site in cleaned_sqm.csv:"
