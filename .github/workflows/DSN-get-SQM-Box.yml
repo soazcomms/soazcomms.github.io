@@ -53,6 +53,7 @@ jobs:
           rm -rf cleaned_sqm.csv
           Box_list="CFh MtL V06 CCn"  # Box data aliases
           while IFS=, read -r site_name sequence alias; do
+            echo "---- site_name $site_name seq $sequence alias $alias"
             if [ "$alias" == "Alias" ]; then  # skip first, header line
               continue
             fi
