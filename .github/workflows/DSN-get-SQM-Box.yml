@@ -72,12 +72,8 @@ jobs:
             echo "Checking for new .csv files in $SITE_FOLDER..."
             rclone lsf "$SITE_FOLDER"
             rclone lsf "$SITE_FOLDER" | grep "2....csv" > available_files.txt || true
-            echo "   available_files.txt: "
-            cat available_files.txt
             if [ -f "$LOG_FILE" ]; then
               grep -Fxvf "$LOG_FILE" available_files.txt > new_files.txt || true
-              echo "      new_files.txt:"
-              cat new_files.txt
             else
               mv available_files.txt new_files.txt
             fi
@@ -87,7 +83,7 @@ jobs:
               while IFS= read -r bfile; do
                 if [[ -n "$bfile" ]]; then
                   echo "Downloading: $bfile"
-                  rclone copy $SITE_FOLDER/$bfile "$LOCAL_FOLDER" --progress
+                  rclone copy "$SITE_FOLDER"/"$bfile" "$LOCAL_FOLDER" --progress
                   echo "$bfile" >> "$LOG_FILE"
                 else
                   echo "Warning: Empty filename encountered, skipping."
