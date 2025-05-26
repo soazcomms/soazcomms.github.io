@@ -1,0 +1,6 @@
+# exclusions for rclone
+*.table
+*all*
+raw*/
+*.jpeg
+*.jpg
