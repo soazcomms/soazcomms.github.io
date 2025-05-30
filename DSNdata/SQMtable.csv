@@ -1,6 +1,6 @@
 Site,Sequence,Alias
 DSN003-S,0,Sugarloaf
-DSN006-S,20,V06
+DSN006-S,0,V06
 DSN008-S,2,OracleSP
 DSN014-S,5,Tubac
 DSN016-S,1,SaguaroNP
@@ -8,6 +8,6 @@ DSN019-S,0,MtL
 DSN021-S,0,VATT
 DSN022-S,1,TumacacoriNHP
 DSN030-S,0,Nogales
-DSN031-S,0,CFh
+DSN031-S,1,CFh
 DSN035-S,0,CCn
 DSN036-S,2,Gilisnky
