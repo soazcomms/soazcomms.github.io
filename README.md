@@ -20,10 +20,11 @@ SQM/TESS raw data are uploaded to DSNdata/NEW. This process may be manual
 * yy is the year when the data are obtained 
 * sss is a sequence number for files uploaded each year
 
-Two other GitHub workflows harvest data for processing into DSNdata/NEW: 
+Two GitHub workflows harvest data for processing into DSNdata/NEW: 
 - [**DSN-get-SQM**] runs weekly, finds and downloads new SQM data uploaded manually to a google drive that DSNsoaz owns. Ethernet-enabled SQM units eventually will also upload to the google drive. The new SQM data are also uploaded to Box, directory DSNdata/SQM.
-+ [**DSN-get-TESS**] runs monthly, finds and downloads new TESS data.
-  
++ [**DSN-get-TESS**] runs monthly, finds and downloads new TESS data from the Stars4All network.
+A shell script outside GitHub harvests data into DSNdata/NEW, running on DSN-imac. 
++ [**DSN-sync-box.sh**] runs monthly, finds and downloads new SQM data in Hannes Groller's Box repository.  
 ### Step 2
 **DSN-process_data** looks for data in DSNdata/NEW. If it finds data there, 
 it runs [DSN_python](https://github.com/soazcomms/soazcomms.github.io/blob/main/DSN_V03.py) on each file to calculate chisquared, moonalt and LST. 
