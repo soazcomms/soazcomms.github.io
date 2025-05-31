@@ -46,6 +46,6 @@ This is intended as a permanent archive of the processed data.
 A record of the file operations above is written to a running [LOG](https://github.com/soazcomms/soazcomms.github.io/blob/main/DSNdata/RUN_LOG).
 # Visualizing data
 The processed data may be visualized with 
-<a href="https://soazcomms.github.io/DSNweb.v03.html" target="_blank">
+<a href="https://soazcomms.github.io/DSNweb.v04.html" target="_blank">
   DSNweb
 </a> (Use SHIFT-click to open in a new window.)
