@@ -313,3 +313,18 @@ Deleted temp files.
 2025-05-14 20:55:35 Uploaded DSN021-S_VATT_25_001.csv DSN021-S_VATT_25_002.csv DSN021-S_VATT_25_003.csv DSN021-S_VATT_25_004.csv DSN022-S_TumacacoriNHP_25_001.csv DSN030-S_Nogales_25_001.csv to influx
  Uploaded  to Box
 Deleted temp files.
+2025-06-01 00:11:41 Start DSN-process_data.
+2025-06-01 00:23:14 Uploaded DSN006S_KPNO_22_001.csv DSN006S_KPNO_23_002.csv DSN006S_KPNO_24_003.csv DSN006S_KPNO_25_004.csv DSN035S_Cosmic_18_001.csv DSN035S_Cosmic_19_002.csv DSN035S_Cosmic_20_003.csv DSN035S_Cosmic_21_004.csv DSN035S_Cosmic_22_005.csv DSN035S_Cosmic_23_006.csv DSN035S_Cosmic_24_007.csv DSN035S_Cosmic_25_008.csv to influx
+ Uploaded DSN006-S_22_001.csv
+DSN006-S_23_002.csv
+DSN006-S_24_003.csv
+DSN006-S_25_004.csv
+DSN035-S_18_001.csv
+DSN035-S_19_002.csv
+DSN035-S_20_003.csv
+DSN035-S_21_004.csv
+DSN035-S_22_005.csv
+DSN035-S_23_006.csv
+DSN035-S_24_007.csv
+DSN035-S_25_008.csv to Box
+Deleted temp files.
