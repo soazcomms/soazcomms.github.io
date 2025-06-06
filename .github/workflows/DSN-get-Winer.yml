@@ -1,4 +1,4 @@
-name: Run DSN_get_Winer_loop every 5 minutes
+name: Run DSN-get-Winer every 5 minutes
 
 on:
   schedule:
@@ -30,7 +30,7 @@ jobs:
           hour=$(date +'%H')
           if [ "$hour" -ge 18 ] || [ "$hour" -lt 6 ]; then
             echo "✅ Running at $hour MST"
-            python DSN_get_Winer_loop.py
+            python DSN-get-Winer.py
           else
             echo "⏭️ Skipped, hour $hour is outside 18–06 MST"
           fi
