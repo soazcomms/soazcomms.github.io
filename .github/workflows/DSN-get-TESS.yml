@@ -1,0 +1,81 @@
+name: DSN-getTESS Data
+
+on:
+  schedule:
+    - cron: '0 8 1 * *'  # Runs at 08:00 UTC on the 1st day of each month
+  workflow_dispatch:  # Allows manual triggering
+
+env:
+  TESSTABLE_CSV: "DSNdata/TESStable.csv"
+  LOG_FILE: "DSNdata/TESSdownloaded.log"
+
+jobs:
+  process-stars-files:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install tess-ida-tools pandas
+          pip install lica
+
+      - name: Ensure Log File Exists
+        run: |
+          touch "$LOG_FILE"
+
+      - name: Read TESStable.csv and process starsXXXX files
+        env:
+          IDA_URL: ${{ secrets.IDA_URL }}
+        run: |
+          export IDA_URL=${{ secrets.IDA_URL }}
+          if [ ! -f "$TESSTABLE_CSV" ]; then
+            echo "Error: TESStable.csv not found!" >&2
+            exit 1
+          fi
+
+          echo "Processing each site in $TESSTABLE_CSV..."
+
+          # Compute the previous month in YYYY-MM format
+          PREV_MONTH=$(date --date="$(date +%Y-%m-01) last month" +%Y-%m)
+          # TEMPORARY PATCH
+          PREV_MONTH="2025-06"
+          echo "Process previous month: $PREV_MONTH"
+          LOCAL_FOLDER="DSNdata/NEW/TESS"
+          mkdir -p "$LOCAL_FOLDER"
+          #
+          while IFS=, read -r site_name sequence alias; do
+            if [[ -z "$site_name" || "$site_name" == "Site" ]]; then
+              continue
+            fi
+            echo "Processing $alias -> $site_name"
+            # Download data using tess-ida-get
+            tess-ida-get single -n "$alias" -m "$PREV_MONTH" -o "$LOCAL_FOLDER"
+            #tess_file=$(ls -t "$LOCAL_FOLDER" |head -n1)
+            #echo "From S4A: $tess_file"
+            #echo "$tess_file" >> "$LOG_FILE"
+            if [[ -d "$LOCAL_FOLDER/$alias" ]]; then
+              echo "IN $LOCAL_FOLDER:"
+              ls "$LOCAL_FOLDER/$alias"
+            else
+              echo "No files found for $alias"
+            fi
+          done < $TESSTABLE_CSV
+          #
+          python DSN_rename_tess_files.py  "$LOCAL_FOLDER" "$TESSTABLE_CSV" 
+ 
+      - name: Commit changes
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add "$LOG_FILE" "$TESSTABLE_CSV" "DSNdata/NEW/*.dat"
+          git commit -m "Processed TESS data for $PREV_MONTH and updated DSNdata/NEW" || echo "No changes to commit"
+          git push
