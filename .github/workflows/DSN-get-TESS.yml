@@ -27,7 +27,7 @@ jobs:
           pip install tess-ida-tools pandas
           pip install lica
 
-      - name: Read TESSdata.csv and process starsXXXX files
+      - name: Read TESStable.csv and process starsXXXX files
         env:
           IDA_URL: ${{ secrets.IDA_URL }}
         run: |
@@ -40,7 +40,7 @@ jobs:
           echo "Process previous month: $PREV_MONTH"
           # Skip the first line of TESStable.csv and process each entry
           tail -n +2 $TESSTABLE_CSV | while read -r stars_name new_label; do
-            suffix="${stars_name: -2}" # Extract last two chars of stars_name
+            suffix="${stars_name: -4}" # Extract last 4 chars of stars_name
             echo "Processing $stars_name -> $new_label"
             # Download data using tess-ida-get
             tess-ida-get range -n "$stars_name" -s "$PREV_MONTH" -o "DSNdata/NEW"
