@@ -51,7 +51,7 @@ jobs:
           echo "Process previous month: $PREV_MONTH"
           LOCAL_FOLDER="DSNdata/NEW/TESS"
           mkdir -p "$LOCAL_FOLDER"
-         #
+          #
           while IFS=, read -r site_name sequence alias; do
             if [[ -z "$site_name" || "$site_name" == "Site" ]]; then
               continue
@@ -61,7 +61,7 @@ jobs:
             tess-ida-get range -n "$alias" -s "$PREV_MONTH" -o "$LOCAL_FOLDER"
             echo "$file" >> "$LOG_FILE"
           done < $TESSTABLE_CSV
-	  #
+          #
           python DSN_rename_tess_files.py  "$LOCAL_FOLDER" "$TESSTABLE_CSV" 
  
       - name: Commit changes
