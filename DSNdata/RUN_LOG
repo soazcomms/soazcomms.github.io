@@ -332,3 +332,19 @@ Deleted temp files.
 2025-06-04 08:20:49 Uploaded DSN021S_VATT__20250601_161409.csv to influx
  Uploaded VATT_DSN021-S__20250601_161409.csv to Box
 Deleted temp files.
+2025-06-13 06:01:05 Start DSN-process_data.
+2025-06-13 06:04:02 Uploaded DSN021S_VATT_25_001.csv DSN021S_VATT_25_002.csv DSN021S_VATT_25_003.csv DSN021S_VATT_25_004.csv DSN022S_TumacacoriNHP_25_001.csv DSN022S_TumacacoriNHP_25_002.csv DSN022S_TumacacoriNHP_25_003.csv DSN022S_TumacacoriNHP_25_004.csv DSN022S_TumacacoriNHP_25_005.csv DSN024S_Winer_25_002.csv DSN024S_Winer_25_003.csv DSN024S_Winer_25_004.csv DSN024S_Winer_25_005.csv to influx
+ Uploaded DSN021-S_25_001.csv
+DSN021-S_25_002.csv
+DSN021-S_25_003.csv
+DSN021-S_25_004.csv
+DSN022-S_25_001.csv
+DSN022-S_25_002.csv
+DSN022-S_25_003.csv
+DSN022-S_25_004.csv
+DSN022-S_25_005.csv
+DSN024-S_25_002.csv
+DSN024-S_25_003.csv
+DSN024-S_25_004.csv
+DSN024-S_25_005.csv to Box
+Deleted temp files.
