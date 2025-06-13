@@ -1,4 +1,4 @@
-# long      lat          el  sensor ihead dark bright   Site
+# long   ,   lat     ,     el , sensor ,ihead, dark, bright ,  Site
 -109.3208, +32.0179, 2089, SQM1,  4, 22.3, 19.0, DSN003-S_Sugarloaf
 -111.6000, +31.9640, 2098, SQM3,  1, 22.0, 19.0, DSN006-S_KPNO
 -110.7330, +32.6078, 1390, SQM,  38, 22.0, 19.0, DSN008-S_OracleSP
