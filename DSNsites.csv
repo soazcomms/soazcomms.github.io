@@ -1,4 +1,4 @@
-long   ,   lat     ,     el , sensor ,ihead, dark, bright ,  Site
+#long      lat        el  sensor ihead dark bright  Site
 -109.3208, +32.0179, 2089, SQM1,  4, 22.3, 19.0, DSN003-S_Sugarloaf
 -111.6000, +31.9640, 2098, SQM3,  1, 22.0, 19.0, DSN006-S_KPNO
 -110.7330, +32.6078, 1390, SQM,  38, 22.0, 19.0, DSN008-S_OracleSP
@@ -7,7 +7,7 @@ long   ,   lat     ,     el , sensor ,ihead, dark, bright ,  Site
 -110.7893, +32.4420, 2791, SQM3, 38, 22.0, 19.0, DSN019-S_MtLemmon
 -109.8920, +32.7013, 3178, SQM,  38, 22.0, 19.0, DSN021-S_VATT
 -111.0510, +31.5678,  980, SQM,  38, 22.0, 19.0, DSN022-S_TumacacoriNHP
--110.6018, +31,6656, 1516, SQM4, 38, 22.0, 19.0, DSN024-S_Winer
+-110.6018, +31.6656, 1516, SQM4, 38, 22.0, 19.0, DSN024-S_Winer
 -110.9613, +32.2655,  716, TESS, 35, 21.5, 18.0, DSN029-T_JB
 -110.9333, +31.3333, 1200, SQM,  38, 22.0, 19.0, DSN030-S_Nogales
 -110.8513, +32.3067,  861, SQM3, 39, 22.0, 16.0, DSN031-S_AlGrauer
