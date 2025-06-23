@@ -42,13 +42,14 @@ def rename_files_and_update_table(sqm_folder, sqm_table_path):
 #
     for filename in os.listdir(sqm_folder):
         file_path = os.path.join(sqm_folder, filename)
+        _, sqm_ext = os.path.splitext(filename)
         # Extract year from file
         year = extract_year_from_file(file_path)
         # Increment sequence number
         seq_number += 1
         sqm_table.loc[sqm_table['Site'] == site_name, 'Sequence'] = seq_number  # Update sequence
         # Create new filename
-        new_filename = f"{site_name}_{year}_{seq_number:03d}.dat"
+        new_filename = f"{site_name}_{year}_{seq_number:03d}{sqm_ext}"
         new_filepath = os.path.join(sqm_folder, new_filename)
         # Rename the file
         os.rename(file_path, new_filepath)
