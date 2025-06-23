@@ -402,3 +402,14 @@ Deleted temp files.
 2025-06-21 20:40:29 Uploaded DSN016S_SaguaroNP_00_002.csv to influx
  Uploaded DSN016-S_00_002.csv to Box
 Deleted temp files.
+2025-06-23 16:14:45 Start DSN-process_data.
+2025-06-23 16:21:20 Uploaded DSN003S_Sugarloaf_17.csv DSN003S_Sugarloaf_18.csv DSN003S_Sugarloaf_19.csv DSN003S_Sugarloaf_20.csv DSN003S_Sugarloaf_21.csv DSN003S_Sugarloaf_22.csv DSN003S_Sugarloaf_23.csv DSN003S_Sugarloaf_24.csv to influx
+ Uploaded DSN003_Sugarloaf_17.csv
+DSN003_Sugarloaf_18.csv
+DSN003_Sugarloaf_19.csv
+DSN003_Sugarloaf_20.csv
+DSN003_Sugarloaf_21.csv
+DSN003_Sugarloaf_22.csv
+DSN003_Sugarloaf_23.csv
+DSN003_Sugarloaf_24.csv to Box
+Deleted temp files.
