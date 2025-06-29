@@ -2,7 +2,7 @@ name: Run DSN-get-SQM_LE.py daily
 
 on:
   schedule:
-    - cron: '0 12 * * *'  # Runs daily at 12:00 UTC
+    - cron: '0 1 * * *'  # Runs daily at 01:00 UTC
   workflow_dispatch:      # Allows manual triggering
 
 jobs:
