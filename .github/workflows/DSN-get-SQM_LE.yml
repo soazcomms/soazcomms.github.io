@@ -22,4 +22,4 @@ jobs:
         run: pip install -r requirements.txt || true
 
       - name: Run HG-read_SQM.py
-        run: python DSN-get-SQM_LE.py
+        run: python DSN-get-SQM_LE.py Winer
