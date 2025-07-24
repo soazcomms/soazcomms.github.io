@@ -1,0 +1,137 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Southern Arizona Dark Sky Network</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+</head>
+<body>
+    <h1>Southern Arizona Dark Sky Network</h1>
+    <input type="file" id="fileInput" accept=".csv" />
+    <br><br>
+    <label for="dateRange">Date Range:</label>
+    <input type="date" id="startDate"> to <input type="date" id="endDate">
+    <button onclick="filterData()">Update</button>
+
+    <div id="plot-msas" style="height:400px;"></div>
+    <div id="plot-histogram" style="height:400px;"></div>
+    <div id="plot-jellyfish" style="height:400px;"></div>
+    <div id="plot-heatmap" style="height:400px;"></div>
+    <div id="plot-sigma" style="height:400px;"></div>
+
+<script>
+let allData = [];
+
+document.getElementById('fileInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    Papa.parse(file, {
+        header: true,
+        delimiter: ";",
+        dynamicTyping: true,
+        complete: function(results) {
+            allData = results.data;
+            applyUrlFilterAndRender(allData);
+        }
+    });
+});
+
+function applyUrlFilterAndRender(data) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const fromParam = urlParams.get('from');
+    const toParam = urlParams.get('to');
+
+    if (fromParam && toParam) {
+        const fromDate = new Date(parseInt(fromParam));
+        const toDate = new Date(parseInt(toParam));
+        document.getElementById('startDate').valueAsDate = fromDate;
+        document.getElementById('endDate').valueAsDate = toDate;
+        data = data.filter(row => {
+            const d = new Date(row.utc);
+            return d >= fromDate && d <= toDate;
+        });
+    }
+    updateDashboard(data);
+}
+
+function filterData() {
+    const start = new Date(document.getElementById("startDate").value);
+    const end = new Date(document.getElementById("endDate").value);
+    const filtered = allData.filter(row => {
+        const d = new Date(row.utc);
+        return (!isNaN(start) ? d >= start : true) && (!isNaN(end) ? d <= end : true);
+    });
+    updateDashboard(filtered);
+}
+
+function updateDashboard(data) {
+    const utc = data.map(row => row.utc);
+    const msas = data.map(row => row.msas);
+    const times = data.map(row => new Date(row.utc).getHours() + new Date(row.utc).getMinutes()/60);
+
+    Plotly.newPlot("plot-msas", [{
+        x: utc,
+        y: msas,
+        type: 'scatter',
+        mode: 'lines+markers',
+        name: 'MSAS vs Time'
+    }], {title: 'MSAS vs UTC'});
+
+    Plotly.newPlot("plot-histogram", [{
+        x: msas,
+        type: 'histogram',
+        nbinsx: 50,
+        name: 'MSAS Histogram'
+    }], {title: 'Histogram of MSAS'});
+
+    Plotly.newPlot("plot-jellyfish", [{
+        x: times,
+        y: msas,
+        mode: 'markers',
+        type: 'scatter',
+        name: 'Jellyfish'
+    }], {title: 'Jellyfish Plot (Time of Night vs MSAS)'});
+
+    let heatmapData = data.map(row => {
+        let d = new Date(row.utc);
+        return { day: d.toISOString().slice(0,10), hour: d.getUTCHours(), value: row.msas };
+    });
+    let pivot = {};
+    heatmapData.forEach(d => {
+        if (!(d.day in pivot)) pivot[d.day] = Array(24).fill(null);
+        pivot[d.day][d.hour] = d.value;
+    });
+    let z = Object.values(pivot);
+    let y = Object.keys(pivot);
+    let x = Array.from({length:24}, (_,i)=>i);
+
+    Plotly.newPlot("plot-heatmap", [{
+        z: z,
+        x: x,
+        y: y,
+        type: 'heatmap',
+        colorscale: 'Viridis',
+        name: 'MSAS Heatmap'
+    }], {title: 'Heatmap of MSAS by Hour and Day'});
+
+    let sigma = {};
+    heatmapData.forEach(d => {
+        if (!(d.day in sigma)) sigma[d.day] = [];
+        sigma[d.day].push(d.value);
+    });
+    let sigma_vals = Object.entries(sigma).map(([day, vals]) => {
+        let m = vals.reduce((a,b)=>a+b,0)/vals.length;
+        let s = Math.sqrt(vals.reduce((a,b)=>a + Math.pow(b-m,2), 0)/vals.length);
+        return s;
+    });
+    Plotly.newPlot("plot-sigma", [{
+        x: Object.keys(sigma),
+        y: sigma_vals,
+        type: 'bar',
+        name: 'Nightly Std Dev'
+    }], {title: 'Nightly MSAS Sigma'});
+
+}
+</script>
+</body>
+</html>
