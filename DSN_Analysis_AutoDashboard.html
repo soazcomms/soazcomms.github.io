@@ -1,0 +1,175 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DSN-XXX-S — Southern Arizona Dark Sky Network</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    canvas { margin: 20px auto; display: block; max-width: 90%; }
+    h2 { text-align: center; }
+  </style>
+</head>
+<body>
+  <h2>Southern Arizona Dark Sky Network</h2>
+  <canvas id="msasHistogram" width="800" height="300"></canvas>
+  <canvas id="jellyfish" width="800" height="300"></canvas>
+  <canvas id="heatmap" width="800" height="300"></canvas>
+  <canvas id="skyChart" width="800" height="300"></canvas>
+  <canvas id="sigmaHistogram" width="800" height="300"></canvas>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const from = new Date(parseInt(params.get("from")));
+    const to = new Date(parseInt(params.get("to")));
+    const label = document.title.match(/DSN-\d{3}-[ST]/)?.[0] ?? "DSN-000-S";
+    const suffix = label.endsWith("T") ? ";" : ",";
+
+    async function fetchCSV() {
+      const files = [
+        `${label}_${String(from.getFullYear()).slice(-2)}_025.csv`,
+        `${label}_${String(from.getFullYear()).slice(-2)}_024.csv`,
+        `${label}_${String(from.getFullYear()).slice(-2)}_023.csv`
+      ];
+      for (const f of files) {
+        try {
+          const r = await fetch("https://darkskynetwork.app.box.com/shared/static/" + f);
+          if (r.ok) return await r.text();
+        } catch {}
+      }
+      throw new Error("No data file found");
+    }
+
+    function parseCSV(csv) {
+      const rows = csv.split("\n").filter(l => l.trim()).map(l => l.split(suffix));
+      return rows.filter(row => {
+        try {
+          const d = new Date(row[0]);
+          return d >= from && d <= to;
+        } catch { return false; }
+      });
+    }
+
+    function plotMSASHistogram(data) {
+      const msas = data.map(r => parseFloat(r[5])).filter(v => !isNaN(v));
+      const bins = Array(40).fill(0);
+      msas.forEach(v => {
+        const b = Math.min(39, Math.floor((v - 15) * 2));
+        if (b >= 0) bins[b]++;
+      });
+      new Chart(document.getElementById("msasHistogram"), {
+        type: "bar",
+        data: {
+          labels: bins.map((_, i) => (15 + i * 0.5).toFixed(1)),
+          datasets: [{ label: "MSAS Histogram", data: bins }]
+        },
+        options: {
+          scales: {
+            x: { title: { display: true, text: "Mag/arcsec²" } },
+            y: { title: { display: true, text: "Count" } }
+          }
+        }
+      });
+    }
+
+    function plotJellyfish(data) {
+      const points = data.map(r => [parseFloat(r[5]), parseFloat(r[3])])
+                        .filter(([x, y]) => !isNaN(x) && !isNaN(y));
+      new Chart(document.getElementById("jellyfish"), {
+        type: "scatter",
+        data: {
+          datasets: [{
+            label: "MSAS vs NELM",
+            data: points.map(([x, y]) => ({x, y}))
+          }]
+        },
+        options: {
+          scales: {
+            x: { title: { display: true, text: "Mag/arcsec²" } },
+            y: { title: { display: true, text: "NELM" } }
+          }
+        }
+      });
+    }
+
+    function plotHeatmap(data) {
+      const byHour = Array(24).fill(0);
+      data.forEach(r => {
+        const h = new Date(r[0]).getUTCHours();
+        const v = parseFloat(r[5]);
+        if (!isNaN(v)) byHour[h] += v;
+      });
+      new Chart(document.getElementById("heatmap"), {
+        type: "bar",
+        data: {
+          labels: [...Array(24).keys()],
+          datasets: [{ label: "Sum MSAS by Hour", data: byHour }]
+        },
+        options: {
+          scales: {
+            x: { title: { display: true, text: "UTC Hour" } },
+            y: { title: { display: true, text: "Sum MSAS" } }
+          }
+        }
+      });
+    }
+
+    function plotSkyChart(data) {
+      const points = data.map(r => {
+        const t = new Date(r[1]);
+        return { x: t.getHours() + t.getMinutes()/60, y: parseFloat(r[5]) };
+      }).filter(p => !isNaN(p.y));
+      new Chart(document.getElementById("skyChart"), {
+        type: "scatter",
+        data: {
+          datasets: [{ label: "MSAS vs Local Time", data: points }]
+        },
+        options: {
+          scales: {
+            x: { title: { display: true, text: "Local Time (hr)" } },
+            y: { title: { display: true, text: "MSAS (mag/arcsec²)" } }
+          }
+        }
+      });
+    }
+
+    function plotSigma(data) {
+      const msas = data.map(r => parseFloat(r[5])).filter(v => !isNaN(v));
+      const mean = msas.reduce((a, b) => a + b, 0) / msas.length;
+      const residuals = msas.map(v => v - mean);
+      const bins = Array(40).fill(0);
+      residuals.forEach(r => {
+        const b = Math.min(39, Math.floor((r + 2) * 10));
+        if (b >= 0 && b < 40) bins[b]++;
+      });
+      new Chart(document.getElementById("sigmaHistogram"), {
+        type: "bar",
+        data: {
+          labels: bins.map((_, i) => (-2 + i * 0.2).toFixed(1)),
+          datasets: [{ label: "Residual MSAS Histogram", data: bins }]
+        },
+        options: {
+          scales: {
+            x: { title: { display: true, text: "Residual MSAS (mag/arcsec²)" } },
+            y: { title: { display: true, text: "Count" } }
+          }
+        }
+      });
+    }
+
+    (async () => {
+      try {
+        const csv = await fetchCSV();
+        const data = parseCSV(csv);
+        plotMSASHistogram(data);
+        plotJellyfish(data);
+        plotHeatmap(data);
+        plotSkyChart(data);
+        plotSigma(data);
+      } catch (e) {
+        document.body.innerHTML += `<p style="color:red;">Error loading data: ${e.message}</p>`;
+      }
+    })();
+  </script>
+</body>
+</html>
