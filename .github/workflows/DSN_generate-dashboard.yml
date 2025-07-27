@@ -1,0 +1,94 @@
+name: DSN_Analysis
+
+on:
+  workflow_dispatch:
+    inputs:
+      from:
+        description: 'Start time (UTC, ISO format)'
+        required: true
+      to:
+        description: 'End time (UTC, ISO format)'
+        required: true
+      label:
+        description: 'DSN label (e.g. DSN014-S)'
+        required: true
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  BOX_CONFIG: ${{ secrets.BOX_CONFIG }}
+  BOX_PATH: "DSNdata/BOX_ANALYSIS/"
+  BOX_ARCHIVE_ID: "304428997491"
+
+jobs:
+  generate-dashboard:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Required Packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+ 
+      - name: Set up Python explicitly
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Confirm Python version
+        run: |
+          which python
+          python --version
+          ls -l $(which python)
+    
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+      # Install Box CLI
+      - name: Install Box CLI (binary version)
+        run: |
+          curl -Lo box https://downloads.box.com/cli/box-linux && chmod +x box
+          sudo mv box /usr/local/bin
+          box --version
+
+      - name: Check for required CSV files
+        id: check_csv
+        run: |
+          files=$(ls "$BOX_PATH"/${{ github.event.inputs.label }}_*.csv 2>/dev/null || true)
+          if [ -z "$files" ]; then
+            echo "need_download=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "need_download=false" >> "$GITHUB_OUTPUT"
+            echo "csv_files=$(echo "$files" | paste -sd "," -)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download from Box (only if needed)
+        if: steps.check_csv.outputs.need_download == 'true'
+        run: |
+          echo "Downloading any missing files from Box..."
+          for FILENAME in $(box folders:items "$BOX_ARCHIVE_ID" --json | jq -r '.[] | .name'); do
+            echo "FILE $FILENAME"
+            if [[ $FILENAME == ${{ github.event.inputs.label }}_*.csv ]]; then
+              FILE_ID=$(box folders:items "$BOX_ARCHIVE_ID" --json \
+                | jq -r --arg fn "$FILENAME" '.[] | select(.name == $fn) | .id')
+              echo "Downloading $FILENAME (ID: $FILE_ID)..."
+              box files:download "$FILE_ID" --destination "$BOX_PATH/"
+            fi
+          done
+
+      - name: Generate 5-plot dashboard
+        run: |
+          python .github/scripts/DSN_generate_5_plots.py  --input_dir "$BOX_PATH" --from "${{ github.event.inputs.from }}"  --to "${{ github.event.inputs.to }}"    --label "${{ github.event.inputs.label }}" --output "dashboard.html"
+
+      - name: Deploy to GitHub Pages (gh-pages branch)
+        run: |
+          mkdir -p public
+          cp dashboard.html public/index.html
+
+      - name: Upload to gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
