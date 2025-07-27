@@ -1,0 +1,109 @@
+name: DSN_Analysis
+
+on:
+  workflow_dispatch:
+    inputs:
+      from:
+        description: 'Start time (UTC, ISO format)'
+        required: true
+      to:
+        description: 'End time (UTC, ISO format)'
+        required: true
+      label:
+        description: 'DSN label (e.g. DSN014-S)'
+        required: true
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  BOX_CONFIG: ${{ secrets.BOX_CONFIG }}
+  BOX_PATH: "DSNdata/BOX_ANALYSIS/"
+  BOX_ARCHIVE_ID: "304428997491"
+
+jobs:
+  generate-dashboard:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Debug environment
+        run: |
+          echo "::group::Python versions"
+          which python
+          python --version || true
+          ls -l $(which python) || true
+          echo "::endgroup::"
+
+          echo "::group::All python versions on system"
+          ls /opt/hostedtoolcache/Python || true
+          echo "::endgroup::"
+
+          echo "::group::Look for anything calling 3.1"
+          grep -r '3.1' . || true
+          echo "::endgroup::"
+
+      - name: Echo environment
+        run: env | sort
+ 
+      - name: Install Required Packages
+        run: sudo apt-get install -y jq  # jq is needed
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.10
+
+      - name: Create and activate venv
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+    
+      - name: Install dependencies
+        run: pip install pandas matplotlib
+
+      # Install Box CLI
+      - name: Install Box CLI (binary version)
+        run: |
+          curl -Lo box https://downloads.box.com/cli/box-linux && chmod +x box
+          sudo mv box /usr/local/bin
+          box --version
+
+      - name: Check for required CSV files
+        id: check_csv
+        run: |
+          files=$(ls "$BOX_PATH"/${{ github.event.inputs.label }}_*.csv 2>/dev/null || true)
+          if [ -z "$files" ]; then
+            echo "need_download=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "need_download=false" >> "$GITHUB_OUTPUT"
+            echo "csv_files=$(echo "$files" | paste -sd "," -)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download from Box (only if needed)
+        if: steps.check_csv.outputs.need_download == 'true'
+        run: |
+          echo "Downloading any missing files from Box..."
+          for FILENAME in $(box folders:items "$BOX_ARCHIVE_ID" --json | jq -r '.[] | .name'); do
+            if [[ $FILENAME == ${{ github.event.inputs.label }}_*.csv ]]; then
+              FILE_ID=$(box folders:items "$BOX_ARCHIVE_ID" --json \
+                | jq -r --arg fn "$FILENAME" '.[] | select(.name == $fn) | .id')
+              echo "Downloading $FILENAME (ID: $FILE_ID)..."
+              box files:download "$FILE_ID" --destination "$BOX_PATH/"
+            fi
+          done
+
+      - name: Generate 5-plot dashboard
+        run: |
+          .venv/bin/python .github/scripts/DSN_generate_5_plots.py  --input_dir "DSNdata/BOX" --from "${{ github.event.inputs.from }}"  --to "${{ github.event.inputs.to }}"    --label "${{ github.event.inputs.label }}" --output "dashboard.html"
+
+      - name: Deploy to GitHub Pages (gh-pages branch)
+        run: |
+          mkdir -p public
+          cp dashboard.html public/index.html
+
+      - name: Upload to gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
