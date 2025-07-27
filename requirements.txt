@@ -3,6 +3,7 @@ juliandate
 pytz
 numpy 
 pandas
+seaborn
 astropy
 scipy
 ephem
