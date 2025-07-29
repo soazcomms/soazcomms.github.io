@@ -11,3 +11,5 @@ fuzzywuzzy
 PyGithub
 openpyxl
 psutil
+flask
+requests
