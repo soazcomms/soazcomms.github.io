@@ -1,0 +1,38 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DSN014-S - Southern Arizona Dark Sky Network</title>
+    <meta charset="utf-8"/>
+    <style>
+        body { font-family: sans-serif; max-width: 1000px; margin: auto; }
+        img { width: 100%; border: 1px solid #ccc; margin-bottom: 20px; }
+        h2 { cursor: pointer; color: #006; }
+    </style>
+    <script>
+        function toggle(id) {
+            const el = document.getElementById(id);
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+    </script>
+</head>
+<body>
+    <h1>DSN014-S - Southern Arizona Dark Sky Network</h1>
+    <p><b>Time range:</b> 2025-06-28 07:30:17.653000+00:00 to 2025-07-04 17:56:31.581000+00:00</p>
+
+    <h2 onclick="toggle('plot1')">1. Brightness Over Time (click to toggle)</h2>
+    <img id="plot1" src="plot1_timeseries.png" alt="Time Series">
+
+    <h2 onclick="toggle('plot2')">2. Histogram of SQM (click to toggle)</h2>
+    <img id="plot2" src="plot2_histogram.png" alt="Histogram">
+
+    <h2 onclick="toggle('plot3')">3. Jellyfish Plot (click to toggle)</h2>
+    <img id="plot3" src="plot3_jellyfish.png" alt="Jellyfish Plot">
+
+    <h2 onclick="toggle('plot4')">4. Heatmap (click to toggle)</h2>
+    <img id="plot4" src="plot4_heatmap.png" alt="Heatmap">
+
+    <h2 onclick="toggle('plot5')">5. Sigma Histogram (click to toggle)</h2>
+    <img id="plot5" src="plot5_sigma.png" alt="Sigma Histogram">
+</body>
+</html>
