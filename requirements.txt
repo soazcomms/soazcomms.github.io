@@ -13,3 +13,4 @@ openpyxl
 psutil
 flask
 requests
+plotly
