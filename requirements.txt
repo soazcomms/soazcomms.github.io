@@ -14,3 +14,4 @@ psutil
 flask
 requests
 plotly
+kaleido
