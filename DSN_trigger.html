@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Trigger DSN Analysis</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 1em;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: #f9f9f9;
+    }
+    h2 {
+      color: #333;
+    }
+    #status {
+      margin-top: 1em;
+      font-size: 1.1em;
+    }
+  </style>
+</head>
+<body>
+  <h2>📊 DSN Analysis Trigger</h2>
+  <div id="status">⏳ Preparing to trigger...</div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const rawLabel = params.get("label") || "";
+    const from = params.get("from") || "";
+    const to = params.get("to") || "";
+    const label = rawLabel.substring(0, 8);  // Truncate to DSNxxx-X
+
+    const statusBox = document.getElementById("status");
+    const payload = { label, from, to };
+
+    const webhookURL = "https://add226a8ac8b.ngrok-free.app/DSN_webhook";
+
+    fetch(webhookURL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+    .then(async (res) => {
+      if (res.ok) {
+        statusBox.innerHTML = `✅ Triggered successfully for <b>${label}</b>.<br><br>` +
+          `📄 <a href="${label}.analysis.html" target="_blank">View Analysis Result</a>`;
+      } else {
+        const text = await res.text();
+        statusBox.innerHTML = `❌ Trigger failed: ${text}`;
+      }
+    })
+    .catch((err) => {
+      console.error(err);
+      statusBox.innerHTML = "❌ Network error while triggering analysis.";
+    });
+  </script>
+</body>
+</html>
