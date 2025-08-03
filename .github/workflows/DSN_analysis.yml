@@ -23,7 +23,6 @@ env:
   LABEL: ${{ github.event.inputs.label }}
 
 jobs:
-jobs:
   analyze:
     runs-on: ubuntu-latest
     steps:
