@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DSN Dashboard</title> <!-- title used to extract label -->
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 2rem;
+      background-color: #f9f9f9;
+      color: #222;
+    }
+    h1 {
+      font-size: 1.8rem;
+    }
+    #status {
+      margin-top: 1rem;
+      font-size: 1.2rem;
+    }
+    #result-link {
+      margin-top: 2rem;
+      font-size: 1.1rem;
+      display: none;
+    }
+    #back-button {
+      margin-top: 3rem;
+    }
+    button {
+      padding: 0.6rem 1.2rem;
+      font-size: 1rem;
+      background-color: #ddd;
+      border: 1px solid #aaa;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>📊 DSN Analysis Trigger</h1>
+  <div id="status">⏳ Initializing...</div>
+
+  <div id="result-link">
+    ✅ <a id="html-link" href="" target="_blank">📄 View Analysis Result</a>
+  </div>
+
+  <div id="back-button">
+    <button onclick="window.close()">🔙 Return to Grafana</button>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const from = params.get("from");
+    const to = params.get("to");
+
+    function extractLabelFromTitle() {
+	const title = document.title || "";
+	const match = title.match(/DSN\d{3}-[ST]/);
+	return match ? match[0] : null;
+    }
+    const label = extractLabelFromTitle();    const dashboardTitle = document.title;
+    if (!label) {
+	statusDiv.textContent = "❌ Could not extract DSN label from dashboard title.";
+	throw new Error("No valid label found in document.title");
+    }
+    const statusDiv = document.getElementById("status");
+    const linkDiv = document.getElementById("result-link");
+    const htmlLink = document.getElementById("html-link");
+
+    const statusURL = `https://soazcomms.github.io/status/status-${label}.json`;
+    const resultURL = `https://soazcomms.github.io/${label}.analysis.html`;
+
+    if (!from || !to) {
+      statusDiv.textContent = "❌ Missing 'from' or 'to' in URL.";
+      throw new Error("Missing time range");
+    }
+
+    // ⏳ Trigger webhook on load
+    async function triggerWebhook() {
+      const payload = {
+        label: label,
+        from: from,
+        to: to
+      };
+
+      try {
+        const response = await fetch("https://sound-kangaroo-unlikely.ngrok-free.app/DSN_webhook", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+          statusDiv.innerHTML = `⏳ Triggered analysis for <b>${label}</b><br>Waiting for result...`;
+        } else {
+          statusDiv.textContent = `❌ Failed to trigger webhook.`;
+        }
+      } catch (err) {
+        statusDiv.textContent = `❌ Error triggering webhook: ${err}`;
+      }
+    }
+
+    // ⏱ Poll every 30 seconds for status JSON
+    async function checkStatus() {
+      try {
+        const res = await fetch(statusURL, { cache: "no-store" });
+        if (!res.ok) throw new Error("Status not ready");
+
+        const json = await res.json();
+        if (json.status && json.status.includes("✅")) {
+          statusDiv.innerHTML = `✅ Analysis for <b>${label}</b> is complete!`;
+          htmlLink.href = resultURL;
+          htmlLink.textContent = `📄 View ${label}.analysis.html`;
+          linkDiv.style.display = "block";
+          clearInterval(pollTimer);
+        } else {
+          statusDiv.innerHTML = `⏳ Still processing <b>${label}</b>...<br><small>${new Date().toLocaleTimeString()}</small>`;
+        }
+      } catch (e) {
+        statusDiv.innerHTML = `⏳ Waiting for <b>${label}</b>...<br><small>${new Date().toLocaleTimeString()}</small>`;
+      }
+    }
+
+    // 🚀 Launch
+    triggerWebhook();
+    checkStatus();
+    const pollTimer = setInterval(checkStatus, 30000);
+  </script>
+</body>
+</html>
