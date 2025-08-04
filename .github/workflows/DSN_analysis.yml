@@ -133,26 +133,32 @@ jobs:
           else
             cp ${LABEL}*.html public/
           fi
+
       - name: Deploy analysis to gh-pages
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           TMP_STATUS="/tmp/status-$LABEL.json"
+
+          # Save analysis & status on main first
+          git add analysis/$LABEL status/status-$LABEL.json DSNdata/RUN_LOG || true
+          git commit -m "📦 Save analysis output for $LABEL" || echo "Nothing to commit"
+
+          # Copy status file AFTER it's committed
           cp "status/status-$LABEL.json" "$TMP_STATUS"
 
-          # Stash main branch work
-          git add analysis/$LABEL DSNdata/RUN_LOG || true
-          git commit -m "📦 Save analysis output for $LABEL" || echo "Nothing to commit"
+          # Stash everything to recover on gh-pages
           git stash --include-untracked || echo "Nothing to stash"
 
-          # Switch to gh-pages branch
+          # Switch to gh-pages
           git fetch origin gh-pages
           git checkout gh-pages || git checkout -b gh-pages origin/gh-pages
 
-          # Restore analysis directory and status file into gh-pages
-          mkdir -p analysis/$LABEL status
+          # Restore stashed files on gh-pages
           git stash pop || echo "Nothing to unstash"
+
+          mkdir -p analysis/$LABEL status
           cp "$TMP_STATUS" status/status-$LABEL.json
 
           git add analysis/$LABEL status/status-$LABEL.json
