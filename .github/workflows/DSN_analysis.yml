@@ -170,6 +170,7 @@ jobs:
           echo "📁 Restoring backed-up files to gh-pages"
           mkdir -p analysis/$LABEL
           cp -r /tmp/plots/*.html /tmp/plots/*.png analysis/$LABEL/ 2>/dev/null || echo "⚠️ No plots to restore"
+          mkdir -p status
           cp "$TMP_STATUS" status/status-$LABEL.json
 
           echo "📤 Committing and pushing to gh-pages"
