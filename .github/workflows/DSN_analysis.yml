@@ -139,25 +139,32 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          STATUS_FILE="public/status/status-${LABEL}.json"
-          TMP_STATUS="/tmp/status-${LABEL}.json"
-
-          if [ ! -f "$STATUS_FILE" ]; then
-            echo "❌ Status file not found: $STATUS_FILE"
-            exit 1
-          fi
-
-          cp "$STATUS_FILE" "$TMP_STATUS"
-
-          git add analysis/$LABEL || echo "⚠️ Nothing to add to analysis/$LABEL"
+          # Commit everything from main branch first
+          git add analysis/$LABEL DSNdata/RUN_LOG || echo "⚠️ Nothing to add"
           git commit -m "📦 Save analysis output for $LABEL" || echo "Nothing to commit"
           git stash --include-untracked || echo "Nothing to stash"
 
+          # Backup analysis folder before switching branches
+          if [ ! -d "analysis/$LABEL" ]; then
+            echo "❌ analysis/$LABEL not found before gh-pages switch!"
+            ls -l analysis || echo "analysis/ is empty"
+            exit 1
+          fi
+
+          mkdir -p /tmp/analysis_backup
+          cp -r analysis/$LABEL /tmp/analysis_backup/
+
+          # Switch to gh-pages
           git fetch origin gh-pages
           git checkout gh-pages || git checkout -b gh-pages origin/gh-pages
 
+          # Restore analysis folder into gh-pages
+          mkdir -p analysis/$LABEL
+          cp -r /tmp/analysis_backup/$LABEL/* analysis/$LABEL/
+
+          # Copy status file (should've already been written in main)
           mkdir -p status
-          cp "$TMP_STATUS" status/status-$LABEL.json
+          cp /tmp/status-$LABEL.json status/status-$LABEL.json
 
           git add analysis/$LABEL status/status-$LABEL.json
 
