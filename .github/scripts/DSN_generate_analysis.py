@@ -1,4 +1,5 @@
 import os
+import shutil
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -125,3 +126,6 @@ with open(status_path, "w") as f:
     json.dump(status, f)
 
 print(f"✅ Wrote status JSON to {status_path}")
+# Copy to tmp for later GH Pages step
+shutil.copy(status_path, f"/tmp/status-{label}.json")
+print(f"✅ Also copied status to /tmp/status-{label}.json")
