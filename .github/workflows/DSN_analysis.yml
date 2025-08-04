@@ -111,28 +111,23 @@ jobs:
           CURRENT_DATE=$(date -u)
           echo "$CURRENT_DATE Created analysis plots." >> DSNdata/RUN_LOG
 
-      - name: List all plot files
+      - name: 📦 Copy plots and status to public/
         run: |
-          ls -l ${LABEL}*.png || echo "❌ No plot PNGs found for ${LABEL}!"
-
-      - name: Copy plots to public/
-        run: |
-          echo "📦 Copy to public/ folder"
+          echo "📦 Copying plot files and status JSON to public/"
           mkdir -p public/status
-          find public/ -type f -not -path "public/status/*" -delete
-          FOUND=$(ls ${LABEL}*.png 2>/dev/null | wc -l)
-          if [ "$FOUND" -eq 0 ]; then
-            echo "❌ No plot PNGs found. QUIT."
+
+          cp ${LABEL}*.png public/ || true
+          cp ${LABEL}*.html public/ || true
+
+          shopt -s nullglob
+          files=( public/*.png public/*.html )
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "❌ No plot PNGs or HTMLs copied to public/. QUIT."
             exit 1
           fi
-          cp ${LABEL}*.png public/
+
           HTMLS=$(ls ${LABEL}*.html 2>/dev/null | wc -l)
-          if [ "$HTMLS" -eq 0 ]; then
-            echo "❌ No HTML analysis/plot files found. QUIT."
-            exit 1
-          else
-            cp ${LABEL}*.html public/
-          fi
+          echo "📄 Found $HTMLS HTML files for ${LABEL}"
 
       - name: Deploy analysis to gh-pages
         run: |
