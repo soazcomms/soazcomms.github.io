@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DSN Dashboard</title> <!-- This will be replaced by Grafana -->
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 2rem;
+      background-color: #f9f9f9;
+      color: #222;
+    }
+    h1 {
+      font-size: 1.8rem;
+    }
+    #status {
+      margin-top: 1rem;
+      font-size: 1.2rem;
+    }
+    #result-link {
+      margin-top: 2rem;
+      font-size: 1.1rem;
+      display: none;
+    }
+    #back-button {
+      margin-top: 3rem;
+    }
+    button {
+      padding: 0.6rem 1.2rem;
+      font-size: 1rem;
+      background-color: #ddd;
+      border: 1px solid #aaa;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>📊 DSN Analysis Trigger</h1>
+  <div id="status">⏳ Initializing...</div>
+
+  <div id="result-link">
+    ✅ <a id="html-link" href="" target="_blank">📄 View Analysis Result</a>
+  </div>
+
+  <div id="back-button">
+    <button onclick="window.close()">🔙 Return to Grafana</button>
+  </div>
+
+  <script>
+    console.log("✅ Script loaded");
+
+    const params = new URLSearchParams(window.location.search);
+    const from = params.get("from");
+    const to = params.get("to");
+
+    function extractLabelFromTitle() {
+      const title = document.title || "";
+      console.log("📝 document.title =", title);
+      const match = title.match(/DSN\d{3}-[ST]/);
+      return match ? match[0] : null;
+    }
+
+    const label = params.get("label") || extractLabelFromTitle();
+
+    console.log("📛 Label:", label);
+    console.log("📆 From:", from);
+    console.log("📆 To:  ", to);
+
+    const statusDiv = document.getElementById("status");
+    const linkDiv = document.getElementById("result-link");
+    const htmlLink = document.getElementById("html-link");
+
+    if (!label || !from || !to) {
+      statusDiv.textContent = "❌ Missing label, from, or to. Check URL and dashboard title.";
+      throw new Error("Missing required inputs");
+    }
+
+    const statusURL = `https://soazcomms.github.io/status/status-${label}.json`;
+    const resultURL = `https://soazcomms.github.io/${label}.analysis.html`;
+
+    async function triggerWebhook() {
+      const payload = { label, from, to };
+
+      try {
+        console.log("📡 Sending POST to webhook:", payload);
+        const response = await fetch("https://sound-kangaroo-unlikely.ngrok-free.app/DSN_webhook", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+          console.log("✅ Webhook triggered");
+          statusDiv.innerHTML = `⏳ Triggered analysis for <b>${label}</b><br>Waiting for result...`;
+        } else {
+          const text = await response.text();
+          console.error("❌ Webhook failed:", text);
+          statusDiv.textContent = `❌ Webhook error: ${text}`;
+        }
+      } catch (err) {
+        console.error("❌ Network error:", err);
+        statusDiv.textContent = `❌ Error reaching webhook server: ${err}`;
+      }
+    }
+
+    async function checkStatus() {
+      try {
+        const res = await fetch(statusURL, { cache: "no-store" });
+        if (!res.ok) throw new Error("Status not found");
+
+        const json = await res.json();
+        console.log("📦 Fetched status:", json);
+
+        if (json.status && json.status.includes("✅")) {
+          statusDiv.innerHTML = `✅ Analysis for <b>${label}</b> is complete!`;
+          htmlLink.href = resultURL;
+          htmlLink.textContent = `📄 View ${label}.analysis.html`;
+          linkDiv.style.display = "block";
+          clearInterval(pollTimer);
+        } else {
+          statusDiv.innerHTML = `⏳ Still processing <b>${label}</b>...<br><small>${new Date().toLocaleTimeString()}</small>`;
+        }
+      } catch (e) {
+        console.log("⏳ Waiting for status:", e);
+        statusDiv.innerHTML = `⏳ Waiting for <b>${label}</b>...<br><small>${new Date().toLocaleTimeString()}</small>`;
+      }
+    }
+
+    // ⏱ Launch
+    triggerWebhook();
+    checkStatus();
+    const pollTimer = setInterval(checkStatus, 30000);
+  </script>
+</body>
+</html>
