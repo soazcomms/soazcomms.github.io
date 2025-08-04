@@ -140,21 +140,31 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           echo "📦 Committing generated analysis to main"
-          git add public/ DSNdata/RUN_LOG analysis/$LABEL || true
+          git add public/ analysis/ DSNdata/RUN_LOG || echo "Nothing to add"
           git commit -m "📦 Save analysis output for $LABEL" || echo "Nothing to commit"
 
-          # Stash all files before switching
-          git stash --include-untracked || echo "Nothing to stash"
+          echo "📥 Saving status file before switching branches"
+          TMP_STATUS="/tmp/status-$LABEL.json"
+          if [ ! -f "public/status/status-$LABEL.json" ]; then
+            echo "❌ Missing status file: public/status/status-$LABEL.json"
+            exit 1
+          fi
+          cp "public/status/status-$LABEL.json" "$TMP_STATUS"
 
           echo "🔄 Switching to gh-pages branch"
+          git stash --include-untracked || echo "Nothing to stash"
           git fetch origin gh-pages
           git checkout gh-pages || git checkout -b gh-pages origin/gh-pages
-
           git stash pop || echo "Nothing to pop"
 
-          TMP_STATUS="public/status/status-$LABEL.json"  # ✅ define it here
+          echo "🧹 Cleaning old files except status/"
+          find . -type f -not -path "./status/*" -not -name ".git*" -delete
+
+          echo "📁 Restoring new analysis and status"
+          mkdir -p "analysis/$LABEL"
+          cp -r "public/"*.html "public/"*.png "analysis/$LABEL/" 2>/dev/null || echo "No plot files to copy"
           mkdir -p status
-          cp "$TMP_STATUS" status/status-$LABEL.json
+          cp "$TMP_STATUS" "status/status-$LABEL.json"
 
           git add analysis/$LABEL status/status-$LABEL.json
 
