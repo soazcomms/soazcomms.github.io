@@ -141,21 +141,23 @@ jobs:
 
           TMP_STATUS="/tmp/status-$LABEL.json"
 
-          # Save analysis & status on main first
+          # ✅ Make sure status directory exists and commit it
+          if [ ! -f "status/status-$LABEL.json" ]; then
+            echo "❌ Missing status file: status/status-$LABEL.json"
+            exit 1
+          fi
+
           git add analysis/$LABEL status/status-$LABEL.json DSNdata/RUN_LOG || true
           git commit -m "📦 Save analysis output for $LABEL" || echo "Nothing to commit"
 
-          # Copy status file AFTER it's committed
+          # ✅ Now copy after commit
           cp "status/status-$LABEL.json" "$TMP_STATUS"
 
-          # Stash everything to recover on gh-pages
+          # ✅ Move to gh-pages
           git stash --include-untracked || echo "Nothing to stash"
-
-          # Switch to gh-pages
           git fetch origin gh-pages
           git checkout gh-pages || git checkout -b gh-pages origin/gh-pages
 
-          # Restore stashed files on gh-pages
           git stash pop || echo "Nothing to unstash"
 
           mkdir -p analysis/$LABEL status
