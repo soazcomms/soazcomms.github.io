@@ -133,38 +133,27 @@ jobs:
           else
             cp ${LABEL}*.html public/
           fi
-
       - name: Deploy analysis to gh-pages
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Commit everything from main branch first
-          git add analysis/$LABEL DSNdata/RUN_LOG || echo "⚠️ Nothing to add"
+          TMP_STATUS="/tmp/status-$LABEL.json"
+          cp "status/status-$LABEL.json" "$TMP_STATUS"
+
+          # Stash main branch work
+          git add analysis/$LABEL DSNdata/RUN_LOG || true
           git commit -m "📦 Save analysis output for $LABEL" || echo "Nothing to commit"
           git stash --include-untracked || echo "Nothing to stash"
 
-          # Backup analysis folder before switching branches
-          if [ ! -d "analysis/$LABEL" ]; then
-            echo "❌ analysis/$LABEL not found before gh-pages switch!"
-            ls -l analysis || echo "analysis/ is empty"
-            exit 1
-          fi
-
-          mkdir -p /tmp/analysis_backup
-          cp -r analysis/$LABEL /tmp/analysis_backup/
-
-          # Switch to gh-pages
+          # Switch to gh-pages branch
           git fetch origin gh-pages
           git checkout gh-pages || git checkout -b gh-pages origin/gh-pages
 
-          # Restore analysis folder into gh-pages
-          mkdir -p analysis/$LABEL
-          cp -r /tmp/analysis_backup/$LABEL/* analysis/$LABEL/
-
-          # Copy status file (should've already been written in main)
-          mkdir -p status
-          cp /tmp/status-$LABEL.json status/status-$LABEL.json
+          # Restore analysis directory and status file into gh-pages
+          mkdir -p analysis/$LABEL status
+          git stash pop || echo "Nothing to unstash"
+          cp "$TMP_STATUS" status/status-$LABEL.json
 
           git add analysis/$LABEL status/status-$LABEL.json
 
