@@ -129,47 +129,30 @@ jobs:
           HTMLS=$(ls ${LABEL}*.html 2>/dev/null | wc -l)
           echo "📄 Found $HTMLS HTML files for ${LABEL}"
 
-      - name: 📤 Deploy analysis to gh-pages
+      - name: Deploy to GitHub Pages
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          echo "📥 Backing up status and plots before switching branches"
-          TMP_STATUS="/tmp/status-${LABEL}.json"
-          cp public/status/status-${LABEL}.json "$TMP_STATUS"
-          mkdir -p /tmp/plots
-          cp public/${LABEL}_*.html /tmp/plots/
-          cp public/${LABEL}_*.png /tmp/plots/
-          cp analysis/${LABEL}/${LABEL}.analysis.html /tmp/plots/
+          echo "📥 Backing up generated files"
+          mkdir -p /tmp/ghp_deploy
+          cp -r analysis public /tmp/ghp_deploy/
 
-          echo "💾 Stashing everything else"
-          git add public/ analysis/ || true
-          git commit -m "📦 Save analysis output for $LABEL" || echo "Nothing to commit"
+          echo "💾 Stashing current changes"
           git stash --include-untracked || echo "Nothing to stash"
 
           echo "🔄 Switching to gh-pages"
           git fetch origin gh-pages
           git checkout gh-pages || git checkout -b gh-pages origin/gh-pages
 
-          echo "🧹 Cleaning old analysis files (except status/)"
-          find public/ -type f -not -path "public/status/*" -delete || echo "⚠️ public/ folder not found"
+          echo "🧹 Cleaning branch"
+          find . -maxdepth 1 ! -name '.' ! -name '..' ! -name '.git' -exec rm -rf {} +
+          echo "📁 Restoring files"
+          cp -r /tmp/ghp_deploy/* .
 
-          echo "📁 Restoring backed-up files to gh-pages"
-          mkdir -p public/status analysis/${LABEL}
-          cp "$TMP_STATUS" public/status/status-${LABEL}.json
-          cp /tmp/plots/*.html public/
-          cp /tmp/plots/*.png public/
-          cp /tmp/plots/${LABEL}.analysis.html analysis/${LABEL}/
-
-          echo "📤 Committing and pushing to gh-pages"
-          git add public/ analysis/
-          if git diff --cached --quiet; then
-            echo "✅ No new files to commit"
-          else
-            git commit -m "📈 Update analysis and status for ${LABEL}"
-            git push origin gh-pages
-            echo "✅ Analysis published to gh-pages"
-          fi
+          git add analysis public
+          git commit -m "🚀 Deploy analysis for ${LABEL}" || echo "Nothing to commit"
+          git push origin gh-pages
 
       - name: Upload to gh-pages
         uses: peaceiris/actions-gh-pages@v3
