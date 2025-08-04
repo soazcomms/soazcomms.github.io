@@ -143,16 +143,16 @@ jobs:
           git add public/ DSNdata/RUN_LOG analysis/$LABEL || true
           git commit -m "📦 Save analysis output for $LABEL" || echo "Nothing to commit"
 
-          # Stash everything (untracked and tracked) before switching branches
+          # Stash all files before switching
           git stash --include-untracked || echo "Nothing to stash"
 
           echo "🔄 Switching to gh-pages branch"
           git fetch origin gh-pages
           git checkout gh-pages || git checkout -b gh-pages origin/gh-pages
 
-          # Bring back the stashed files (especially analysis/$LABEL)
           git stash pop || echo "Nothing to pop"
 
+          TMP_STATUS="public/status/status-$LABEL.json"  # ✅ define it here
           mkdir -p status
           cp "$TMP_STATUS" status/status-$LABEL.json
 
