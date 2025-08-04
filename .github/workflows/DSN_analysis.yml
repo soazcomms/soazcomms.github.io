@@ -131,27 +131,17 @@ jobs:
 
       - name: Deploy analysis to gh-pages
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          echo "📥 Backing up generated files"
+          mkdir -p /tmp/analysis/$LABEL
+          cp -r analysis/$LABEL /tmp/analysis/
 
-          echo "📥 Backing up status and plots before switching branches"
-          TMP_STATUS="/tmp/status-$LABEL.json"
-          mkdir -p /tmp/plots
-          mkdir -p /tmp/analysis
-
-          # Copy status if it exists
-          if [ ! -f "public/status/status-$LABEL.json" ]; then
-            echo "❌ Missing status file: public/status/status-$LABEL.json"
-            exit 1
-          fi
-          cp "public/status/status-$LABEL.json" "$TMP_STATUS"
-
-          # Copy plots and HTMLs to temp
-          cp -r public/*.html public/*.png /tmp/plots/ 2>/dev/null || echo "⚠️ No plots to back up"
-          cp -r analysis/$LABEL /tmp/analysis/$LABEL 2>/dev/null || echo "⚠️ No analysis dir to back up"
+          mkdir -p /tmp/status
+          cp public/status/status-${LABEL}.json /tmp/status/
 
           echo "💾 Stashing everything else"
-          git add .
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/ DSNdata/RUN_LOG || true
           git commit -m "📦 Save analysis output for $LABEL" || echo "Nothing to commit"
           git stash --include-untracked || echo "Nothing to stash"
 
@@ -160,26 +150,24 @@ jobs:
           git checkout gh-pages || git checkout -b gh-pages origin/gh-pages
 
           echo "🧹 Cleaning old analysis files (except status/)"
-          if [ -d public ]; then
-            find public/ -type f -not -path "public/status/*" -delete
-          else
-            echo "⚠️ public/ folder not found — creating"
-            mkdir -p public/status
-          fi
+          mkdir -p public/status
+          find public/ -type f -not -path "public/status/*" -delete
+
           echo "📁 Restoring backed-up files to gh-pages"
           mkdir -p analysis/$LABEL
-          cp -r /tmp/plots/*.html /tmp/plots/*.png analysis/$LABEL/ 2>/dev/null || echo "⚠️ No plots to restore"
+          cp -r /tmp/analysis/$LABEL/* analysis/$LABEL/
+
           mkdir -p status
-          cp "$TMP_STATUS" status/status-$LABEL.json
+          cp /tmp/status/status-${LABEL}.json status/status-${LABEL}.json
 
           echo "📤 Committing and pushing to gh-pages"
-          git add analysis/$LABEL status/status-$LABEL.json
+          git add analysis/$LABEL status/status-${LABEL}.json
           if git diff --cached --quiet; then
-            echo "✅ No changes to commit"
+            echo "✅ No new files to commit"
           else
             git commit -m "📈 Update analysis and status for $LABEL"
             git push origin gh-pages
-            echo "✅ Published to GitHub Pages"
+            echo "✅ Analysis published to gh-pages."
           fi
 
       - name: Upload to gh-pages
