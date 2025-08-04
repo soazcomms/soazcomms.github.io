@@ -9,6 +9,7 @@ import plotly.graph_objects as go
 import argparse
 import json
 
+os.makedirs("public", exist_ok=True)
 parser = argparse.ArgumentParser()
 parser.add_argument('--input_dir', required=True)
 parser.add_argument('--from', dest='from_time', required=True)
@@ -51,8 +52,8 @@ print(f"✅ Filtered to {len(df_all)} records in time range")
 
 # Plot 1: Histogram of SQM
 fig1 = px.histogram(df_all, x='SQM', nbins=60, title='Histogram of SQM')
-pio.write_html(fig1, file=f"{label}_histogram.html", auto_open=False)
-fig1.write_image(f"{label}_histogram.png")
+pio.write_html(fig1, file=f"public/{label}_histogram.html", auto_open=False)
+fig1.write_image(f"public/{label}_histogram.png")
 
 # Plot 2: Heatmap by hour and day
 if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
@@ -61,8 +62,8 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
     heatmap_data = df_all.pivot_table(index='hour', columns='date', values='SQM', aggfunc='mean')
     fig2 = px.imshow(heatmap_data, labels=dict(x="Date", y="Hour", color="Mean SQM"),
                      title="Heatmap of Mean SQM by Hour and Date")
-    pio.write_html(fig2, file=f"{label}_heatmap.html", auto_open=False)
-    fig2.write_image(f"{label}_heatmap.png")
+    pio.write_html(fig2, file=f"public/{label}_heatmap.html", auto_open=False)
+    fig2.write_image(f"public/{label}_heatmap.png")
 
 # Plot 3: Jellyfish
 if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
@@ -86,14 +87,14 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
         yaxis_title='NSB mag/arcsec^2',
         plot_bgcolor='lightgray'
     )
-    pio.write_html(fig3, file=f"{label}_jellyfish.html", auto_open=False)
-    fig3.write_image(f"{label}_jellyfish.png")
+    pio.write_html(fig3, file=f"public/{label}_jellyfish.html", auto_open=False)
+    fig3.write_image(f"public/{label}_jellyfish.png")
 
 # Plot 4: Chi-squared Histogram
 if 'chisquared' in df_all.columns:
     fig4 = px.histogram(df_all, x='chisquared', nbins=50, title='Histogram of Chi-squared')
-    pio.write_html(fig4, file=f"{label}_chisq.html", auto_open=False)
-    fig4.write_image(f"{label}_chisq.png")
+    pio.write_html(fig4, file=f"public/{label}_chisq.html", auto_open=False)
+    fig4.write_image(f"public/{label}_chisq.png")
 
 # Generate main dashboard HTML
 html_files = [f for f in os.listdir('.') if f.startswith(label) and f.endswith('.html')]
