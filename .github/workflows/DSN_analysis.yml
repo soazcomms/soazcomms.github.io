@@ -1,0 +1,191 @@
+name: DSN_analysis
+
+on:
+  repository_dispatch:
+    types: [DSN_analysis]
+
+  workflow_dispatch:
+    inputs:
+      from:
+        description: 'Start time (UTC, ISO format)'
+        required: true
+      to:
+        description: 'End time (UTC, ISO format)'
+        required: true
+      label:
+        description: 'DSN label (e.g. DSN014-S)'
+        required: true
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  BOX_CONFIG: ${{ secrets.BOX_CONFIG }}
+  BOX_PATH: DSNdata/BOX_ANALYSIS/
+  BOX_ARCHIVE_ID: "304428997491"
+  LABEL: ${{ github.event.inputs.label || github.event.client_payload.label }}
+  FROM: ${{ github.event.inputs.from || github.event.client_payload.from }}
+  TO: ${{ github.event.inputs.to || github.event.client_payload.to }}
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print input values
+        run: |
+          echo "Label: ${{ env.LABEL }}"
+          echo "From:  ${{ env.FROM }}"
+          echo "To:    ${{ env.TO }}"
+
+  generate-plots:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Required Packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Set up Python explicitly
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Confirm Python version
+        run: |
+          which python
+          python --version
+          ls -l $(which python)
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Box CLI
+        run: |
+          echo "Installing Box CLI via npm..."
+          sudo apt-get update
+          sudo apt-get install -y libsecret-1-dev
+          npm install -g @box/cli
+          box --version
+
+      - name: Download Files from Box if needed
+        run: |
+          echo "$BOX_CONFIG" > box_config.json
+          box configure:environments:add box_config.json -n "github-box"
+          box folders:items $BOX_ARCHIVE_ID --csv > results.csv
+          echo "+++++=Label $LABEL"
+          BOX_FILES=$(awk -F',' -v label="$LABEL" '$0 ~ label { print $NF }' results.csv)
+          echo "BOX_FILES: $BOX_FILES"
+          LOC_FILES=$(ls -p "$BOX_PATH" | grep -v '/$' | grep "$LABEL" || true)
+          echo "LOC_FILES: $LOC_FILES"
+          loc_tmp=$(mktemp)
+          box_tmp=$(mktemp)
+          echo "$LOC_FILES" | sort > "$loc_tmp"
+          echo "$BOX_FILES" | sort > "$box_tmp"
+          MIS_FILES=$(comm -23 "$box_tmp" "$loc_tmp")
+          if [ -z "$MIS_FILES" ]; then
+            echo "✅ All files in ${BOX_PATH}. Skip Box download."
+            exit 0
+          fi
+          echo "++++++++++ MIS_FILES: $MIS_FILES in ${BOX_PATH}"
+          for box_file in $MIS_FILES; do
+            box folders:items $BOX_ARCHIVE_ID --csv > results.csv
+            box_ID=$(awk -F ',' -v fname="$box_file" 'NR > 1 && $9 == fname {print $2}' results.csv)
+            echo "⬇️⬇️⬇️ Download Box File ID: $box_ID"
+            box files:download "$box_ID" --destination "$BOX_PATH" -y
+            echo "✅✅✅ Downloaded $box_ID"
+          done
+
+      - name: Prepare public/status directory
+        run: mkdir -p public/status
+
+      - name: Generate analysis dashboard
+        run: |
+          python .github/scripts/DSN_generate_analysis.py \
+            --input_dir "$BOX_PATH" \
+            --from "$FROM" \
+            --to "$TO" \
+            --label "$LABEL"
+          CURRENT_DATE=$(date -u)
+          echo "$CURRENT_DATE Created analysis plots." >> DSNdata/RUN_LOG
+
+      - name: List all plot files
+        run: |
+          ls -l ${LABEL}*.png || echo "❌ No plot PNGs found for ${LABEL}!"
+
+      - name: Copy plots to public/
+        run: |
+          echo "📦 Copy to public/ folder"
+          mkdir -p public/status
+          find public/ -type f -not -path "public/status/*" -delete
+          FOUND=$(ls ${LABEL}*.png 2>/dev/null | wc -l)
+          if [ "$FOUND" -eq 0 ]; then
+            echo "❌ No plot PNGs found. QUIT."
+            exit 1
+          fi
+          cp ${LABEL}*.png public/
+          HTMLS=$(ls ${LABEL}*.html 2>/dev/null | wc -l)
+          if [ "$HTMLS" -eq 0 ]; then
+            echo "❌ No HTML analysis/plot files found. QUIT."
+            exit 1
+          else
+            cp ${LABEL}*.html public/
+          fi
+
+      - name: Deploy analysis to gh-pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Commit changes to main (analysis + RUN_LOG)
+          git add analysis/$LABEL DSNdata/RUN_LOG || true
+          git commit -m "📦 Save analysis output for $LABEL" || echo "Nothing to commit"
+
+          # Stash remaining changes to allow clean gh-pages checkout
+          git stash --include-untracked || echo "Nothing to stash"
+
+          # Switch to gh-pages safely
+          git fetch origin gh-pages
+          git checkout gh-pages || git checkout -b gh-pages origin/gh-pages
+
+          # Copy status file from tmp (written by Python)
+          mkdir -p status
+          cp "/tmp/status-$LABEL.json" "status/status-$LABEL.json"
+
+          # Add analysis + status JSON
+          git add analysis/$LABEL status/status-$LABEL.json
+
+          if git diff --cached --quiet; then
+            echo "✅ No new files to commit on gh-pages."
+          else
+            git commit -m "📈 Update analysis and status for $LABEL"
+            git push origin gh-pages
+            echo "✅ Analysis published to gh-pages."
+          fi
+
+      - name: Upload to gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+          publish_branch: gh-pages
+
+      - name: Commit Changes to Repository
+        run: |
+          echo "Checking for changes in DSNdata/BOX_ANALYSIS..."
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add DSNdata/BOX_ANALYSIS DSNdata/RUN_LOG public/ *.html *.png results.csv box_config.json 2>/dev/null || true
+
+          STAGED=$(git diff --cached --name-only)
+          if [ -z "$STAGED" ]; then
+            echo "✅ No staged changes to commit."
+            exit 0
+          else
+            git commit -m "Updated DSNdata/BOX_ANALYSIS"
+            git push
+          fi
