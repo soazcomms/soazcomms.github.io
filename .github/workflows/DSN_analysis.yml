@@ -165,7 +165,8 @@ jobs:
           git checkout gh-pages || git checkout -b gh-pages origin/gh-pages
 
           echo "🧹 Cleaning old analysis files (except status/)"
-          find . -type f -not -path "./status/*" -not -name ".git*" -delete
+          rm -rf analysis/*
+          find public/ -type f -not -path "public/status/*" -delete
 
           echo "📁 Restoring backed-up files to gh-pages"
           mkdir -p analysis/$LABEL
