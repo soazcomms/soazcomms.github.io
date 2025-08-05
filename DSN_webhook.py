@@ -41,7 +41,10 @@ def trigger_analysis():
             return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
 
         # Write initial "processing" status JSON
-        with open(f"public/status/status-{label}.json", "w") as f:
+        os.makedirs("public/status", exist_ok=True)
+        status_path = os.path.join(os.path.dirname(__file__), "public",
+                                   "status", f"status-{label}.json")
+        with open(status_path, "w") as f:
             json.dump({
                 "status": "⏳ Generating plots...",
                 "html": ""
@@ -71,12 +74,6 @@ def trigger_analysis():
             }
         }
 
-        with open(f"public/status/status-{label}.json", "w") as f:
-            json.dump({
-                "status": "✅ Plots ready",
-                "html": f"analysis/{label}/{label}.analysis.html"
-            }, f)
-
         response = requests.post(url, headers=headers, json=data)
 
         if response.status_code != 204:
@@ -86,6 +83,12 @@ def trigger_analysis():
             return jsonify({"error": "GitHub dispatch failed", "details": response.text}), 500
 
         print("✅ GitHub dispatch succeeded.")
+        # ✅ Status JSON written here
+        with open(f"public/status/status-{label}.json", "w") as f:
+            json.dump({
+                "status": "🔄 Running DSN Analysis",
+                "html": ""
+            }, f)
         result = jsonify({"status": "✅ Triggered successfully."})
         result.headers["Access-Control-Allow-Origin"] = "https://soazcomms.github.io"
         return result
