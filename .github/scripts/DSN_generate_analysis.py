@@ -112,7 +112,7 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
     df_all['date'] = df_all['UTC'].dt.date
     heatmap_data = df_all.pivot_table(index='hour', columns='date', values='SQM', aggfunc='mean')
     fig2 = px.imshow(heatmap_data, labels=dict(x="Date", y="Hour", color="Mean SQM"),
-                     title="Heatmap of Mean SQM by Hour and Date")
+                     title="Heatmap of NSB by Hour and Date")
     fig2.update_layout(
         title_font=dict(size=24),  # Larger title
         width=700,
@@ -137,7 +137,7 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
         nbinsy=40,
         colorscale="Viridis",        # Use Viridis colormap
         zmin=0,                      # Normalize color scale: min count
-        zmax=df_all["hour"].value_counts().max(),  # Normalize color scale: max count
+        zmax=df_all["hour"].value_counts().max()*0.75,  # Normalize color scale: max count
         colorbar=dict(title="Density")
     ))
     fig3.update_layout(
@@ -150,7 +150,7 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
             tickmode='array',
             tickvals=[x * 0.5 for x in range(10, 20)],  # 5.0 to 10.0 mags
             ticktext=[f"{x:.1f}" for x in [x * 0.5 for x in range(10, 20)]],
-            title="SQM (mag/arcsec²)"
+            title="NSB (mag/arcsec²)"
         ),
         xaxis=dict(
             title="Hour (LST)",
