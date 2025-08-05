@@ -147,8 +147,18 @@ jobs:
         run: |
           set -e
           echo "🔄 Switching to gh-pages"
-          git stash push --include-untracked -m "temp"
-          git checkout gh-pages
+          git stash push --include-untracked -m "temp" || echo "ℹ️ Nothing to stash"
+          if git show-ref --quiet refs/heads/gh-pages; then
+            git checkout gh-pages
+          else
+            echo "🆕 Creating gh-pages branch"
+            git checkout --orphan gh-pages
+            git reset --hard
+            echo "# GitHub Pages" > index.html
+            git add index.html
+            git commit -m "🆕 Initialize gh-pages"
+            git push origin gh-pages
+          fi
 
           echo "🧹 Cleaning old analysis files (except status/)"
           rm -rf analysis/${LABEL}
@@ -169,7 +179,6 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git commit -m "📤 Deploy analysis for ${LABEL}" || echo "ℹ️ Nothing to commit"
           git push origin gh-pages
-
           echo "✅ Deployment complete"
 
       - name: Commit Changes to Repository
