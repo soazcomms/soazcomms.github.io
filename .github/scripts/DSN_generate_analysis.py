@@ -69,10 +69,15 @@ if 'UTC' in df_all.columns:
 else:
     raise ValueError("Missing UTC column")
 
+# Stats
 print(f"✅ Filtered to {len(df_all)} records in time range")
 run_hours = (df_all['UTC'].iloc[-1]-df_all['UTC'].iloc[0]).total_seconds()/3600
-
+#
+df_local = df_all.copy()
+df_local['Local'] = df_local['UTC'].dt.tz_convert('America/Phoenix')
+df_local['Date'] = df_local['Local'].dt.date
 # Calculate differences between consecutive UTC timestamps
+night_df = df_local[(df_local['sunalt']<= -18)]
 dt = night_df["UTC"].diff().dropna()
 # Total duration in hours (sum of all intervals)
 night_hours = dt.dt.total_seconds().sum() / 3600
