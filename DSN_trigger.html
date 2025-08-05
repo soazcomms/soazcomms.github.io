@@ -3,44 +3,49 @@
 <head>
   <meta charset="UTF-8" />
   <title>DSN Analysis</title>
-  <style>
+   <style>
     body {
-      font-family: system-ui, sans-serif;
-      background-color: #f9f9f9;
-      color: #222;
+      background-color: #f4f4f4;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
       text-align: center;
-      padding: 2rem;
     }
-    h1 {
-      font-size: 2rem;
-      margin-bottom: 1rem;
+
+    h1, p {
+      margin: 10px;
     }
-    #status {
-      font-size: 1.3rem;
-      margin-bottom: 1.5rem;
-    }
-    #result-link {
-      display: none;
-      margin-top: 2rem;
-    }
+
     button {
-      font-size: 1rem;
-      padding: 0.7rem 1.5rem;
+      font-size: 18px;
+      padding: 12px 24px;
       border: none;
-      border-radius: 5px;
+      border-radius: 6px;
+      margin: 10px;
       cursor: pointer;
-      margin: 0.5rem;
+      transition: background-color 0.3s ease;
     }
+
     #open-link {
       background-color: red;
       color: white;
     }
+
     #open-link.ready {
       background-color: green;
     }
-    #back-button button {
+
+    #exit-button {
       background-color: blue;
       color: white;
+    }
+
+    .hidden {
+      display: none;
     }
   </style>
 </head>
