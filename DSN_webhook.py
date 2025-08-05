@@ -40,11 +40,22 @@ def trigger_analysis():
         if missing:
             return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
 
+        # Write initial "processing" status JSON
+        with open(f"public/status/status-{label}.json", "w") as f:
+            json.dump({
+                "status": "⏳ Generating plots...",
+                "html": ""
+            }, f)
+
         print(f"[{datetime.utcnow().isoformat()}] Trigger received:")
         print(f"  label: {label}")
         print(f"  from:  {t_from}")
         print(f"  to:    {t_to}")
 
+        # Ensure public/status directory exists
+        os.makedirs("public/status", exist_ok=True)
+
+    
         # Dispatch to GitHub
         url = f"https://api.github.com/repos/{REPO}/dispatches"
         headers = {
