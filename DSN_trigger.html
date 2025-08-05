@@ -104,30 +104,40 @@
         statusDiv.textContent = `❌ Network error: ${err}`;
       }
     }
-
+    
     async function checkStatus() {
       try {
-        const res = await fetch(statusURL, { cache: "no-store" });
-        if (!res.ok) throw new Error("status not found");
-        const json = await res.json();
+        const response = await fetch(`${statusURL}?t=${Date.now()}`);
+        if (!response.ok) throw new Error("Status not found");
 
-        if (json.status.includes("✅")) {
+        const status = await response.json();
+        console.log("Status fetched:", status);
+
+        if (status.status.includes("✅")) {
           statusDiv.innerHTML = `✅ Analysis for <b>${label}</b> is complete!`;
-          htmlLink.href = resultURL;
+
+          // Update button color
           openBtn.classList.add("ready");
+
+ 	  // Set up click behavior: open the result in a new tab
+	  openBtn.onclick = () => {
+		window.open(resultURL, "_blank");
+	  };
+
+          // Show the button container
           linkDiv.style.display = "block";
-        } else {
-          statusDiv.innerHTML = `⏳ Still processing <b>${label}</b><br><small>${new Date().toLocaleTimeString()}</small>`;
-        }
+        } 
+
       } catch (e) {
-        statusDiv.innerHTML = `⏳ Waiting for <b>${label}</b><br><small>${new Date().toLocaleTimeString()}</small>`;
+	  console.error("Status check failed:", e);
+	  statusDiv.innerHTML = `⏳ Waiting for <b>${label}</b><br><small>${new Date().toLocaleTimeString()}</small>`;
       }
     }
 
     // Trigger webhook and begin polling
     triggerWebhook();
     checkStatus();
-    const pollTimer = setInterval(checkStatus, 5000);
+    const pollTimer = setInterval(checkStatus, 10000);
   </script>
 </body>
 </html>
