@@ -39,7 +39,7 @@ try:
     lon = site_info['lon']
     lat = site_info['lat']
     el = site_info['el']
-    latlonel='Lon '+str(lon)+' Lat '+str(lat)+' El '+str(el)+' m'    latlonel='Lon '+str(lon)+' Lat '+str(lat)+' El '+str(el)+' m'
+    latlonel='Lon '+str(lon)+' Lat '+str(lat)+' El '+str(el)+' m'
 except IndexError:
     raise ValueError(f"Label {label} not found in DSNsites.csv")
 
@@ -134,7 +134,14 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
         zmax=df["hour"].value_counts().max(),  # Normalize color scale: max count
         colorbar=dict(title="Density")
     ))
-     fig3.update_layout(
+    fig3 = go.Figure(data=go.Heatmap(
+        z=z[::-1],
+        x=x_labels,
+        y=y_labels[::-1],
+        colorscale='Hot',
+        colorbar=dict(title='log(Count+1)')
+    ))
+    fig3.update_layout(
         title="Jellyfish Plot",
         title_font=dict(size=24),
         width=700,
