@@ -9,6 +9,7 @@ import plotly.graph_objects as go
 import argparse
 import json
 import glob
+import datetime
 
 os.makedirs("public", exist_ok=True)
 parser = argparse.ArgumentParser()
@@ -183,6 +184,8 @@ if 'chisquared' in df_all.columns:
 # Generate main dashboard HTML
 main_html = f"<html><head><title>{label} Analysis</title></head><body>\n"
 main_html += f"<h1>{label} Analysis</h1>\n"
+timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+main_html += f"<p style='font-size:small'>Generated: {timestamp}</p>\n"
 main_html += summary_html +"\n"  # 👈 Include site summary
 
 for plot_type in ["histogram", "heatmap", "jellyfish", "chisq"]:
