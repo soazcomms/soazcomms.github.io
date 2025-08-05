@@ -71,6 +71,12 @@ def trigger_analysis():
             }
         }
 
+        with open(f"public/status/status-{label}.json", "w") as f:
+            json.dump({
+                "status": "✅ Plots ready",
+                "html": f"analysis/{label}/{label}.analysis.html"
+            }, f)
+
         response = requests.post(url, headers=headers, json=data)
 
         if response.status_code != 204:
