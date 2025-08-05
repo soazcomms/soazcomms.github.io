@@ -130,25 +130,16 @@ jobs:
           HTMLS=$(ls ${LABEL}*.html 2>/dev/null | wc -l)
           echo "📄 Found $HTMLS HTML files for ${LABEL}"
 
-      - name: 📥 Commit RUN_LOG if changed
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          if [ -f DSNdata/RUN_LOG ] && ! git diff --quiet DSNdata/RUN_LOG; then
-            echo "📝 Committing updated RUN_LOG"
-            git add DSNdata/RUN_LOG
-            git commit -m "📝 Update RUN_LOG for ${LABEL}"
-          else
-            echo "✅ No RUN_LOG changes to commit"
-          fi
-
       - name: Deploy analysis to gh-pages
         run: |
           set -e
           echo "🔄 Switching to gh-pages"
+
           git stash push --include-untracked -m "temp" || echo "ℹ️ Nothing to stash"
-          if git show-ref --quiet refs/heads/gh-pages; then
+
+          if git ls-remote --exit-code origin gh-pages; then
+            echo "🔁 gh-pages exists remotely, checking out"
+            git fetch origin gh-pages
             git checkout gh-pages
           else
             echo "🆕 Creating gh-pages branch"
@@ -156,6 +147,8 @@ jobs:
             git reset --hard
             echo "# GitHub Pages" > index.html
             git add index.html
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
             git commit -m "🆕 Initialize gh-pages"
             git push origin gh-pages
           fi
@@ -179,6 +172,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git commit -m "📤 Deploy analysis for ${LABEL}" || echo "ℹ️ Nothing to commit"
           git push origin gh-pages
+
           echo "✅ Deployment complete"
 
       - name: Commit Changes to Repository
