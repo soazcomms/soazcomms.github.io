@@ -8,6 +8,7 @@ import plotly.io as pio
 import plotly.graph_objects as go
 import argparse
 import json
+import glob
 
 os.makedirs("public", exist_ok=True)
 parser = argparse.ArgumentParser()
@@ -97,23 +98,25 @@ if 'chisquared' in df_all.columns:
     fig4.write_image(f"public/{label}_chisq.png")
 
 # Generate main dashboard HTML
-html_files = sorted(f for f in os.listdir('.') if f.startswith(label) and f.endswith('.html'))
-html_links = '\n'.join(f'<li><a href="{f}">{f}</a></li>' for f in html_files)
+main_html = f"<html><head><title>{label} Analysis}</title></head><body>\n"
+main_html += f"<h1>Analysis for {label}</h1>\n"
 
-main_html = f"""<!DOCTYPE html>
-<html>
-  <head><title>{label} Analysis</title></head>
-  <body>
-    <h1>{label} Analysis</h1>
-    <ul>
-      {html_links}
-    </ul>
-  </body>
-</html>
-"""
+for plot_type in ["histogram", "heatmap", "jellyfish", "chisq"]:
+    html_file = f"public/{label}_{plot_type}.html"
+    if os.path.exists(html_file):
+        with open(html_file) as f:
+            main_html += f.read() + "\n"
+    else:
+        main_html += f"<p>⚠️ Missing {plot_type} plot.</p>\n"
+
+main_html += "</body></html>"
+
 # Generate main HTML wrapper
 output_path = f"public/{label}.analysis.html"
 os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+existing = glob.glob(f"public/{label}_*.html")
+print(f"🧾 Found {len(existing)} individual plot HTML files: {existing}")
 with open(output_path, "w") as f:
     f.write(main_html)
 print(f"✅ Wrote main HTML to {output_path}")
