@@ -43,47 +43,68 @@
   <div>
     <button id="exit-btn" onclick="window.close()">🔙 Exit</button>
   </div>
+<script>
+  const urlParams = new URLSearchParams(window.location.search);
+  const label = urlParams.get("label");
+  const from = urlParams.get("from");
+  const to = urlParams.get("to");
 
-  <script>
-    const urlParams = new URLSearchParams(window.location.search);
-    const label = urlParams.get("label");
-    const from = urlParams.get("from");
-    const to = urlParams.get("to");
+  const statusDiv = document.getElementById("status");
+  const openBtn = document.getElementById("open-link");
+  const linkDiv = document.getElementById("linkDiv");
 
-    const statusDiv = document.getElementById("status");
-    const openBtn = document.getElementById("open-link");
-    const linkDiv = document.getElementById("linkDiv");
+  const statusURL = `https://soazcomms.github.io/status/status-${label}.json`;
+  const resultURL = `https://soazcomms.github.io/analysis/${label}/${label}.analysis.html`;
 
-    const statusURL = `https://soazcomms.github.io/status/status-${label}.json`;
-    const resultURL = `https://soazcomms.github.io/analysis/${label}/${label}.analysis.html`;
+  // 🔥 TRIGGER WEBHOOK ON LOAD
+  const webhookURL = "https://YOUR-NGROK-SUBDOMAIN.ngrok-free.app/DSN_webhook";
 
-    openBtn.addEventListener("click", () => {
-      window.open(resultURL, "_blank");
-    });
+  fetch(webhookURL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      label,
+      from,
+      to
+    })
+  }).then(res => {
+    if (!res.ok) throw new Error("Webhook trigger failed");
+    console.log("✅ Webhook triggered");
+  }).catch(err => {
+    console.error("❌ Webhook trigger error:", err);
+    statusDiv.innerHTML = "❌ Failed to trigger analysis.";
+  });
 
-    async function checkStatus() {
-      try {
-        const res = await fetch(`${statusURL}?t=${Date.now()}`);
-        const json = await res.json();
+  // 🔄 POLL STATUS
+  async function checkStatus() {
+    try {
+      const res = await fetch(`${statusURL}?t=${Date.now()}`);
+      const json = await res.json();
 
-        console.log("Status fetched:", json);
+      console.log("Status fetched:", json);
 
-        if (json.status.includes("✅")) {
-          statusDiv.innerHTML = `✅ Analysis for <b>${label}</b> is complete!`;
-          openBtn.classList.add("ready");
-          linkDiv.style.display = "block";
-        } else {
-          statusDiv.innerHTML = `⏳ Still processing <b>${label}</b><br><small>${new Date().toLocaleTimeString()}</small>`;
-          linkDiv.style.display = "none";
-        }
-      } catch (e) {
-        statusDiv.innerHTML = `⏳ Waiting for <b>${label}</b><br><small>${new Date().toLocaleTimeString()}</small>`;
+      if (json.status.includes("✅")) {
+        statusDiv.innerHTML = `✅ Analysis for <b>${label}</b> is complete!`;
+        openBtn.classList.add("ready");
+        linkDiv.style.display = "block";
+      } else {
+        statusDiv.innerHTML = `⏳ Still processing <b>${label}</b><br><small>${new Date().toLocaleTimeString()}</small>`;
         linkDiv.style.display = "none";
       }
+    } catch (e) {
+      statusDiv.innerHTML = `⏳ Waiting for <b>${label}</b><br><small>${new Date().toLocaleTimeString()}</small>`;
+      linkDiv.style.display = "none";
     }
+  }
 
-    setInterval(checkStatus, 5000);
-    checkStatus(); // initial call
-  </script>
-</body>
+  openBtn.addEventListener("click", () => {
+    window.open(resultURL, "_blank");
+  });
+
+  setInterval(checkStatus, 10000);
+  checkStatus(); // initial call
+</script>
+ </body>
 </html>
