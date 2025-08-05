@@ -130,6 +130,19 @@ jobs:
           HTMLS=$(ls ${LABEL}*.html 2>/dev/null | wc -l)
           echo "📄 Found $HTMLS HTML files for ${LABEL}"
 
+      - name: 📥 Commit RUN_LOG if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          if [ -f DSNdata/RUN_LOG ] && ! git diff --quiet DSNdata/RUN_LOG; then
+            echo "📝 Committing updated RUN_LOG"
+            git add DSNdata/RUN_LOG
+            git commit -m "📝 Update RUN_LOG for ${LABEL}"
+          else
+            echo "✅ No RUN_LOG changes to commit"
+          fi
+
       - name: Deploy analysis to gh-pages
         run: |
           set -e
