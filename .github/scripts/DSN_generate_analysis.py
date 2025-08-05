@@ -131,21 +131,14 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
     x_labels = [str(int(b.left)) for b in jelly_counts.index.categories]
     y_labels = [str(round(b.left, 2)) for b in jelly_counts.columns.categories]
     fig3 = go.Figure(data=go.Histogram2d(
-        x=df["hour"], 
-        y=df["SQM"], 
+        x=df_all["hour"], 
+        y=df_all["SQM"], 
         nbinsx=24, 
         nbinsy=40,
         colorscale="Viridis",        # Use Viridis colormap
         zmin=0,                      # Normalize color scale: min count
         zmax=df["hour"].value_counts().max(),  # Normalize color scale: max count
         colorbar=dict(title="Density")
-    ))
-    fig3 = go.Figure(data=go.Heatmap(
-        z=z[::-1],
-        x=x_labels,
-        y=y_labels[::-1],
-        colorscale='Hot',
-        colorbar=dict(title='log(Count+1)')
     ))
     fig3.update_layout(
         title="Jellyfish Plot",
