@@ -83,12 +83,6 @@ def trigger_analysis():
             return jsonify({"error": "GitHub dispatch failed", "details": response.text}), 500
 
         print("✅ GitHub dispatch succeeded.")
-        # ✅ Status JSON written here
-        with open(f"public/status/status-{label}.json", "w") as f:
-            json.dump({
-                "status": "🔄 Running DSN Analysis",
-                "html": ""
-            }, f)
         result = jsonify({"status": "✅ Triggered successfully."})
         result.headers["Access-Control-Allow-Origin"] = "https://soazcomms.github.io"
         return result
