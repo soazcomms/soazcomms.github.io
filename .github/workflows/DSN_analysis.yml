@@ -147,30 +147,30 @@ jobs:
         run: |
           set -e
           echo "🔄 Switching to gh-pages"
-          git fetch origin gh-pages
-          git stash --include-untracked || echo "Nothing to stash"
-          git checkout gh-pages || git checkout -b gh-pages origin/gh-pages
+          git stash push --include-untracked -m "temp"
+          git checkout gh-pages
 
           echo "🧹 Cleaning old analysis files (except status/)"
+          rm -rf analysis/${LABEL}
           mkdir -p analysis/${LABEL}
-          rm -rf analysis/${LABEL}/* || true
+          mkdir -p status
 
-          echo "📁 Restoring backed-up files to gh-pages"
-          cp public/status/status-${LABEL}.json status/status-${LABEL}.json
-          cp analysis/${LABEL}/${LABEL}.analysis.html analysis/${LABEL}/${LABEL}.analysis.html
+          echo "📁 Restoring new analysis and status files"
+          cp public/${LABEL}_*.html analysis/${LABEL}/ || echo "⚠️ No HTML plots to copy"
+          cp public/${LABEL}_*.png analysis/${LABEL}/ || echo "⚠️ No PNG plots to copy"
+          cp public/status/status-${LABEL}.json status/ || {
+            echo "❌ Missing status file: public/status/status-${LABEL}.json"
+            exit 1
+          }
 
-          git add analysis/${LABEL}/ status/status-${LABEL}.json
+          echo "📤 Committing and pushing to gh-pages"
+          git add analysis/${LABEL} status/status-${LABEL}.json
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "📤 Deploy analysis for ${LABEL}" || echo "ℹ️ Nothing to commit"
+          git push origin gh-pages
 
-          if git diff --cached --quiet; then
-            echo "✅ Nothing new to commit to gh-pages."
-          else
-            echo "📤 Committing and pushing to gh-pages"
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git commit -m "📈 Update analysis for ${LABEL}"
-            git push origin gh-pages
-            echo "✅ Deployed analysis for ${LABEL} to gh-pages."
-          fi
+          echo "✅ Deployment complete"
 
       - name: Commit Changes to Repository
         run: |
