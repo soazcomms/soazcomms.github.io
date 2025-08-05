@@ -98,8 +98,8 @@ if 'chisquared' in df_all.columns:
     fig4.write_image(f"public/{label}_chisq.png")
 
 # Generate main dashboard HTML
-main_html = f"<html><head><title>{label} Analysis}</title></head><body>\n"
-main_html += f"<h1>Analysis for {label}</h1>\n"
+main_html = f"<html><head><title>{label} Analysis</title></head><body>\n"
+main_html += f"<h1>{label} Analysis {label}</h1>\n"
 
 for plot_type in ["histogram", "heatmap", "jellyfish", "chisq"]:
     html_file = f"public/{label}_{plot_type}.html"
