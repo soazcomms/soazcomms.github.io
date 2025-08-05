@@ -130,50 +130,45 @@ jobs:
           HTMLS=$(ls ${LABEL}*.html 2>/dev/null | wc -l)
           echo "📄 Found $HTMLS HTML files for ${LABEL}"
 
-      - name: Deploy analysis to gh-pages
+      - name: 🚀 Deploy analysis to gh-pages
         run: |
           set -e
-          echo "📥 Backing up analysis and status before switching branches"
-          mkdir -p /tmp/deploy/analysis /tmp/deploy/status
-          cp -r public/${LABEL}_*.html /tmp/deploy/analysis/ || echo "⚠️ No HTML plots to back up"
-          cp -r public/${LABEL}_*.png /tmp/deploy/analysis/ || echo "⚠️ No PNG plots to back up"
-          cp public/status/status-${LABEL}.json /tmp/deploy/status/ || echo "❌ Missing status file: status-${LABEL}.json"
 
           echo "🔄 Switching to gh-pages"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git stash push --include-untracked -m "temp" || echo "ℹ️ Nothing to stash"
-
-          if git ls-remote --exit-code origin gh-pages; then
-            echo "🔁 gh-pages exists remotely, checking out"
-            git fetch origin gh-pages
-            git checkout gh-pages
-          else
-            echo "🆕 Creating gh-pages branch"
-            git checkout --orphan gh-pages
-            git reset --hard
-            echo "# GitHub Pages" > index.html
-            git add index.html
-            git commit -m "🆕 Initialize gh-pages"
-            git push origin gh-pages
-          fi
+          git stash push -m "temp" || true
+          git fetch origin gh-pages || true
+          git checkout -B gh-pages origin/gh-pages
 
           echo "🧹 Cleaning old analysis files (except status/)"
-          rm -rf analysis/${LABEL}
-          mkdir -p analysis/${LABEL} status
+          find analysis/ -type f ! -path "analysis/status/*" -delete || true
+          find . -maxdepth 1 -name "${LABEL}_*.html" -delete || true
+          find . -maxdepth 1 -name "${LABEL}_*.png" -delete || true
 
-          echo "📁 Restoring backed-up files"
-          cp /tmp/deploy/analysis/*.html analysis/${LABEL}/ || echo "⚠️ No HTML to restore"
-          cp /tmp/deploy/analysis/*.png analysis/${LABEL}/ || echo "⚠️ No PNGs to restore"
-          cp /tmp/deploy/status/status-${LABEL}.json status/ || {
-            echo "❌ Still missing status file: status-${LABEL}.json"
+          echo "📁 Restoring new analysis and status files"
+          mkdir -p analysis/${LABEL}
+          cp public/${LABEL}_*.html analysis/${LABEL}/ || echo "⚠️ No HTML plots to copy"
+          cp public/${LABEL}_*.png analysis/${LABEL}/ || echo "⚠️ No PNG plots to copy"
+
+          cp public/status/status-${LABEL}.json status/ || {
+            echo "❌ Missing status file: public/status/status-${LABEL}.json"
             exit 1
           }
 
-          echo "📤 Committing and pushing to gh-pages"
-          git add analysis/${LABEL} status/status-${LABEL}.json
-          git commit -m "📤 Deploy analysis for ${LABEL}" || echo "ℹ️ Nothing to commit"
+          if [ -f analysis/${LABEL}/${LABEL}.analysis.html ]; then
+            echo "📦 Adding main analysis HTML to git"
+            git add analysis/${LABEL}/${LABEL}.analysis.html
+          else
+            echo "❌ Main analysis HTML missing at expected location"
+            exit 1
+          fi
+
+          echo "📦 Staging all changes"
+          git add analysis/${LABEL}/*.html analysis/${LABEL}/*.png status/status-${LABEL}.json
+
+          echo "✅ Committing and pushing to gh-pages"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "📦 Publish analysis for ${LABEL}" || echo "ℹ️ Nothing to commit"
           git push origin gh-pages
 
       - name: Commit Changes to Repository
