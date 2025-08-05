@@ -111,6 +111,11 @@ jobs:
           CURRENT_DATE=$(date -u)
           echo "$CURRENT_DATE Created analysis plots." >> DSNdata/RUN_LOG
 
+      - name: Update status JSON after plot generation
+        run: |
+          mkdir -p public/status
+          echo "{\"status\":\"✅ Plots ready\",\"html\":\"analysis/${LABEL}/${LABEL}.analysis.html\"}" > public/status/status-${LABEL}.json
+
       - name: 📦 Copy plots and status to public/
         run: |
           echo "📦 Copying plot files and status JSON to public/"
