@@ -111,9 +111,12 @@ main_html = f"""<!DOCTYPE html>
   </body>
 </html>
 """
-os.makedirs(f"analysis/{label}", exist_ok=True)
-with open(f"analysis/{label}/{label}.analysis.html", 'w') as f:
+# Generate main HTML wrapper
+output_path = f"public/{label}.analysis.html"
+os.makedirs(os.path.dirname(output_path), exist_ok=True)
+with open(output_path, "w") as f:
     f.write(main_html)
+print(f"✅ Wrote main HTML to {output_path}")
 
 # Write status file
 status = {
