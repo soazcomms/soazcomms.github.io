@@ -137,7 +137,7 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
         nbinsy=40,
         colorscale="Viridis",        # Use Viridis colormap
         zmin=0,                      # Normalize color scale: min count
-        zmax=df["hour"].value_counts().max(),  # Normalize color scale: max count
+        zmax=df_all["hour"].value_counts().max(),  # Normalize color scale: max count
         colorbar=dict(title="Density")
     ))
     fig3.update_layout(
