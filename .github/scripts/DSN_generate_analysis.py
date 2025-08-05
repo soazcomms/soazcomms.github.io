@@ -97,13 +97,14 @@ if 'chisquared' in df_all.columns:
     fig4.write_image(f"public/{label}_chisq.png")
 
 # Generate main dashboard HTML
-html_files = [f for f in os.listdir('.') if f.startswith(label) and f.endswith('.html')]
-html_links = '\n'.join([f'<li><a href="{f}">{f}</a></li>' for f in html_files])
-main_html = f"""
+html_files = sorted(f for f in os.listdir('.') if f.startswith(label) and f.endswith('.html'))
+html_links = '\n'.join(f'<li><a href="{f}">{f}</a></li>' for f in html_files)
+
+main_html = f"""<!DOCTYPE html>
 <html>
   <head><title>{label} Analysis</title></head>
   <body>
-    <h1>Analysis for {label}</h1>
+    <h1>{label} Analysis</h1>
     <ul>
       {html_links}
     </ul>
