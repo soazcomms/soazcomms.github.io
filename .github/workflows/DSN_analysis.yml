@@ -146,7 +146,8 @@ jobs:
 
           echo "📁 Restoring new analysis and status files"
           mkdir -p analysis/${LABEL}
-          cp public/${LABEL}_*.html analysis/${LABEL}/ || echo "⚠️ No HTML plots to copy"
+          cp public/${LABEL}_*.html analysis/${LABEL}/ 2>/dev/null || echo "⚠️ No HTML plots to copy"
+          cp public/${LABEL}.analysis.html analysis/${LABEL}/ || echo "⚠️ No main analysis HTML to copy"
           cp public/${LABEL}_*.png analysis/${LABEL}/ || echo "⚠️ No PNG plots to copy"
 
           cp public/status/status-${LABEL}.json status/ || {
