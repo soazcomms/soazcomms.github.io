@@ -22,6 +22,26 @@ in_dir = args.input_dir
 label = args.label
 start_time = pd.to_datetime(args.from_time, utc=True)
 end_time = pd.to_datetime(args.to_time, utc=True)
+start_str = start_time.strftime("%y-%m-%d %H:%M:%S")
+end_str = end_time.strftime("%y-%m-%d %H:%M:%S")
+# Load site metadata
+sites_df = pd.read_csv("DSNsites.csv", comment='#', header=None,
+                       names=['lon', 'lat', 'el', 'sensor', 'ihead', 'dark',
+                              'bright', 'label'])
+
+# Extract label w/o site name
+sites_df['label_strip'] = sites_df['label'].str.strip().str[:8]
+
+# Lookup site info by label
+try:
+    site_info = sites_df[sites_df['label_strip'] == label].iloc[0]
+    site = site_info['label']
+    lon = site_info['lon']
+    lat = site_info['lat']
+    el = site_info['el']
+    latlonel='Lon '+str(lon)+' Lat '+str(lat)+' El '+str(el)+' m'    latlonel='Lon '+str(lon)+' Lat '+str(lat)+' El '+str(el)+' m'
+except IndexError:
+    raise ValueError(f"Label {label} not found in DSNsites.csv")
 
 print(f"📁 Reading from {in_dir} for label {label}")
 all_files = [f for f in os.listdir(in_dir) if f.startswith(label) and f.endswith('.csv')]
@@ -50,9 +70,33 @@ else:
     raise ValueError("Missing UTC column")
 
 print(f"✅ Filtered to {len(df_all)} records in time range")
+run_hours = (df_all['UTC'].iloc[-1]-df_all['UTC'].iloc[0]).total_seconds()/3600
 
-# Plot 1: Histogram of SQM
-fig1 = px.histogram(df_all, x='SQM', nbins=60, title='Histogram of SQM')
+# Calculate differences between consecutive UTC timestamps
+dt = night_df["UTC"].diff().dropna()
+# Total duration in hours (sum of all intervals)
+night_hours = dt.dt.total_seconds().sum() / 3600
+pct_night = 100 * night_hours / run_hours if run_hours else 0
+
+summary_html = f"""
+<h2>1. Annual Summary Statistics</h2>
+<ul>
+  <li><b>Site:</b> {site}</li>
+  <li><b>Coordinates:</b> {latlonel}</li>
+  <li><b>Time Range:</b> {start_str} to {end_str}</li>
+  <li><b>Total Run Hours (18-6h):</b> {run_hours:.1f}</li>
+  <li><b>Night Hours (sunalt<-18):</b> {night_hours:.1f}</li>
+  <li><b>% Night:</b> {pct_night:.1f}%</li>
+</ul>
+"""
+
+# Plot 1: Histogram of NSB
+fig1 = px.histogram(df_all, x='SQM', nbins=60, title='Histogram of NSB')
+fig1.update_layout(
+    title_font=dict(size=24),  # Larger title
+    width=700,
+    height=400
+)
 pio.write_html(fig1, file=f"public/{label}_histogram.html", auto_open=False)
 fig1.write_image(f"public/{label}_histogram.png")
 
@@ -63,6 +107,11 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
     heatmap_data = df_all.pivot_table(index='hour', columns='date', values='SQM', aggfunc='mean')
     fig2 = px.imshow(heatmap_data, labels=dict(x="Date", y="Hour", color="Mean SQM"),
                      title="Heatmap of Mean SQM by Hour and Date")
+    fig2.update_layout(
+        title_font=dict(size=24),  # Larger title
+        width=700,
+        height=400
+    )
     pio.write_html(fig2, file=f"public/{label}_heatmap.html", auto_open=False)
     fig2.write_image(f"public/{label}_heatmap.png")
 
@@ -75,18 +124,35 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
     z = np.log1p(jelly_counts.values.T)
     x_labels = [str(int(b.left)) for b in jelly_counts.index.categories]
     y_labels = [str(round(b.left, 2)) for b in jelly_counts.columns.categories]
-    fig3 = go.Figure(data=go.Heatmap(
-        z=z[::-1],
-        x=x_labels,
-        y=y_labels[::-1],
-        colorscale='Hot',
-        colorbar=dict(title='log(Count+1)')
+    fig3 = go.Figure(data=go.Histogram2d(
+        x=df["hour"], 
+        y=df["SQM"], 
+        nbinsx=24, 
+        nbinsy=40,
+        colorscale="Viridis",        # Use Viridis colormap
+        zmin=0,                      # Normalize color scale: min count
+        zmax=df["hour"].value_counts().max(),  # Normalize color scale: max count
+        colorbar=dict(title="Density")
     ))
-    fig3.update_layout(
-        title='Jellyfish Plot',
-        xaxis_title='Hour of Night',
-        yaxis_title='NSB mag/arcsec^2',
-        plot_bgcolor='lightgray'
+     fig3.update_layout(
+        title="Jellyfish Plot",
+        title_font=dict(size=24),
+        width=700,
+        height=400,
+        yaxis=dict(
+            autorange="reversed",
+            tickmode='array',
+            tickvals=[x * 0.5 for x in range(10, 20)],  # 5.0 to 10.0 mags
+            ticktext=[f"{x:.1f}" for x in [x * 0.5 for x in range(10, 20)]],
+            title="SQM (mag/arcsec²)"
+        ),
+        xaxis=dict(
+            title="Hour (LST)",
+            tickmode="array",
+            tickvals=list(range(17, 24)) + list(range(0, 8)),
+            ticktext=[str(h) for h in range(17, 24)] + [str(h) for h in range(0, 8)]
+        ),
+        coloraxis_colorbar=dict(title="Density", ticks="outside")
     )
     pio.write_html(fig3, file=f"public/{label}_jellyfish.html", auto_open=False)
     fig3.write_image(f"public/{label}_jellyfish.png")
@@ -94,12 +160,18 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
 # Plot 4: Chi-squared Histogram
 if 'chisquared' in df_all.columns:
     fig4 = px.histogram(df_all, x='chisquared', nbins=50, title='Histogram of Chi-squared')
+    fig4.update_layout(
+        title_font=dict(size=24),  # Larger title
+        width=700,
+        height=400
+    )
     pio.write_html(fig4, file=f"public/{label}_chisq.html", auto_open=False)
     fig4.write_image(f"public/{label}_chisq.png")
 
 # Generate main dashboard HTML
 main_html = f"<html><head><title>{label} Analysis</title></head><body>\n"
-main_html += f"<h1>{label} Analysis {label}</h1>\n"
+main_html += f"<h1>{label} Analysis</h1>\n"
+main_html += summary_html +"\n"  # 👈 Include site summary
 
 for plot_type in ["histogram", "heatmap", "jellyfish", "chisq"]:
     html_file = f"public/{label}_{plot_type}.html"
