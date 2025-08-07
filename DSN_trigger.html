@@ -36,7 +36,7 @@
   
 </head>
 <body>
-  <h1>🔬 DSN Analysis</h1>
+  <h1 id="title">🔬 DSN Analysis</h1>
   <div id="status">⏳ Calculating...</div>
   <a id="open-link" href="#" target="_blank">📄 View Analysis Result</a><br><br>
   <button id="exit-btn" onclick="window.close()">🔙 Exit</button>
@@ -48,7 +48,9 @@
     const label = urlParams.get("label");
     const from = urlParams.get("from");
     const to = urlParams.get("to");
-
+    if (label) {
+	document.getElementById("title").innerHTML = `🔬 DSN Analysis <b>${label}</b>`;
+    }
     if (!label || !from || !to) {
       statusDiv.textContent = "❌ Missing parameters in URL.";
     } else {
@@ -84,7 +86,7 @@
             statusDiv.innerHTML = `⏳ Still processing <b>${label}</b><br><small>${new Date().toLocaleTimeString()}</small>`;
           }
         } catch (err) {
-          statusDiv.innerHTML = `⏳ Waiting for <b>${label}</b><br><small>${new Date().toLocaleTimeString()}</small>`;
+          statusDiv.innerHTML = `⏳ Waiting for processing to finish<br><small>${new Date().toLocaleTimeString()}</small>`;
         }
 
         setTimeout(checkStatus, 5000);
