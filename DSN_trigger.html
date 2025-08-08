@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>🔬 DSN Analysis</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      margin: 2em;
+    }
+    #viewButton {
+      margin-top: 1em;
+      padding: 0.6em 1em;
+      font-size: 1em;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h2>🔬 DSN Analysis <span id="labelText"></span></h2>
+  <p id="status">⏳ Waiting for processing to finish</p>
+  <p id="timer"></p>
+  <a id="viewButton" href="#" target="_blank">🔍 Launch Analysis Viewer</a>
+  <p style="margin-top:2em;"><a href="#" onclick="window.history.back()">🔙 Exit</a></p>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const label = params.get("label") || "UNKNOWN";
+    const from = params.get("from");
+    const to = params.get("to");
+
+    document.getElementById("labelText").textContent = label;
+
+    const statusElem = document.getElementById("status");
+    const viewButton = document.getElementById("viewButton");
+    const timerElem = document.getElementById("timer");
+
+    const statusURL = `https://soazcomms.github.io/status/status-${label}.json?t=${Date.now()}`;
+    console.log("📡 Checking:", statusURL);
+
+    const startTime = Date.now();
+    const maxDuration = 5 * 60 * 1000; // 5 minutes
+    let attempt = 0;
+
+    const interval = setInterval(async () => {
+      attempt++;
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      timerElem.textContent = `⏱️ ${elapsed} seconds elapsed`;
+
+      try {
+        const res = await fetch(statusURL);
+        if (res.ok) {
+          const result = await res.json();
+          console.log("✅ JSON fetched:", result);
+
+          if (result.status && result.html) {
+            statusElem.textContent = result.status;
+            viewButton.href = result.html;
+            viewButton.style.display = "inline-block";
+            clearInterval(interval);
+            return;
+          } else {
+            console.log("ℹ️ JSON missing expected keys, retrying...");
+          }
+        } else {
+          console.log(`⚠️ HTTP ${res.status} on attempt ${attempt}`);
+        }
+      } catch (err) {
+        console.log(`❌ Fetch error on attempt ${attempt}:`, err);
+      }
+
+      if (Date.now() - startTime > maxDuration) {
+        clearInterval(interval);
+        statusElem.textContent = "❌ Timeout after waiting 5 minutes.";
+        console.log("🛑 Gave up after 5 minutes.");
+      }
+    }, 5000); // retry every 5 seconds
+  </script>
+</body>
+</html>
