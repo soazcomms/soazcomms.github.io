@@ -159,7 +159,7 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
             tickmode="array",
             tickvals=list(range(17, 24)) + list(range(0, 8)),
             ticktext=[str(h) for h in range(17, 24)] + [str(h) for h in range(0, 8)],
-            title="MST hours)"
+            title="MST (hours)"
          ),
         coloraxis_colorbar=dict(title="Density", ticks="outside")
     )
