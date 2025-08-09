@@ -133,44 +133,57 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
     fig2.write_image(f"public/{label}_heatmap.png")
 
 # Plot 3: Jellyfish
-if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
-    # --- Jellyfish Plot (fig3) ---
-    # 2D histogram: hours vs SQM from df_all
-    hist, xedges, yedges = np.histogram2d(
-        df_all['hour'],          # Hour column
-        df_all['SQM'],           # SQM brightness
-        bins=[np.arange(-0.5, 24.5, 1), np.linspace(16, 22, 50)]
-    )
+# --- Jellyfish Plot (fig3) — log contrast + hour wrap 17→23 then 0→7 ---
 
-    # Apply log scale for better contrast
-    hist_log = np.log10(hist + 1)  # avoid log(0)
-
-    # Hour tick settings: 17–23, then 0–7
-    tickvals = list(range(17, 24)) + list(range(0, 8))
-    ticktext = [str(h) for h in range(17, 24)] + [str(h) for h in range(0, 8)]
-
-    # Create Plotly heatmap
-    fig3 = go.Figure(data=go.Heatmap(
-        z=hist_log.T,
-        x=np.arange(0, 24),
-        y=np.linspace(16, 22, hist_log.shape[1]),
-        colorscale='Viridis',
-        colorbar=dict(title='log₁₀ density'),
-        zmin=0
-    ))
-    
-    fig3.update_layout(
-        title='Jellyfish Plot',
-        xaxis=dict(
-            tickmode='array',
-            tickvals=tickvals,
-            ticktext=ticktext,
-            title='Hour (MST)'
-        ),
-        yaxis=dict(title='NSB mag/arcsec²')
+# Build 2D histogram (hours on X, SQM on Y)
+x_bins = np.arange(-0.5, 24.5, 1)         # bins for hour = 0..23
+y_bins = np.linspace(16, 24, 100)         # bins for NSB 17..23
+hist, xedges, yedges = np.histogram2d(
+    df_all["hour"].values,                        # integer 0..23
+    df_all["SQM"].values,                         # NSB mag/arcsec²
+    bins=[x_bins, y_bins]
 )
-    pio.write_html(fig3, file=f"public/{label}_jellyfish.html", auto_open=False)
-    fig3.write_image(f"public/{label}_jellyfish.png")
+
+# Log scale for contrast (avoid log(0))
+hist_log = np.log10(hist + 1.0)
+
+# Desired hour order: 17..23, then 0..7   (15 columns total)
+hour_order = list(range(17, 24)) + list(range(0, 8))
+
+# Reorder the histogram columns to match desired hour sequence
+# hist shape is (24, Ny); selecting columns by hour then transpose for Heatmap
+hist_log_sel = hist_log[hour_order, :]            # shape: (15, Ny)
+
+# X coordinates and tick labels
+x_vals  = hour_order
+tickvals = hour_order
+ticktext = [str(h) for h in hour_order]
+
+# Y coordinates from y bin centers
+y_centers = 0.5 * (yedges[:-1] + yedges[1:])
+
+# Build heatmap (note .T so Z is Ny x 15 to match x_vals)
+fig3 = go.Figure(data=go.Heatmap(
+    z=hist_log_sel.T,
+    x=x_vals,
+    y=y_centers,
+    colorscale="Viridis",
+    colorbar=dict(title="log₁₀ density"),
+    zmin=0
+))
+
+fig3.update_layout(
+    title="Jellyfish Plot",
+    xaxis=dict(
+        title="Hour (MST)",
+        tickmode="array",
+        tickvals=tickvals,
+        ticktext=ticktext
+    ),
+    yaxis=dict(title="NSB mag/arcsec²")
+)
+pio.write_html(fig3, file=f"public/{label}_jellyfish.html", auto_open=False)
+fig3.write_image(f"public/{label}_jellyfish.png")
 
 # Plot 4: Chi-squared Histogram
 if 'chisquared' in df_all.columns:
