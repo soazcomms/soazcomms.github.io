@@ -124,7 +124,7 @@
               data.status &&
               data.html &&
               data.timestamp &&
-              data.timestamp >= jobStart
+              data.timestamp <= jobStart
             ) {
 	      statusEl.innerHTML = data.status;
               linkEl.href = resolveResultUrl(data.html);
