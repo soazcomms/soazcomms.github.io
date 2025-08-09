@@ -109,15 +109,15 @@
     while (Date.now() - start < TIMEOUT_MS) {
         const elapsedSec = Math.floor((Date.now() - start) / 1000);
 	timerEl.textContent = `⏱️ ${Math.floor((Date.now() - start) / 1000)}s elapsed`;
-        debug(`Polling status.json for ${label} (elapsed ${elapsedSec}s)`);
+        //  debug(`Polling status.json for ${label} (elapsed ${elapsedSec}s)`);
 
 	try {
           const res = await fetch(statusUrl(), { cache: "no-store" });
-          debug(`HTTP ${res.status}`);
+          // debug(`HTTP ${res.status}`);
           if (res.ok) {
             const data = await res.json();
-            debug(`JSON: ${JSON.stringify(data)}`);
-            debug(`jobStart ${jobStart} timestamp ${data.timestamp}`);
+            // debug(`JSON: ${JSON.stringify(data)}`);
+            // debug(`jobStart ${jobStart} timestamp ${data.timestamp}`);
             // Require JSON to have both fields AND be fresh
             if (
               data &&
@@ -129,15 +129,16 @@
 	      statusEl.innerHTML = data.status;
               linkEl.href = resolveResultUrl(data.html);
               linkEl.style.display = "inline-block";
-              debug(`✅ Found fresh status, showing link: ${data.html}`);
+              // debug(`✅ Found fresh status, showing link: ${data.html}`);
               return; // Done!
             } else {
-              debug("⚠️ JSON exists but missing fields or timestamp too old");
+              console.error("JSON status: missing fields or timestamp too old");
+              // debug("⚠️ JSON status: missing fields or timestamp too old");
             }
           } else {
-            debug("⚠️ HTTP not OK");
+            console.error("HTTP not OK")
+            // debug("⚠️ HTTP not OK");
           }
-
           statusEl.innerHTML = `⏳ Processing <b>${label}</b>…<br/><small>${new Date().toLocaleTimeString()}</small>`;
         } catch (e) {
           debug(`❌ Fetch failed: ${e}`);
