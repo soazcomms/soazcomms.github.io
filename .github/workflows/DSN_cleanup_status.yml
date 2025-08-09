@@ -1,0 +1,42 @@
+name: Cleanup Status JSON
+
+on:
+  repository_dispatch:
+    types: [DSN_cleanup_status]
+
+  workflow_dispatch:
+    inputs:
+      label:
+        description: 'DSN label (e.g. DSN014-S)'
+        required: true
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  LABEL: ${{ github.event.inputs.label || github.event.client_payload.label }}
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+
+      - name: Configure Git identity
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Remove old status file for ${{ github.event.inputs.label }}
+        run: |
+          echo "🧹 Deleting status file for ${LABEL}"
+          rm -f "status/status-${LABEL}.json"
+          git rm -f "status/status-${LABEL}.json" 2>/dev/null || true
+          echo "📂 Contents of status/ after cleanup:"
+          ls -l status/ || echo "(directory missing)"
+
+      - name: Commit and push cleanup
+        run: |
+          git commit -m "🧹 Remove old status file for ${{ github.event.inputs.label }}" || echo "No changes to commit"
+          git push origin gh-pages
