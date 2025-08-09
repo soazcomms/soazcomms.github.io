@@ -112,7 +112,7 @@
               return; // Done!
             }
           }
-          statusEl.innerHTML = `⏳ Still processing <b>${label}</b>…<br/><small>${new Date().toLocaleTimeString()}</small>`;
+          statusEl.innerHTML = `⏳ Processing <b>${label}</b>…<br/><small>${new Date().toLocaleTimeString()}</small>`;
           } catch (e) {
             statusEl.innerHTML = `⏳ Waiting for processing to finish…<br/><small>${new Date().toLocaleTimeString()}</small>`;
           }
