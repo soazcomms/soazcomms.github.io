@@ -155,11 +155,10 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
             title="NSB (mag/arcsec²)"
         ),
         xaxis=dict(
-            title="Hour (LST)",
+            title="MST (hours)",
             tickmode="array",
             tickvals=list(range(17, 24)) + list(range(0, 8)),
-            ticktext=[str(h) for h in range(17, 24)] + [str(h) for h in range(0, 8)],
-            title="MST (hours)"
+            ticktext=[str(h) for h in range(17, 24)] + [str(h) for h in range(0, 8)]
          ),
         coloraxis_colorbar=dict(title="Density", ticks="outside")
     )
