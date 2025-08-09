@@ -1,0 +1,244 @@
+name: DSN_analysis
+
+on:
+  repository_dispatch:
+    types: [DSN_analysis]
+
+  workflow_dispatch:
+    inputs:
+      from:
+        description: 'Start time (UTC, ISO format)'
+        required: true
+      to:
+        description: 'End time (UTC, ISO format)'
+        required: true
+      label:
+        description: 'DSN label (e.g. DSN014-S)'
+        required: true
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  BOX_CONFIG: ${{ secrets.BOX_CONFIG }}
+  BOX_PATH: DSNdata/BOX_ANALYSIS/
+  BOX_ARCHIVE_ID: "304428997491"
+  LABEL: ${{ github.event.inputs.label || github.event.client_payload.label }}
+  FROM: ${{ github.event.inputs.from || github.event.client_payload.from }}
+  TO: ${{ github.event.inputs.to || github.event.client_payload.to }}
+
+jobs:
+  show-parameters:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show parameters
+        run: |
+          echo "Label: ${{ env.LABEL }}"
+          echo "From:  ${{ env.FROM }}"
+          echo "To:    ${{ env.TO }}"
+
+  generate-plots:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Required Packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Set up Python explicitly
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Confirm Python version
+        run: |
+          which python
+          python --version
+          ls -l $(which python)
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Box CLI
+        run: |
+          echo "Installing Box CLI via npm..."
+          sudo apt-get update
+          sudo apt-get install -y libsecret-1-dev
+          npm install -g @box/cli
+          box --version
+
+      - name: Download Files from Box if needed
+        run: |
+          echo "$BOX_CONFIG" > box_config.json
+          box configure:environments:add box_config.json -n "github-box"
+          box folders:items $BOX_ARCHIVE_ID --csv > results.csv
+          echo "+++++=Label $LABEL"
+          BOX_FILES=$(awk -F',' -v label="$LABEL" '$0 ~ label { print $NF }' results.csv)
+          echo "BOX_FILES: $BOX_FILES"
+          LOC_FILES=$(ls -p "$BOX_PATH" | grep -v '/$' | grep "$LABEL" || true)
+          echo "LOC_FILES: $LOC_FILES"
+          loc_tmp=$(mktemp)
+          box_tmp=$(mktemp)
+          echo "$LOC_FILES" | sort > "$loc_tmp"
+          echo "$BOX_FILES" | sort > "$box_tmp"
+          MIS_FILES=$(comm -23 "$box_tmp" "$loc_tmp")
+          if [ -z "$MIS_FILES" ]; then
+            echo "✅ All files in ${BOX_PATH}. Skip Box download."
+            exit 0
+          fi
+          echo "++++++++++ MIS_FILES: $MIS_FILES in ${BOX_PATH}"
+          for box_file in $MIS_FILES; do
+            box folders:items $BOX_ARCHIVE_ID --csv > results.csv
+            box_ID=$(awk -F ',' -v fname="$box_file" 'NR > 1 && $9 == fname {print $2}' results.csv)
+            echo "⬇️⬇️⬇️ Download Box File ID: $box_ID"
+            box files:download "$box_ID" --destination "$BOX_PATH" -y
+            echo "✅✅✅ Downloaded $box_ID"
+          done
+
+      - name: Switch to gh-pages branch
+        run: |
+          git fetch origin gh-pages
+          git checkout gh-pages
+
+      - name: Delete old analysis/status files for LABEL
+        run: |
+          echo "🧹 Cleaning old files for ${LABEL}"
+          rm -f analysis/${LABEL}/*.html analysis/${LABEL}/*.png \
+                status/status-${LABEL}.json
+          echo "📂 Contents of analysis/${LABEL} after cleanup:"
+          ls -l analysis/${LABEL} || echo "(directory missing)"
+          echo "📂 Contents of status/ after cleanup:"
+          ls -l status/ || echo "(directory missing)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -f analysis/${LABEL}/*.html 2>/dev/null || true
+          git rm -f analysis/${LABEL}/*.png  2>/dev/null || true
+          git rm -f status/status-${LABEL}.json 2>/dev/null || true
+          git commit -m "🧹 Remove old analysis for ${LABEL}" || echo "ℹ️ No old files to remove"
+          git push origin gh-pages
+
+      - name: Switch back to main
+        run: git checkout main
+
+      - name: Generate analysis dashboard
+        run: |
+          # Update status json file 
+          mkdir -p status
+          # The full Monty:
+          python .github/scripts/DSN_generate_analysis.py \
+            --input_dir "$BOX_PATH" \
+            --from "$FROM" \
+            --to "$TO" \
+            --label "$LABEL"
+          CURRENT_DATE=$(date -u)
+          echo "$CURRENT_DATE Created analysis plots." >> DSNdata/RUN_LOG
+
+      - name: Print generated files
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=(public/${LABEL}*)
+          count=$(ls public/${LABEL}* 2>/dev/null | wc -l)
+          echo "[DSN_generate_analysis] $count files in public/ dir:"
+          echo "${files[@]}"
+
+      - name: Set up Git
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+
+          # Stash any local changes
+          git stash --include-untracked
+
+          # Fetch and switch to gh-pages branch
+          git fetch origin gh-pages
+          git checkout gh-pages
+
+      - name: 📦 Copy plots and status to public/
+        run: |
+          shopt -s nullglob
+          for f in $LABEL*.png; do
+            cp "$f" public/
+          done
+          for f in $LABEL*.html; do
+            cp "$f" public/
+          done
+          if [ ! -f "analysis/$LABEL/$LABEL.analysis.html" ]; then
+            echo "⚠️ No analysis HTML to copy"
+          else
+            cp analysis/$LABEL/$LABEL.analysis.html public/
+          fi
+
+          files=( public/*.png public/*.html )
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "❌ No plot PNGs or HTMLs copied to public/. QUIT."
+            exit 1
+          fi
+
+      - name: 🚀 Deploy analysis to gh-pages
+        run: |
+          set -e
+          echo "🔄 Switch to gh-pages"
+          git stash push -m "temp" || true
+          git fetch origin gh-pages || true
+          git checkout -B gh-pages origin/gh-pages
+
+          echo "🧹 Cleaning old analysis files (except status/)"
+          find analysis/ -type f ! -path "analysis/status/*" -delete || true
+          find . -maxdepth 1 -name "${LABEL}_*.html" -delete || true
+          find . -maxdepth 1 -name "${LABEL}_*.png" -delete || true
+ 
+          echo "📁 Restore new analysis, status files to analysis/${LABEL}"
+          mkdir -p analysis/${LABEL}
+          cp public/${LABEL}_*.html analysis/${LABEL}/ 2>/dev/null || echo "⚠️ No HTML plots to copy"
+          cp public/${LABEL}.analysis.html analysis/${LABEL}/ || echo "⚠️ No main analysis HTML to copy"
+          cp public/${LABEL}_*.png analysis/${LABEL}/ || echo "⚠️ No PNG plots to copy"
+          # Update status json file now that all plots are done
+          mkdir -p status
+          cat <<EOF > "status/status-${LABEL}.json"
+          {
+            "status": "✅ Analysis complete!",
+            "html": "analysis/${LABEL}/${LABEL}.analysis.html",
+            "timestamp":$(date +%s)
+          }
+          EOF
+echo "{\"status\":\"✅ Analysis complete!\",\"html\":\"analysis/${LABEL}/${LABEL}.analysis.html\",\"timestamp\":$(date +%s) }" \
+  > "status/status-${LABEL}.json"
+  
+          echo "📦 Staging all changes"
+          cd "$GITHUB_WORKSPACE"
+          git add analysis/${LABEL}/*.html analysis/${LABEL}/*.png status/status-${LABEL}.json
+
+          echo "✅ Committing and pushing to gh-pages"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "📦 Publish analysis for ${LABEL}" || echo "ℹ️ Nothing to commit"
+          git push origin gh-pages
+
+      - name: Commit Other Changes to Repository
+        run: |
+          echo "Checking for changes in DSNdata/BOX_ANALYSIS..."
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add DSNdata/BOX_ANALYSIS DSNdata/RUN_LOG public/ 2>/dev/null || true
+
+          STAGED=$(git diff --cached --name-only)
+          if [ -z "$STAGED" ]; then
+            echo "✅ No staged changes to commit."
+            exit 0
+          else
+            git commit -m "Updated DSNdata/BOX_ANALYSIS"
+            git push
+          fi
+
+      - name: ⏭️ Trigger GitHub Pages rebuild (empty commit)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "🚀 Trigger GitHub Pages rebuild"
+          git push origin gh-pages
+        shell: bash
