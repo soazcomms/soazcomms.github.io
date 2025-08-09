@@ -98,37 +98,12 @@ jobs:
             echo "✅✅✅ Downloaded $box_ID"
           done
 
-      - name: Switch to gh-pages branch
-        run: |
-          git fetch origin gh-pages
-          git checkout gh-pages
-
-      - name: Delete old analysis/status files for LABEL
-        run: |
-          echo "🧹 Cleaning old files for ${LABEL}"
-          rm -f analysis/${LABEL}/*.html analysis/${LABEL}/*.png \
-                status/status-${LABEL}.json
-          echo "📂 Contents of analysis/${LABEL} after cleanup:"
-          ls -l analysis/${LABEL} || echo "(directory missing)"
-          echo "📂 Contents of status/ after cleanup:"
-          ls -l status/ || echo "(directory missing)"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm -f analysis/${LABEL}/*.html 2>/dev/null || true
-          git rm -f analysis/${LABEL}/*.png  2>/dev/null || true
-          git rm -f status/status-${LABEL}.json 2>/dev/null || true
-          git commit -m "🧹 Remove old analysis for ${LABEL}" || echo "ℹ️ No old files to remove"
-          git push origin gh-pages
-
-      - name: Switch back to main
-        run: git checkout main
-
       - name: Generate analysis dashboard
         run: |
           # Update status json file 
           mkdir -p status
           # The full Monty:
-          python .github/scripts/DSN_generate_analysis.py \
+          python DSN_generate_analysis.py \
             --input_dir "$BOX_PATH" \
             --from "$FROM" \
             --to "$TO" \
