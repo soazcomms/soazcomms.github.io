@@ -139,7 +139,7 @@
             console.error("HTTP not OK")
             // debug("⚠️ HTTP not OK");
           }
-          statusEl.innerHTML = `⏳ Processing <b>${label}</b>…<br/><small>${new Date().toLocaleTimeString()}</small>`;
+          statusEl.innerHTML = `⏳ Generating plots…<br/><small>${new Date().toLocaleTimeString()}</small>`;
         } catch (e) {
           debug(`❌ Fetch failed: ${e}`);
           statusEl.innerHTML = `⏳ Waiting for processing to finish…<br/><small>${new Date().toLocaleTimeString()}</small>`;
