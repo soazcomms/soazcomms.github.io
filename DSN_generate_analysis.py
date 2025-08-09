@@ -94,14 +94,17 @@ summary_html = f"""
   <li><b>Night Hours (sunalt<-18):</b> {night_hours:.1f}</li>
   <li><b>% Night:</b> {pct_night:.1f}%</li>
 </ul>
+<h2>2. Night Sky Brightness (NSB)</h2>
 """
-
+# set plot sizes
+plot_w=700
+plot_h=400
 # Plot 1: Histogram of NSB
-fig1 = px.histogram(df_all, x='SQM', nbins=60, title='Histogram of NSB')
+fig1 = px.histogram(df_all, x='SQM', nbins=60, title='NSB (mag/arcsec^2) Histogram')
 fig1.update_layout(
     title_font=dict(size=24),  # Larger title
-    width=700,
-    height=400
+    width=plot_w,
+    height=plot_h
 )
 pio.write_html(fig1, file=f"public/{label}_histogram.html", auto_open=False)
 fig1.write_image(f"public/{label}_histogram.png")
@@ -111,12 +114,12 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
     df_all['hour'] = df_all['UTC'].dt.hour
     df_all['date'] = df_all['UTC'].dt.date
     heatmap_data = df_all.pivot_table(index='hour', columns='date', values='SQM', aggfunc='mean')
-    fig2 = px.imshow(heatmap_data, labels=dict(x="Date", y="Hour", color="Mean SQM"),
-                     title="Heatmap of Mean SQM by Hour and Date")
+    fig2 = px.imshow(heatmap_data, labels=dict(x="Date", y="Hour", color="Mean NSB"),
+                     title="NSB (mag/arcsec^2) by Hour and Date")
     fig2.update_layout(
         title_font=dict(size=24),  # Larger title
-        width=700,
-        height=400
+        width=plot_w,
+        height=plot_h
     )
     pio.write_html(fig2, file=f"public/{label}_heatmap.html", auto_open=False)
     fig2.write_image(f"public/{label}_heatmap.png")
@@ -124,8 +127,8 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
 # Plot 3: Jellyfish
 if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
     df_all['hour_float'] = df_all['UTC'].dt.hour + df_all['UTC'].dt.minute / 60.0
-    df_all['mag_bin'] = pd.cut(df_all['SQM'], bins=np.arange(10, 25.25, 0.25))
-    df_all['hour_bin'] = pd.cut(df_all['hour_float'], bins=np.arange(0, 24.25, 0.25))
+    df_all['mag_bin'] = pd.cut(df_all['SQM'], bins=np.arange(10, 25., 0.1))
+    df_all['hour_bin'] = pd.cut(df_all['hour_float'], bins=np.arange(0, 24.25, 0.1))
     jelly_counts = df_all.groupby(['hour_bin', 'mag_bin']).size().unstack(fill_value=0)
     z = np.log1p(jelly_counts.values.T)
     x_labels = [str(int(b.left)) for b in jelly_counts.index.categories]
@@ -133,31 +136,31 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
     fig3 = go.Figure(data=go.Histogram2d(
         x=df_all["hour"], 
         y=df_all["SQM"], 
-        nbinsx=24, 
-        nbinsy=40,
+        nbinsx=60, 
+        nbinsy=50,
         colorscale="Viridis",        # Use Viridis colormap
         zmin=0,                      # Normalize color scale: min count
-        zmax=df_all["hour"].value_counts().max(),  # Normalize color scale: max count
+        zmax=df_all["hour"].value_counts().max()*0.5,  # Normalize color scale: max count
         colorbar=dict(title="Density")
     ))
     fig3.update_layout(
         title="Jellyfish Plot",
         title_font=dict(size=24),
-        width=700,
-        height=400,
+        width=plot_w,
+        height=plot_h,
         yaxis=dict(
-            autorange="reversed",
             tickmode='array',
-            tickvals=[x * 0.5 for x in range(10, 20)],  # 5.0 to 10.0 mags
-            ticktext=[f"{x:.1f}" for x in [x * 0.5 for x in range(10, 20)]],
-            title="SQM (mag/arcsec²)"
+            tickvals=[x for x in range(10, 21)],  # 5.0 to 10.0 mags10 to 20 mag
+            ticktext=[f"{x:.1f}" for x in range(10, 21)],
+            title="NSB (mag/arcsec²)"
         ),
         xaxis=dict(
             title="Hour (LST)",
             tickmode="array",
             tickvals=list(range(17, 24)) + list(range(0, 8)),
             ticktext=[str(h) for h in range(17, 24)] + [str(h) for h in range(0, 8)]
-        ),
+            title="MST hours)"
+         ),
         coloraxis_colorbar=dict(title="Density", ticks="outside")
     )
     pio.write_html(fig3, file=f"public/{label}_jellyfish.html", auto_open=False)
@@ -165,11 +168,11 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
 
 # Plot 4: Chi-squared Histogram
 if 'chisquared' in df_all.columns:
-    fig4 = px.histogram(df_all, x='chisquared', nbins=50, title='Histogram of Chi-squared')
+    fig4 = px.histogram(df_all, x='chisquared', nbins=50, title='Chi² (cludyness) Histogram')
     fig4.update_layout(
         title_font=dict(size=24),  # Larger title
-        width=700,
-        height=400
+        width=plot_w,
+        height=plot_h
     )
     pio.write_html(fig4, file=f"public/{label}_chisq.html", auto_open=False)
     fig4.write_image(f"public/{label}_chisq.png")
@@ -207,13 +210,5 @@ status = {
     "html": f"analysis/{label}/{label}.analysis.html"
 }
 
-status_path = f"public/status/status-{label}.json"
-os.makedirs(os.path.dirname(status_path), exist_ok=True)
-
-with open(status_path, "w") as f:
-    json.dump(status, f)
-
-print(f"✅ Wrote status JSON to {status_path}")
-# Copy to tmp for later GH Pages step
-shutil.copy(status_path, f"/tmp/status-{label}.json")
-print(f"✅ Also copied status to /tmp/status-{label}.json")
+print(f"📁 Python working dir: {os.getcwd()}")
+# don't write json status here
