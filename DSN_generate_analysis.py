@@ -10,8 +10,8 @@ import argparse
 import json
 import glob
 import datetime
-
-os.makedirs("public", exist_ok=True)
+from pathlib import Path
+#
 parser = argparse.ArgumentParser()
 parser.add_argument('--input_dir', required=True)
 parser.add_argument('--from', dest='from_time', required=True)
@@ -25,6 +25,9 @@ start_time = pd.to_datetime(args.from_time, utc=True)
 end_time = pd.to_datetime(args.to_time, utc=True)
 start_str = start_time.strftime("%y-%m-%d %H:%M:%S")
 end_str = end_time.strftime("%y-%m-%d %H:%M:%S")
+#
+outdir = Path("analysis") / label
+outdir.mkdir(parents=True, exist_ok=True)
 # Load site metadata
 sites_df = pd.read_csv("DSNsites.csv", comment='#', header=None,
                        names=['lon', 'lat', 'el', 'sensor', 'ihead', 'dark',
@@ -106,8 +109,9 @@ fig1.update_layout(
     width=plot_w,
     height=plot_h
 )
-pio.write_html(fig1, file=f"analysis/{label}/{label}_histogram.html", auto_open=False)
-fig1.write_image(f"analysis/{label}/{label}_histogram.png")
+pio.write_html(fig1, file=str(outdir / f"{label}_histogram.html"),
+               auto_open=False)
+fig1.write_image(str(outdir / f"{label}_histogram.png"))
 
 # Plot 2: Heatmap by hour and day
 if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
@@ -121,8 +125,9 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
         width=plot_w,
         height=plot_h
     )
-    pio.write_html(fig2, file=f"analysis/{label}/{label}_heatmap.html", auto_open=False)
-    fig2.write_image(f"analysis/{label}/{label}_heatmap.png")
+    pio.write_html(fig2, file=str(outdir / f"{label}_heatmap.html"),
+               auto_open=False)
+    fig2.write_image(str(outdir / f"{label}_heatmap.png"))
 
 # Plot 3: Jellyfish
 if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
@@ -162,8 +167,10 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
          ),
         coloraxis_colorbar=dict(title="Density", ticks="outside")
     )
-    pio.write_html(fig3, file=f"analysis/{label}/{label}_jellyfish.html", auto_open=False)
-    fig3.write_image(f"analysis/{label}/{label}_jellyfish.png")
+
+    pio.write_html(fig3, file=str(outdir / f"{label}_jellyfish.html"),
+               auto_open=False)
+    fig3.write_image(str(outdir / f"{label}_jellyfish.png"))
 
 # Plot 4: Chi-squared Histogram
 if 'chisquared' in df_all.columns:
@@ -173,8 +180,10 @@ if 'chisquared' in df_all.columns:
         width=plot_w,
         height=plot_h
     )
-    pio.write_html(fig4, file=f"analysis/{label}/{label}_chisq.html", auto_open=False)
-    fig4.write_image(f"analysis/{label}/{label}_chisq.png")
+
+    pio.write_html(fig4, file=str(outdir / f"{label}_chisq.html"),
+               auto_open=False)
+    fig4.write_image(str(outdir / f"{label}_chisq.png"))
 
 # Generate main dashboard HTML
 main_html = f"<html><head><title>{label} Analysis</title></head><body>\n"
@@ -194,8 +203,9 @@ for plot_type in ["histogram", "heatmap", "jellyfish", "chisq"]:
 main_html += "</body></html>"
 
 # Generate main HTML wrapper
-output_path = f"analysis/{label}/{label}.analysis.html"
-os.makedirs(os.path.dirname(output_path), exist_ok=True)
+output_path = outdir / f"{label}.analysis.html"
+with open(output_path, "w", encoding="utf-8") as f:
+    f.write(main_html)
 
 existing = glob.glob(f"analysis/{label}/{label}_*.html")
 print(f"🧾 Found {len(existing)} individual plot HTML files: {existing}")
@@ -210,4 +220,4 @@ status = {
 }
 
 print(f"📁 Python working dir: {os.getcwd()}")
-# don't write json status here
+# don't write status-{label}.json here
