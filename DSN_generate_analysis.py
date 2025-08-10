@@ -124,7 +124,6 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
     fig2.update_layout(
         title_font=dict(size=24),  # Larger title
         title_x=0.5,               # Center title
-        colorscale="Turbo",      # better than Viridis
         width=plot_w,
         height=plot_h
     )
