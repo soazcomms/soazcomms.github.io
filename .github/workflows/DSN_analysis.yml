@@ -38,8 +38,17 @@ jobs:
   generate-plots:
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout repository
+      - name: Checkout repo (pin ref)
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.client_payload.ref || 'main' }}
+          fetch-depth: 1
+
+      - name: Show what we will run
+        run: |
+          echo "HEAD: $(git rev-parse HEAD)"
+          ls -la .
+          sed -n '150,175p' DSN_generate_analysis.py || true
 
       - name: Install Required Packages
         run: |
