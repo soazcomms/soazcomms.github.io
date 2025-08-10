@@ -206,12 +206,9 @@ main_html += "</body></html>"
 output_path = outdir / f"{label}.analysis.html"
 with open(output_path, "w", encoding="utf-8") as f:
     f.write(main_html)
-
+print(f"✅ Wrote main HTML to {output_path}")
 existing = glob.glob(f"analysis/{label}/{label}_*.html")
 print(f"🧾 Found {len(existing)} individual plot HTML files: {existing}")
-with open(output_path, "w") as f:
-    f.write(main_html)
-print(f"✅ Wrote main HTML to {output_path}")
 
 # Write status file
 status = {
