@@ -178,6 +178,7 @@ fig3 = go.Figure(go.Heatmap(
 ))
 fig3.update_layout(
     title="Jellyfish Plot",
+    title_font=dict(size=24),  # Larger title
     title_x=0.5,
     xaxis=dict(title="Hour (MST)", tickmode="array", tickvals=tickvals, ticktext=ticktext),
     yaxis=dict(title="NSB mag/arcsec²"),
@@ -190,7 +191,8 @@ fig3.write_image(str(outdir / f"{label}_jellyfish.png"))
 
 # Plot 4: Chi-squared Histogram
 if 'chisquared' in df_all.columns:
-    fig4 = px.histogram(df_all, x='chisquared', nbins=50, title='Chi² (cloudyness) Histogram')
+    fig4 = px.histogram(df_all, x='chisquared', nbins=50,
+                        title='chi² (>0.009=cloudy) Histogram')
     fig4.update_layout(
         title_font=dict(size=24),  # Larger title
         title_x=0.5,               # Center title
