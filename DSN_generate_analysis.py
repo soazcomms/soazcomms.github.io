@@ -153,7 +153,7 @@ x_edges = np.arange(0.0, 24.0001, 0.25)   # 0, 0.25, ..., 24.0
 # Robust Y range
 ymin = np.nanpercentile(y, 0.5) if np.isfinite(y).any() else 16
 ymax = np.nanpercentile(y, 99.5) if np.isfinite(y).any() else 22
-y_edges = np.linspace(max(16, ymin), min(22, ymax), 60)
+y_edges = np.linspace(max(10, ymin), min(23, ymax), 100)
 
 # 2D histogram and log contrast
 H, _, _ = np.histogram2d(hour_frac, y, bins=[x_edges, y_edges])
