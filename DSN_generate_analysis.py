@@ -131,55 +131,62 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
                auto_open=False)
     fig2.write_image(str(outdir / f"{label}_heatmap.png"))
 
-# --- Jellyfish with 15-min bins, wrapped night ---
-# Convert to fractional hour in MST
-hour_frac = df_all["hour"] + df_all["minute"] / 60.0
-# Ensure hours are between 0–24
-hour_frac = hour_frac % 24
+# --- Jellyfish (15-min bins from UTC → MST, wrapped night) ---
+# Parse UTC timestamps, always tz-aware
+ts_utc = pd.to_datetime(df_all["UTC"], errors="coerce", utc=True)
 
-y = pd.to_numeric(df_all["SQM"], errors="coerce")
+# Convert to MST. Fallback to UTC-7 if tz db unavailable.
+ts_mst = ts_utc - pd.Timedelta(hours=7)
 
-# 15-min bins = 0.25 h step
-x_bins = np.arange(0, 24.25, 0.25)
-y_bins = np.linspace(16, 22, 60)
+# Fractional hour in MST (includes minutes/seconds)
+hour_frac = (
+    ts_mst.dt.hour.astype(float)
+    + ts_mst.dt.minute.astype(float) / 60.0
+    + ts_mst.dt.second.astype(float) / 3600.0
+).to_numpy() % 24.0
 
-hist, xedges, yedges = np.histogram2d(hour_frac, y, bins=[x_bins, y_bins])
-hist_log = np.log10(hist + 1.0)
+# Y values
+y = pd.to_numeric(df_all["SQM"], errors="coerce").to_numpy()
 
-# Wrap order: 17:00–23:45, then 00:00–07:45
-start_idx = int(17 / 0.25)  # 17:00 in 15-min bins = 68
-end_idx = int(8 / 0.25)     # 08:00 in 15-min bins = 32
-order = list(range(start_idx, len(x_bins) - 1)) + list(range(0, end_idx))
+# 15-min bins
+x_edges = np.arange(0.0, 24.0001, 0.25)   # 0, 0.25, ..., 24.0
+# Robust Y range
+ymin = np.nanpercentile(y, 0.5) if np.isfinite(y).any() else 16
+ymax = np.nanpercentile(y, 99.5) if np.isfinite(y).any() else 22
+y_edges = np.linspace(max(16, ymin), min(22, ymax), 60)
 
-Z = hist_log[order, :]          # reorder to wrap night
-x_compact = np.arange(len(order))
-ticktext = [f"{(x_bins[i]):.2f}" for i in order]  # fractional hours
+# 2D histogram and log contrast
+H, _, _ = np.histogram2d(hour_frac, y, bins=[x_edges, y_edges])
+Hlog = np.log10(H + 1.0)
 
-# For nicer tick labels every hour
-tickvals = [i for i, t in enumerate(ticktext) if float(t) % 1 == 0]
-ticktext_hr = [str(int(float(t))) for t in ticktext if float(t) % 1 == 0]
+# Wrap order: 17:00–23:45, then 00:00–07:45  (no x gap by using a compact index)
+start_idx = int(17 / 0.25)  # 68
+end_idx   = int(8 / 0.25)   # 32
+order = list(range(start_idx, len(x_edges) - 1)) + list(range(0, end_idx))
 
-y_centers = 0.5 * (yedges[:-1] + yedges[1:])
+Z = Hlog[order, :]                 # (Nx, Ny)
+x_compact = np.arange(len(order))  # 0..59 (15*4 bins)
+# Put ticks every hour (4 bins apart) with MST hour labels
+tickvals = list(range(0, len(order), 4))
+ticktext = [str(int(x_edges[order[i]] % 24)) for i in tickvals]
+y_centers = 0.5 * (y_edges[:-1] + y_edges[1:])
 
-fig3 = go.Figure(data=go.Heatmap(
-    z=Z.T,  # shape: Ny x Nx
-    x=x_compact,
-    y=y_centers,
-    colorscale="Turbo",
+fig3 = go.Figure(go.Heatmap(
+    z=Z.T, x=x_compact, y=y_centers,
+    colorscale="Turbo",                     # higher contrast than Viridis
     colorbar=dict(title="log₁₀ density")
 ))
-
 fig3.update_layout(
     title="Jellyfish Plot",
     title_x=0.5,
-    xaxis=dict(
-        title="Hour (MST)",
-        tickmode="array",
-        tickvals=tickvals,
-        ticktext=ticktext_hr
-    ),
-    yaxis=dict(title="NSB mag/arcsec²")
+    xaxis=dict(title="Hour (MST)", tickmode="array", tickvals=tickvals, ticktext=ticktext),
+    yaxis=dict(title="NSB mag/arcsec²"),
+    width=plot_w, height=plot_h
 )
+
+# Save
+pio.write_html(fig3, file=str(outdir / f"{label}_jellyfish.html"), auto_open=False)
+fig3.write_image(str(outdir / f"{label}_jellyfish.png"))
 
 # Plot 4: Chi-squared Histogram
 if 'chisquared' in df_all.columns:
