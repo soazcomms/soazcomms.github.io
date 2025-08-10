@@ -106,6 +106,7 @@ plot_h=400
 fig1 = px.histogram(df_all, x='SQM', nbins=60, title='NSB (mag/arcsec²) Histogram')
 fig1.update_layout(
     title_font=dict(size=24),  # Larger title
+    title_x=0.5,               # Center title
     width=plot_w,
     height=plot_h
 )
@@ -122,6 +123,7 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
                      title="NSB (mag/arcsec²) Heatmap")
     fig2.update_layout(
         title_font=dict(size=24),  # Larger title
+        title_x=0.5,               # Center title
         width=plot_w,
         height=plot_h
     )
@@ -129,54 +131,68 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
                auto_open=False)
     fig2.write_image(str(outdir / f"{label}_heatmap.png"))
 
-# Plot 3: Jellyfish
-if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
-    df_all['hour_float'] = df_all['UTC'].dt.hour + df_all['UTC'].dt.minute / 60.0
-    df_all['mag_bin'] = pd.cut(df_all['SQM'], bins=np.arange(10, 25., 0.1))
-    df_all['hour_bin'] = pd.cut(df_all['hour_float'], bins=np.arange(0, 24.25, 0.1))
-    jelly_counts = df_all.groupby(['hour_bin', 'mag_bin']).size().unstack(fill_value=0)
-    z = np.log1p(jelly_counts.values.T)
-    x_labels = [str(int(b.left)) for b in jelly_counts.index.categories]
-    y_labels = [str(round(b.left, 2)) for b in jelly_counts.columns.categories]
-    fig3 = go.Figure(data=go.Histogram2d(
-        x=df_all["hour"], 
-        y=df_all["SQM"], 
-        nbinsx=60, 
-        nbinsy=50,
-        colorscale="Viridis",        # Use Viridis colormap
-        zmin=0,                      # Normalize color scale: min count
-        zmax=df_all["hour"].value_counts().max()*0.5,  # Normalize color scale: max count
-        colorbar=dict(title="Density")
-    ))
-    fig3.update_layout(
-        title="Jellyfish Plot",
-        title_font=dict(size=24),
-        width=plot_w,
-        height=plot_h,
-        yaxis=dict(
-            tickmode='array',
-            tickvals=[x for x in range(10, 21)],  # 5.0 to 10.0 mags10 to 20 mag
-            ticktext=[f"{x:.1f}" for x in range(10, 21)],
-            title="NSB (mag/arcsec²)"
-        ),
-        xaxis=dict(
-            title="MST (hours)",
-            tickmode="array",
-            tickvals=list(range(17, 24)) + list(range(0, 8)),
-            ticktext=[str(h) for h in range(17, 24)] + [str(h) for h in range(0, 8)]
-         ),
-        coloraxis_colorbar=dict(title="Density", ticks="outside")
-    )
+# --- Jellyfish Plot (fig3): hour wrap 17→23 then 0→7, log contrast ---
 
-    pio.write_html(fig3, file=str(outdir / f"{label}_jellyfish.html"),
+# Ensure hour and SQM are clean
+h = df_all["hour"].astype(int).clip(0, 23)
+y = pd.to_numeric(df_all["SQM"], errors="coerce")
+
+# Bins
+x_bins = np.arange(-0.5, 24.5, 1)                      # 24 hour bins
+ymin  = np.nanpercentile(y, 0.5) if np.isfinite(y).any() else 16
+ymax  = np.nanpercentile(y, 99.5) if np.isfinite(y).any() else 22
+y_bins = np.linspace(max(16, ymin), min(22, ymax), 60) # 60 y-bins within a sane range
+
+# 2D histogram (shape: 24 x Ny)
+hist, xedges, yedges = np.histogram2d(h, y, bins=[x_bins, y_bins])
+
+# Log contrast
+hist_log = np.log10(hist + 1.0)
+
+# Desired X order: 17..23, 0..7  (15 columns)
+hour_order = list(range(17, 24)) + list(range(0, 8))
+# Reorder columns to match desired hour sequence
+hist_log_sel = hist_log[hour_order, :]                 # (15, Ny)
+
+# Axes
+x_vals    = hour_order
+tickvals  = hour_order
+ticktext  = [str(hh) for hh in hour_order]
+y_centers = 0.5 * (yedges[:-1] + yedges[1:])
+
+# Heatmap (note .T so Z is Ny x 15 = y by x)
+fig3 = go.Figure(data=go.Heatmap(
+    z=hist_log_sel.T,
+    x=x_vals,
+    y=y_centers,
+    colorscale="Viridis",
+    colorbar=dict(title="log₁₀ density"),
+    zmin=0  # 0 -> no counts (dark); remove if you prefer autoscale
+))
+
+fig3.update_layout(
+    title="Jellyfish Plot",
+    title_x=0.5,                      # center title
+    xaxis=dict(
+        title="Hour (MST)",
+        tickmode="array",
+        tickvals=tickvals,
+        ticktext=ticktext
+    ),
+    yaxis=dict(title="NSB mag/arcsec²")
+)
+
+# Save
+pio.write_html(fig3, file=str(outdir / f"{label}_jellyfish.html"),
                auto_open=False)
-    fig3.write_image(str(outdir / f"{label}_jellyfish.png"))
+fig3.write_image(str(outdir / f"{label}_jellyfish.png")))
 
 # Plot 4: Chi-squared Histogram
 if 'chisquared' in df_all.columns:
     fig4 = px.histogram(df_all, x='chisquared', nbins=50, title='Chi² (cloudyness) Histogram')
     fig4.update_layout(
         title_font=dict(size=24),  # Larger title
+        title_x=0.5,               # Center title
         width=plot_w,
         height=plot_h
     )
