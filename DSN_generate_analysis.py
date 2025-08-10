@@ -185,7 +185,7 @@ fig3.update_layout(
 # Save
 pio.write_html(fig3, file=str(outdir / f"{label}_jellyfish.html"),
                auto_open=False)
-fig3.write_image(str(outdir / f"{label}_jellyfish.png")))
+fig3.write_image(str(outdir / f"{label}_jellyfish.png"))
 
 # Plot 4: Chi-squared Histogram
 if 'chisquared' in df_all.columns:
