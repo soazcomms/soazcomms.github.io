@@ -10,6 +10,17 @@ import argparse
 import json
 import glob
 import datetime
+import re, time
+
+def cache_bust_png_refs(html_text: str, ts: int | None = None) -> str:
+    """Append ?t=<ts> to PNG URLs in HTML (src= / href=), only if no query exists."""
+    if ts is None:
+        ts = int(time.time())
+    html_text = re.sub(r'(src="[^"?]+\.png)(")', rf'\1?t={ts}\2', html_text)
+    html_text = re.sub(r'(href="[^"?]+\.png)(")', rf'\1?t={ts}\2', html_text)
+    return html_text
+
+BUST_TS = int(time.time())  # one timestamp per run
 
 os.makedirs("public", exist_ok=True)
 parser = argparse.ArgumentParser()
@@ -108,6 +119,15 @@ fig1.update_layout(
 )
 pio.write_html(fig1, file=f"public/{label}_histogram.html", auto_open=False)
 fig1.write_image(f"public/{label}_histogram.png")
+# cache-bust inside the per-plot HTML
+try:
+    p = f"public/{label}_histogram.html"
+    with open(p, "r+", encoding="utf-8") as f:
+        s = f.read()
+        s = cache_bust_png_refs(s, BUST_TS)
+        f.seek(0); f.write(s); f.truncate()
+except Exception as e:
+    print(f"⚠️ cache-bust histogram HTML failed: {e}")
 
 # Plot 2: Heatmap by hour and day
 if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
@@ -131,6 +151,14 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
      )
     pio.write_html(fig2, file=f"public/{label}_heatmap.html", auto_open=False)
     fig2.write_image(f"public/{label}_heatmap.png")
+    try:
+        p = f"public/{label}_heatmap.html"
+        with open(p, "r+", encoding="utf-8") as f:
+            s = f.read()
+            s = cache_bust_png_refs(s, BUST_TS)
+            f.seek(0); f.write(s); f.truncate()
+    except Exception as e:
+        print(f"⚠️ cache-bust heatmap HTML failed: {e}")
 
 # Plot 3: Jellyfish
 # --- Jellyfish Plot (fig3) — log contrast + hour wrap 17→23 then 0→7 ---
@@ -184,6 +212,14 @@ fig3.update_layout(
 )
 pio.write_html(fig3, file=f"public/{label}_jellyfish.html", auto_open=False)
 fig3.write_image(f"public/{label}_jellyfish.png")
+try:
+    p = f"public/{label}_jellyfish.html"
+    with open(p, "r+", encoding="utf-8") as f:
+        s = f.read()
+        s = cache_bust_png_refs(s, BUST_TS)
+        f.seek(0); f.write(s); f.truncate()
+except Exception as e:
+    print(f"⚠️ cache-bust jellyfish HTML failed: {e}")
 
 # Plot 4: Chi-squared Histogram
 if 'chisquared' in df_all.columns:
@@ -196,6 +232,14 @@ if 'chisquared' in df_all.columns:
     )
     pio.write_html(fig4, file=f"public/{label}_chisq.html", auto_open=False)
     fig4.write_image(f"public/{label}_chisq.png")
+    try:
+        p = f"public/{label}_chisq.html"
+        with open(p, "r+", encoding="utf-8") as f:
+            s = f.read()
+            s = cache_bust_png_refs(s, BUST_TS)
+            f.seek(0); f.write(s); f.truncate()
+    except Exception as e:
+        print(f"⚠️ cache-bust chisq HTML failed: {e}")
 
 # Generate main dashboard HTML
 main_html = f"<html><head><title>{label} Analysis</title></head><body>\n"
@@ -220,8 +264,11 @@ os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
 existing = glob.glob(f"public/{label}_*.html")
 print(f"🧾 Found {len(existing)} individual plot HTML files: {existing}")
-with open(output_path, "w") as f:
+# add query params to any PNG URLs inside the combined HTML
+main_html = cache_bust_png_refs(main_html, BUST_TS)
+with open(output_path, "w", encoding="utf-8") as f:
     f.write(main_html)
+
 print(f"✅ Wrote main HTML to {output_path}")
 
 # Write status file
