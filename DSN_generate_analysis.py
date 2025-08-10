@@ -124,6 +124,7 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
     fig2.update_layout(
         title_font=dict(size=24),  # Larger title
         title_x=0.5,               # Center title
+        colorscale="Turbo",      # better than Viridis
         width=plot_w,
         height=plot_h
     )
@@ -172,27 +173,46 @@ ticktext = [str(int(x_edges[order[i]] % 24)) for i in tickvals]
 y_centers = 0.5 * (y_edges[:-1] + y_edges[1:])
 
 fig3 = go.Figure(go.Heatmap(
-    z=Z.T, x=x_compact, y=y_centers,
-    colorscale="Turbo",                     # higher contrast than Viridis
+    z=Z.T,
+    x=x_compact,
+    y=y_centers,
+    colorscale="Turbo",      # better than Viridis
     colorbar=dict(title="log₁₀ density")
 ))
 fig3.update_layout(
     title="Jellyfish Plot",
     title_font=dict(size=24),  # Larger title
     title_x=0.5,
-    xaxis=dict(title="Hour (MST)", tickmode="array", tickvals=tickvals, ticktext=ticktext),
+    xaxis=dict(title="Hour (MST)", tickmode="array", tickvals=tickvals,
+               ticktext=ticktext),
     yaxis=dict(title="NSB mag/arcsec²"),
     width=plot_w, height=plot_h
 )
 
 # Save
-pio.write_html(fig3, file=str(outdir / f"{label}_jellyfish.html"), auto_open=False)
+pio.write_html(fig3, file=str(outdir / f"{label}_jellyfish.html"),
+               auto_open=False)
 fig3.write_image(str(outdir / f"{label}_jellyfish.png"))
 
 # Plot 4: Chi-squared Histogram
 if 'chisquared' in df_all.columns:
-    fig4 = px.histogram(df_all, x='chisquared', nbins=50,
-                        title='chi² (>0.009=cloudy) Histogram')
+    fig4 = px.histogram(
+        df_all,
+        x='chisquared',
+        nbins=100,
+        title='chi² (>0.009: cloudy) Histogram'
+    )
+
+    # Add red vertical line at x=0.009
+    fig4.add_vline(
+        x=0.009,
+        line_width=2,
+        line_dash="dash",
+        line_color="red",
+        annotation_text="0.009",
+        annotation_position="top right"
+    )
+
     fig4.update_layout(
         title_font=dict(size=24),  # Larger title
         title_x=0.5,               # Center title
@@ -201,7 +221,7 @@ if 'chisquared' in df_all.columns:
     )
 
     pio.write_html(fig4, file=str(outdir / f"{label}_chisq.html"),
-               auto_open=False)
+                   auto_open=False)
     fig4.write_image(str(outdir / f"{label}_chisq.png"))
 
 # Generate main dashboard HTML
