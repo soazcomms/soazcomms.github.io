@@ -10,22 +10,6 @@ import argparse
 import json
 import glob
 import datetime
-import re, time
-
-import hashlib, os
-
-def version_png(path: str) -> str:
-    """Rename PNG to include short content hash: name_<sha8>.png, return new basename."""
-    with open(path, "rb") as f:
-        digest = hashlib.sha1(f.read()).hexdigest()[:8]
-    root, ext = os.path.splitext(path)
-    new_path = f"{root}_{digest}{ext}"
-    # If already named with this digest, keep; else rename
-    if new_path != path:
-        if os.path.exists(new_path):
-            os.remove(new_path)
-        os.replace(path, new_path)
-    return os.path.basename(new_path)
 
 os.makedirs("public", exist_ok=True)
 parser = argparse.ArgumentParser()
@@ -122,87 +106,64 @@ fig1.update_layout(
     width=plot_w,
     height=plot_h
 )
-pio.write_html(fig1, file=f"public/{label}_histogram.html", auto_open=False)
-fig1.write_image(f"public/{label}_histogram.png")
-hist_png_name = version_png(f"public/{label}_histogram.png")
+pio.write_html(fig1, file=f"analysis/{label}/{label}_histogram.html", auto_open=False)
+fig1.write_image(f"analysis/{label}/{label}_histogram.png")
 
 # Plot 2: Heatmap by hour and day
 if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
     df_all['hour'] = df_all['UTC'].dt.hour
     df_all['date'] = df_all['UTC'].dt.date
-    heatmap_data = df_all.pivot_table(index='hour', columns='date',
-                                      values='SQM', aggfunc='mean')
-    fig2 = px.imshow(heatmap_data, labels=dict(x="Date", y="Hour",
-                                               color="NSB"),
+    heatmap_data = df_all.pivot_table(index='hour', columns='date', values='SQM', aggfunc='mean')
+    fig2 = px.imshow(heatmap_data, labels=dict(x="Date", y="Hour", color="Mean NSB"),
                      title="NSB (mag/arcsec²) Heatmap")
     fig2.update_layout(
         title_font=dict(size=24),  # Larger title
         width=plot_w,
+        height=plot_h
+    )
+    pio.write_html(fig2, file=f"analysis/{label}/{label}_heatmap.html", auto_open=False)
+    fig2.write_image(f"analysis/{label}/{label}_heatmap.png")
+
+# Plot 3: Jellyfish
+if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
+    df_all['hour_float'] = df_all['UTC'].dt.hour + df_all['UTC'].dt.minute / 60.0
+    df_all['mag_bin'] = pd.cut(df_all['SQM'], bins=np.arange(10, 25., 0.1))
+    df_all['hour_bin'] = pd.cut(df_all['hour_float'], bins=np.arange(0, 24.25, 0.1))
+    jelly_counts = df_all.groupby(['hour_bin', 'mag_bin']).size().unstack(fill_value=0)
+    z = np.log1p(jelly_counts.values.T)
+    x_labels = [str(int(b.left)) for b in jelly_counts.index.categories]
+    y_labels = [str(round(b.left, 2)) for b in jelly_counts.columns.categories]
+    fig3 = go.Figure(data=go.Histogram2d(
+        x=df_all["hour"], 
+        y=df_all["SQM"], 
+        nbinsx=60, 
+        nbinsy=50,
+        colorscale="Viridis",        # Use Viridis colormap
+        zmin=0,                      # Normalize color scale: min count
+        zmax=df_all["hour"].value_counts().max()*0.5,  # Normalize color scale: max count
+        colorbar=dict(title="Density")
+    ))
+    fig3.update_layout(
+        title="Jellyfish Plot",
+        title_font=dict(size=24),
+        width=plot_w,
         height=plot_h,
         yaxis=dict(
+            tickmode='array',
+            tickvals=[x for x in range(10, 21)],  # 5.0 to 10.0 mags10 to 20 mag
+            ticktext=[f"{x:.1f}" for x in range(10, 21)],
+            title="NSB (mag/arcsec²)"
+        ),
+        xaxis=dict(
             title="MST (hours)",
             tickmode="array",
             tickvals=list(range(17, 24)) + list(range(0, 8)),
             ticktext=[str(h) for h in range(17, 24)] + [str(h) for h in range(0, 8)]
-         )
-     )
-    pio.write_html(fig2, file=f"public/{label}_heatmap.html", auto_open=False)
-    fig2.write_image(f"public/{label}_heatmap.png")
-    heat_png_name = version_png(f"public/{label}_heatmap.png")
-    
-# Plot 3: Jellyfish
-# --- Jellyfish Plot (fig3) — log contrast + hour wrap 17→23 then 0→7 ---
-
-# Build 2D histogram (hours on X, SQM on Y)
-x_bins = np.arange(-0.5, 24.5, 1)         # bins for hour = 0..23
-y_bins = np.linspace(16, 24, 100)         # bins for NSB 17..23
-hist, xedges, yedges = np.histogram2d(
-    df_all["hour"].values,                        # integer 0..23
-    df_all["SQM"].values,                         # NSB mag/arcsec²
-    bins=[x_bins, y_bins]
-)
-
-# Log scale for contrast (avoid log(0))
-hist_log = np.log10(hist + 1.0)
-
-# Desired hour order: 17..23, then 0..7   (15 columns total)
-hour_order = list(range(17, 24)) + list(range(0, 8))
-
-# Reorder the histogram columns to match desired hour sequence
-# hist shape is (24, Ny); selecting columns by hour then transpose for Heatmap
-hist_log_sel = hist_log[hour_order, :]            # shape: (15, Ny)
-
-# X coordinates and tick labels
-x_vals  = hour_order
-tickvals = hour_order
-ticktext = [str(h) for h in hour_order]
-
-# Y coordinates from y bin centers
-y_centers = 0.5 * (yedges[:-1] + yedges[1:])
-
-# Build heatmap (note .T so Z is Ny x 15 to match x_vals)
-fig3 = go.Figure(data=go.Heatmap(
-    z=hist_log_sel.T,
-    x=x_vals,
-    y=y_centers,
-    colorscale="Viridis",
-    colorbar=dict(title="log₁₀ density"),
-    zmin=0
-))
-
-fig3.update_layout(
-    title="Jellyfish Plot",
-    xaxis=dict(
-        title="Hour (MST)",
-        tickmode="array",
-        tickvals=tickvals,
-        ticktext=ticktext
-    ),
-    yaxis=dict(title="NSB mag/arcsec²")
-)
-pio.write_html(fig3, file=f"public/{label}_jellyfish.html", auto_open=False)
-fig3.write_image(f"public/{label}_jellyfish.png")
-jelly_png_name = version_png(f"public/{label}_jellyfish.png")
+         ),
+        coloraxis_colorbar=dict(title="Density", ticks="outside")
+    )
+    pio.write_html(fig3, file=f"analysis/{label}/{label}_jellyfish.html", auto_open=False)
+    fig3.write_image(f"analysis/{label}/{label}_jellyfish.png")
 
 # Plot 4: Chi-squared Histogram
 if 'chisquared' in df_all.columns:
@@ -210,12 +171,10 @@ if 'chisquared' in df_all.columns:
     fig4.update_layout(
         title_font=dict(size=24),  # Larger title
         width=plot_w,
-        height=plot_h,
-        title='chi-squared (cloudy if > 0.009)'
+        height=plot_h
     )
-    pio.write_html(fig4, file=f"public/{label}_chisq.html", auto_open=False)
-    fig4.write_image(f"public/{label}_chisq.png")
-    chisq_png_name = version_png(f"public/{label}_chisq.png")
+    pio.write_html(fig4, file=f"analysis/{label}/{label}_chisq.html", auto_open=False)
+    fig4.write_image(f"analysis/{label}/{label}_chisq.png")
 
 # Generate main dashboard HTML
 main_html = f"<html><head><title>{label} Analysis</title></head><body>\n"
@@ -225,7 +184,7 @@ main_html += f"<p style='font-size:small'>Generated: {timestamp}</p>\n"
 main_html += summary_html +"\n"  # 👈 Include site summary
 
 for plot_type in ["histogram", "heatmap", "jellyfish", "chisq"]:
-    html_file = f"public/{label}_{plot_type}.html"
+    html_file = f"analysis/{label}/{label}_{plot_type}.html"
     if os.path.exists(html_file):
         with open(html_file) as f:
             main_html += f.read() + "\n"
@@ -235,19 +194,12 @@ for plot_type in ["histogram", "heatmap", "jellyfish", "chisq"]:
 main_html += "</body></html>"
 
 # Generate main HTML wrapper
-output_path = f"public/{label}.analysis.html"
+output_path = f"analysis/{label}/{label}.analysis.html"
 os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-existing = glob.glob(f"public/{label}_*.html")
+existing = glob.glob(f"analysis/{label}/{label}_*.html")
 print(f"🧾 Found {len(existing)} individual plot HTML files: {existing}")
-# add query params to any PNG URLs inside the combined HTML
-
-main_html = main_html.replace(f"{label}_histogram.png", hist_png_name)
-main_html = main_html.replace(f"{label}_heatmap.png",    heat_png_name)
-main_html = main_html.replace(f"{label}_jellyfish.png",  jelly_png_name)
-main_html = main_html.replace(f"{label}_chisq.png",      chisq_png_name)
-
-with open(f"public/{label}.analysis.html", "w", encoding="utf-8") as f:
+with open(output_path, "w") as f:
     f.write(main_html)
 print(f"✅ Wrote main HTML to {output_path}")
 
