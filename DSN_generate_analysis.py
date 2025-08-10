@@ -12,15 +12,20 @@ import glob
 import datetime
 import re, time
 
-def cache_bust_png_refs(html_text: str, ts: int | None = None) -> str:
-    """Append ?t=<ts> to PNG URLs in HTML (src= / href=), only if no query exists."""
-    if ts is None:
-        ts = int(time.time())
-    html_text = re.sub(r'(src="[^"?]+\.png)(")', rf'\1?t={ts}\2', html_text)
-    html_text = re.sub(r'(href="[^"?]+\.png)(")', rf'\1?t={ts}\2', html_text)
-    return html_text
+import hashlib, os
 
-BUST_TS = int(time.time())  # one timestamp per run
+def version_png(path: str) -> str:
+    """Rename PNG to include short content hash: name_<sha8>.png, return new basename."""
+    with open(path, "rb") as f:
+        digest = hashlib.sha1(f.read()).hexdigest()[:8]
+    root, ext = os.path.splitext(path)
+    new_path = f"{root}_{digest}{ext}"
+    # If already named with this digest, keep; else rename
+    if new_path != path:
+        if os.path.exists(new_path):
+            os.remove(new_path)
+        os.replace(path, new_path)
+    return os.path.basename(new_path)
 
 os.makedirs("public", exist_ok=True)
 parser = argparse.ArgumentParser()
@@ -119,15 +124,7 @@ fig1.update_layout(
 )
 pio.write_html(fig1, file=f"public/{label}_histogram.html", auto_open=False)
 fig1.write_image(f"public/{label}_histogram.png")
-# cache-bust inside the per-plot HTML
-try:
-    p = f"public/{label}_histogram.html"
-    with open(p, "r+", encoding="utf-8") as f:
-        s = f.read()
-        s = cache_bust_png_refs(s, BUST_TS)
-        f.seek(0); f.write(s); f.truncate()
-except Exception as e:
-    print(f"⚠️ cache-bust histogram HTML failed: {e}")
+hist_png_name = version_png(f"public/{label}_histogram.png")
 
 # Plot 2: Heatmap by hour and day
 if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
@@ -151,15 +148,8 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
      )
     pio.write_html(fig2, file=f"public/{label}_heatmap.html", auto_open=False)
     fig2.write_image(f"public/{label}_heatmap.png")
-    try:
-        p = f"public/{label}_heatmap.html"
-        with open(p, "r+", encoding="utf-8") as f:
-            s = f.read()
-            s = cache_bust_png_refs(s, BUST_TS)
-            f.seek(0); f.write(s); f.truncate()
-    except Exception as e:
-        print(f"⚠️ cache-bust heatmap HTML failed: {e}")
-
+    heat_png_name = version_png(f"public/{label}_heatmap.png")
+    
 # Plot 3: Jellyfish
 # --- Jellyfish Plot (fig3) — log contrast + hour wrap 17→23 then 0→7 ---
 
@@ -212,14 +202,7 @@ fig3.update_layout(
 )
 pio.write_html(fig3, file=f"public/{label}_jellyfish.html", auto_open=False)
 fig3.write_image(f"public/{label}_jellyfish.png")
-try:
-    p = f"public/{label}_jellyfish.html"
-    with open(p, "r+", encoding="utf-8") as f:
-        s = f.read()
-        s = cache_bust_png_refs(s, BUST_TS)
-        f.seek(0); f.write(s); f.truncate()
-except Exception as e:
-    print(f"⚠️ cache-bust jellyfish HTML failed: {e}")
+jelly_png_name = version_png(f"public/{label}_jellyfish.png")
 
 # Plot 4: Chi-squared Histogram
 if 'chisquared' in df_all.columns:
@@ -232,14 +215,7 @@ if 'chisquared' in df_all.columns:
     )
     pio.write_html(fig4, file=f"public/{label}_chisq.html", auto_open=False)
     fig4.write_image(f"public/{label}_chisq.png")
-    try:
-        p = f"public/{label}_chisq.html"
-        with open(p, "r+", encoding="utf-8") as f:
-            s = f.read()
-            s = cache_bust_png_refs(s, BUST_TS)
-            f.seek(0); f.write(s); f.truncate()
-    except Exception as e:
-        print(f"⚠️ cache-bust chisq HTML failed: {e}")
+    chisq_png_name = version_png(f"public/{label}_chisq.png")
 
 # Generate main dashboard HTML
 main_html = f"<html><head><title>{label} Analysis</title></head><body>\n"
@@ -265,10 +241,14 @@ os.makedirs(os.path.dirname(output_path), exist_ok=True)
 existing = glob.glob(f"public/{label}_*.html")
 print(f"🧾 Found {len(existing)} individual plot HTML files: {existing}")
 # add query params to any PNG URLs inside the combined HTML
-main_html = cache_bust_png_refs(main_html, BUST_TS)
-with open(output_path, "w", encoding="utf-8") as f:
-    f.write(main_html)
 
+main_html = main_html.replace(f"{label}_histogram.png", hist_png_name)
+main_html = main_html.replace(f"{label}_heatmap.png",    heat_png_name)
+main_html = main_html.replace(f"{label}_jellyfish.png",  jelly_png_name)
+main_html = main_html.replace(f"{label}_chisq.png",      chisq_png_name)
+
+with open(f"public/{label}.analysis.html", "w", encoding="utf-8") as f:
+    f.write(main_html)
 print(f"✅ Wrote main HTML to {output_path}")
 
 # Write status file
