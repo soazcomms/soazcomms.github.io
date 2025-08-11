@@ -86,6 +86,9 @@ dt = night_df["UTC"].diff().dropna()
 # Total duration in hours (sum of all intervals)
 night_hours = dt.dt.total_seconds().sum() / 3600
 pct_night = 100 * night_hours / run_hours if run_hours else 0
+count_le_0009 = (night_df['chisquared'] <= 0.009).sum()
+total = len(night_df['chisquared'])
+percent_le_0009 = 100 * count_le_0009 / total
 
 summary_html = f"""
 <h2>1. Annual Summary Statistics</h2>
@@ -96,6 +99,7 @@ summary_html = f"""
   <li><b>Total Run Hours (18-6h):</b> {run_hours:.1f}</li>
   <li><b>Night Hours (sunalt<-18):</b> {night_hours:.1f}</li>
   <li><b>% Night:</b> {pct_night:.1f}%</li>
+  <li><b>% Run time w/o clouds:</b> {percent_le_0009:.1f}%</li>
 </ul>
 <h2>2. Night Sky Brightness (NSB)</h2>
 """
@@ -114,42 +118,96 @@ pio.write_html(fig1, file=str(outdir / f"{label}_histogram.html"),
                auto_open=False)
 fig1.write_image(str(outdir / f"{label}_histogram.png"))
 
-# Plot 2: Heatmap by hour and day
-if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
-    df_all['hour'] = df_all['UTC'].dt.hour
-    df_all['date'] = df_all['UTC'].dt.date
-    heatmap_data = df_all.pivot_table(index='hour', columns='date', values='SQM', aggfunc='mean')
-    fig2 = px.imshow(heatmap_data, labels=dict(x="Date", y="Hour", color="Mean NSB"),
-                     title="NSB (mag/arcsec²) Heatmap")
-    fig2.update_layout(
-        title_font=dict(size=24),  # Larger title
-        title_x=0.5,               # Center title
-        width=plot_w,
-        height=plot_h
-    )
-    pio.write_html(fig2, file=str(outdir / f"{label}_heatmap.html"),
-               auto_open=False)
-    fig2.write_image(str(outdir / f"{label}_heatmap.png"))
-
-# --- Jellyfish (15-min bins from UTC → MST, wrapped night) ---
+# For both heatmap and jellyfish
 # Parse UTC timestamps, always tz-aware
 ts_utc = pd.to_datetime(df_all["UTC"], errors="coerce", utc=True)
-
 # Convert to MST. Fallback to UTC-7 if tz db unavailable.
 ts_mst = ts_utc - pd.Timedelta(hours=7)
-
 # Fractional hour in MST (includes minutes/seconds)
 hour_frac = (
     ts_mst.dt.hour.astype(float)
     + ts_mst.dt.minute.astype(float) / 60.0
     + ts_mst.dt.second.astype(float) / 3600.0
 ).to_numpy() % 24.0
+# Plot 2: Heatmap by hour and day
+if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
+    # 15-min bins → indices 0..95
+    bin_size = 0.25  # hours
+    bin_idx = np.floor(hour_frac / bin_size).astype(int).clip(0, 95)
+
+    # Wrap: 17:00–23:45 (68..95), then 00:00–07:45 (0..31)
+    start_idx = int(17 / bin_size)  # 68
+    end_idx   = int(8 / bin_size)   # 32
+    order = list(range(start_idx, 96)) + list(range(0, end_idx))  # length 60
+
+    # Map raw bin indices to wrapped compact index 0..59 (night sequence)
+    # For bins outside [68..95, 0..31] we drop them
+    sel_mask = (bin_idx >= start_idx) | (bin_idx < end_idx)
+    df_sel = df_all.loc[sel_mask].copy()
+    ts_sel = ts_mst.loc[sel_mask]
+    bins_sel = bin_idx[sel_mask]
+
+    # Compute wrapped positions (0..59)
+    wrapped_pos = np.where(bins_sel >= start_idx, bins_sel - start_idx,
+                           bins_sel + (96 - start_idx))
+    df_sel['date'] = ts_sel.dt.date
+    df_sel['bin_pos'] = wrapped_pos
+    df_sel['SQM_num'] = pd.to_numeric(df_sel['SQM'], errors='coerce')
+
+    # Pivot to (y=bin_pos 0..59, x=date), mean SQM
+    heat = df_sel.pivot_table(index='bin_pos', columns='date', values='SQM_num', aggfunc='mean')
+    # Ensure all 60 rows exist in order
+    heat = heat.reindex(range(0, 60), axis=0)
+
+    # Build y tick labels every hour (4 bins)
+    x_edges = np.linspace(0, 24, 97)  # exact edges for 15-min bins
+    # Hour value for each wrapped row
+    hour_vals_for_row = [x_edges[order[i]] % 24 for i in range(60)]
+    tickvals = list(range(0, 60, 4))  # every hour
+    ticktext = [str(int(hour_vals_for_row[i])) for i in tickvals]
+
+    # Plot with go.Heatmap to control ticks
+    fig2 = go.Figure(data=go.Heatmap(
+        z=heat.values,                # rows: y (0..59), cols: dates
+        x=[str(c) for c in heat.columns],  # dates as strings
+        y=np.arange(60),              # compact y index
+        colorscale="Viridis",         # keep or switch to "Turbo" if you want more pop
+        colorbar=dict(title="Mean NSB", thickness=12)
+    ))
+
+    fig2.update_layout(
+        title="NSB (mag/arcsec²) Heatmap",
+        title_font=dict(size=24),
+        title_x=0.5,
+        xaxis=dict(title="Date"),
+        yaxis=dict(
+            title="Hour (MST)",
+            tickmode="array",
+            tickvals=tickvals,
+            ticktext=ticktext
+        ),
+        width=plot_w,
+        height=plot_h
+    )
+
+    pio.write_html(fig2, file=str(outdir / f"{label}_heatmap.html"),
+                   auto_open=False)
+    fig2.write_image(str(outdir / f"{label}_heatmap.png"))
+#    
+# --- Jellyfish (15-min bins from UTC → MST, wrapped night) ---
+# Wrap order: 17:00–23:45, then 00:00–07:45  (no x gap by using a compact index)
+start_idx = int(17 / 0.25)  # 68
+end_idx   = int(8 / 0.25)   # 32
+order = list(range(start_idx, len(x_edges) - 1)) + list(range(0, end_idx))
+# Put ticks every hour (4 bins apart) with MST hour labels
+tickvals = list(range(0, len(order), 4))
 
 # Y values
 y = pd.to_numeric(df_all["SQM"], errors="coerce").to_numpy()
 
 # 15-min bins
 x_edges = np.arange(0.0, 24.0001, 0.25)   # 0, 0.25, ..., 24.0
+order = list(range(start_idx, len(x_edges) - 1)) + list(range(0, end_idx))
 # Robust Y range
 ymin = np.nanpercentile(y, 0.5) if np.isfinite(y).any() else 16
 ymax = np.nanpercentile(y, 99.5) if np.isfinite(y).any() else 22
@@ -158,11 +216,6 @@ y_edges = np.linspace(max(10, ymin), min(24.5, ymax), 100)
 # 2D histogram and log contrast
 H, _, _ = np.histogram2d(hour_frac, y, bins=[x_edges, y_edges])
 Hlog = np.log10(H + 1.0)
-
-# Wrap order: 17:00–23:45, then 00:00–07:45  (no x gap by using a compact index)
-start_idx = int(17 / 0.25)  # 68
-end_idx   = int(8 / 0.25)   # 32
-order = list(range(start_idx, len(x_edges) - 1)) + list(range(0, end_idx))
 
 Z = Hlog[order, :]                 # (Nx, Ny)
 x_compact = np.arange(len(order))  # 0..59 (15*4 bins)
