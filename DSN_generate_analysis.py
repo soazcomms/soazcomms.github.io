@@ -198,10 +198,10 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
     ticktext = [str(int(hour_vals_for_row[i])) for i in tickvals]
     # Get z values
     raw = heat.values.astype(float)  # raw NSB for hover
-    zmin, zmax = np.nanmin(raw), np.nanmax(raw)
+    z_min, z_max = np.nanmin(raw), np.nanmax(raw)
     den = (z_max - z_min) if np.isfinite(z_max - z_min) and \
         (z_max - z_min) != 0 else 1.0
-    z_norm  = np.clip((raw - zmin) / den, 0, 1)
+    z_norm  = np.clip((raw - z_min) / den, 0, 1)
     gamma   = 0.6
     z_gamma = z_norm ** gamma
 
