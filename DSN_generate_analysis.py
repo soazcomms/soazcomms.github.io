@@ -163,24 +163,22 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
     ticktext = [str(int(hour_vals_for_row[i])) for i in tickvals]
     # Get z values
     z_values = heat.values
-
-    # Apply gamma correction (gamma < 1 expands lower end detail)
-    gamma = 0.5  # 0.4–0.6 for stronger boost
     z_min, z_max = np.nanmin(z_values), np.nanmax(z_values)
-    z_norm = (z_values - z_min) / (z_max - z_min)
-    z_gamma = z_norm ** gamma
+    den = (z_max - z_min) if np.isfinite(z_max - z_min) and \
+        (z_max - z_min) != 0 else 1.0
+    z_norm  = (z_values - z_min) / den
+    gamma   = 0.4
+    z_gamma = np.clip(z_norm, 0, 1) ** gamma
 
-    # Plot with transformed colors but keep raw values for hover
     fig2 = go.Figure(data=go.Heatmap(
-        z=z_gamma,  # transformed for colors
-        text=np.round(z_values, 3),  # raw NSB values in hover
-        hovertemplate="NSB: %{text} mag/arcsec²<extra></extra>",
+        z=z_gamma,                     # for colors (gamma-stretched)
+        customdata=z_values,           # keep raw values here
+        hovertemplate="NSB: %{customdata:.1f} mag/arcsec²<extra></extra>",
         x=[str(c) for c in heat.columns],
-        y=np.arange(60),
+        y=np.arange(z_gamma.shape[0]),
         colorscale="Turbo",
         colorbar=dict(title="Mean NSB", thickness=12)
     ))
-
     fig2.update_layout(
         title="NSB (mag/arcsec²) Heatmap",
         title_font=dict(size=24),
