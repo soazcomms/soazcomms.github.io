@@ -98,8 +98,8 @@ summary_html = f"""
   <li><b>Time Range:</b> {start_str} to {end_str}</li>
   <li><b>Total Run Hours (18-6h):</b> {run_hours:.1f}</li>
   <li><b>Night Hours (sunalt<-18):</b> {night_hours:.1f}</li>
-  <li><b>% Night:</b> {pct_night:.1f}%</li>
-  <li><b>% Run time w/o clouds:</b> {percent_le_0009:.1f}%</li>
+  <li><b>Run Hours:</b> {pct_night:.1f}%</li>
+  <li><b>Run Hours w/o clouds:</b> {percent_le_0009:.1f}%</li>
 </ul>
 <h2>2. Night Sky Brightness (NSB)</h2>
 """
@@ -131,47 +131,55 @@ hour_frac = (
 ).to_numpy() % 24.0
 # Plot 2: Heatmap by hour and day
 if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
+# Plot 2: Heatmap by 15-min bin (wrapped 18:00→06:00)
+if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
     # 15-min bins → indices 0..95
     bin_size = 0.25  # hours
     bin_idx = np.floor(hour_frac / bin_size).astype(int).clip(0, 95)
 
-    # Wrap: 17:00–23:45 (68..95), then 00:00–07:45 (0..31)
-    start_idx = int(17 / bin_size)  # 68
-    end_idx   = int(8 / bin_size)   # 32
-    order = list(range(start_idx, 96)) + list(range(0, end_idx))  # length 60
+    # Wrap: 18:00–23:45 (72..95), then 00:00–05:45 (0..23) → total 48 bins
+    start_idx = int(18 / bin_size)  # 72
+    end_idx   = int(6  / bin_size)  # 24
+    order = list(range(start_idx, 96)) + list(range(0, end_idx))  # length 48
 
-    # Map raw bin indices to wrapped compact index 0..59 (night sequence)
-    # For bins outside [68..95, 0..31] we drop them
+    # Keep only bins in that night window
     sel_mask = (bin_idx >= start_idx) | (bin_idx < end_idx)
     df_sel = df_all.loc[sel_mask].copy()
     ts_sel = ts_mst.loc[sel_mask]
     bins_sel = bin_idx[sel_mask]
 
-    # Compute wrapped positions (0..59)
-    wrapped_pos = np.where(bins_sel >= start_idx, bins_sel - start_idx,
-                           bins_sel + (96 - start_idx))
+    # Wrapped compact positions 0..47
+    wrapped_pos = np.where(bins_sel >= start_idx, bins_sel - start_idx, bins_sel + (96 - start_idx))
     df_sel['date'] = ts_sel.dt.date
     df_sel['bin_pos'] = wrapped_pos
     df_sel['SQM_num'] = pd.to_numeric(df_sel['SQM'], errors='coerce')
 
-    # Pivot to (y=bin_pos 0..59, x=date), mean SQM
+    # Pivot to (y=bin_pos 0..47, x=date), mean SQM
     heat = df_sel.pivot_table(index='bin_pos', columns='date', values='SQM_num', aggfunc='mean')
-    # Ensure all 60 rows exist in order
-    heat = heat.reindex(range(0, 60), axis=0)
+    heat = heat.reindex(range(0, 48), axis=0)
 
-    # Build y tick labels every hour (4 bins)
+    # Y tick labels every hour (4 bins)
     x_edges = np.linspace(0, 24, 97)  # exact edges for 15-min bins
-    # Hour value for each wrapped row
-    hour_vals_for_row = [x_edges[order[i]] % 24 for i in range(60)]
-    tickvals = list(range(0, 60, 4))  # every hour
+    hour_vals_for_row = [x_edges[order[i]] % 24 for i in range(48)]
+    tickvals = list(range(0, 48, 4))  # every hour
     ticktext = [str(int(hour_vals_for_row[i])) for i in tickvals]
+    # Get z values
+    z_values = heat.values
 
-    # Plot with go.Heatmap to control ticks
+    # Apply gamma correction (gamma < 1 expands lower end detail)
+    gamma = 0.5  # 0.4–0.6 for stronger boost
+    z_min, z_max = np.nanmin(z_values), np.nanmax(z_values)
+    z_norm = (z_values - z_min) / (z_max - z_min)
+    z_gamma = z_norm ** gamma
+
+    # Plot with transformed colors but keep raw values for hover
     fig2 = go.Figure(data=go.Heatmap(
-        z=heat.values,                # rows: y (0..59), cols: dates
-        x=[str(c) for c in heat.columns],  # dates as strings
-        y=np.arange(60),              # compact y index
-        colorscale="Viridis",         # keep or switch to "Turbo" if you want more pop
+        z=z_gamma,  # transformed for colors
+        text=np.round(z_values, 3),  # raw NSB values in hover
+        hovertemplate="NSB: %{text} mag/arcsec²<extra></extra>",
+        x=[str(c) for c in heat.columns],
+        y=np.arange(60),
+        colorscale="Turbo",
         colorbar=dict(title="Mean NSB", thickness=12)
     ))
 
