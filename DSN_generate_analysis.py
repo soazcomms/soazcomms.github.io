@@ -129,8 +129,6 @@ hour_frac = (
     + ts_mst.dt.minute.astype(float) / 60.0
     + ts_mst.dt.second.astype(float) / 3600.0
 ).to_numpy() % 24.0
-# Plot 2: Heatmap by hour and day
-if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
 # Plot 2: Heatmap by 15-min bin (wrapped 18:00→06:00)
 if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
     # 15-min bins → indices 0..95
