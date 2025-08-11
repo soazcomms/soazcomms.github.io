@@ -127,8 +127,7 @@ night_hours = gap_corrected_hours(night_df, ts_col="UTC")
 pct_night = 100 * night_hours / run_hours if run_hours else 0
 #
 count_le_0009 = (night_df['chisquared'] <= 0.009).sum()
-total = len(night_df['chisquared'])
-percent_le_0009 = 100 * count_le_0009 / total
+percent_le_0009 = 100 * count_le_0009 / night_hours
 
 summary_html = f"""
 <h2>1. Annual Summary Statistics</h2>
@@ -138,8 +137,8 @@ summary_html = f"""
   <li><b>Time Range:</b> {start_str} to {end_str}</li>
   <li><b>Total Run Hours (18-6h):</b> {run_hours:.1f}</li>
   <li><b>Night Hours (sunalt<-18):</b> {night_hours:.1f}</li>
-  <li><b>Run Hours:</b> {pct_night:.1f}%</li>
-  <li><b>Run Hours w/o clouds:</b> {percent_le_0009:.1f}%</li>
+  <li><b>Run Hours percentage:</b> {pct_night:.1f}%</li>
+  <li><b>Run Hours w/o clouds:</b> {count_le_0009} ({percent_le_0009:.1f}%)</li>
 </ul>
 <h2>2. Night Sky Brightness (NSB) plots (interactive)</h2>
 """
