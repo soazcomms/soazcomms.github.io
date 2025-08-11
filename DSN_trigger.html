@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>🔬 DSN Analysis</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { --primary:#007bff; --accent:#87CEFA; --ok:#2e7d32; --warn:#c62828; --barbg:#edf2f7; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; text-align:center; margin:2rem; }
+    h2 { margin-bottom:.25rem; }
+    #status { margin:.5rem 0 .5rem; font-size:1.05rem; min-height:2.4em; }
+    a.button {
+      display:none; margin-top:.75rem; padding:.6rem 1.2rem; font-size:1rem;
+      background:var(--primary); color:#fff; text-decoration:none; border-radius:8px;
+    }
+    .actions { margin-top:.75rem; display:flex; gap:.5rem; justify-content:center; flex-wrap:wrap; }
+    button {
+      padding:.55rem .95rem; font-size:.95rem; border:0; border-radius:8px; cursor:pointer;
+    }
+    #exit-btn { background:var(--accent); }
+    #extend-btn { background:#e0e7ff; }
+    .muted { color:#666; font-size:.9rem; }
+    /* Progress bar */
+    .progress-wrap {
+	width: min(720px, 90vw);
+	margin: 1rem auto .25rem;
+	text-align: center; /* center everything inside */
+    }
+
+    .progress {
+	width: 50%; /* half page width */
+	margin: 0 auto; /* center horizontally */
+	height: 12px;
+	background: var(--barbg);
+	border-radius: 999px;
+	overflow: hidden;
+	box-shadow: inset 0 0 0 1px #e2e8f0;
+    }
+
+    .legend {
+	width: 50%; /* match bar width */
+	margin: .35rem auto 0; /* center and match bar */
+	display: flex;
+	justify-content: space-between;
+	font-size: .85rem;
+	color: #555;
+    }
+    .bar {
+      height:100%; width:0%;
+      background: linear-gradient(90deg, #69c, #38bdf8 40%, #22c55e 75%, #16a34a 100%);
+      transition: width .4s ease;
+    }
+    .bar.timeout { background: linear-gradient(90deg, #f59e0b, #ef4444); }
+    .legend { display:flex; justify-content:space-between; font-size:.85rem; margin-top:.35rem; color:#555; }
+  </style>
+</head>
+<body>
+  <h2 id="title">🔬 DSN Analysis</h2>
+  <div id="status">⏳ Initializing…</div>
+
+  <!-- Progress -->
+  <div class="progress-wrap" aria-label="Progress toward timeout window">
+    <div class="progress"><div id="bar" class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div></div>
+    <div class="legend"><span id="leg-left" class="muted">0:00</span><span id="leg-right" class="muted">Timeout in 5:00</span></div>
+  </div>
+
+  <a id="open-link" class="button" target="_blank" rel="noopener">📄 View Analysis Result</a>
+
+  <div class="actions">
+    <button id="extend-btn" type="button" style="display:none;">⏱️ Keep waiting 5 more min</button>
+    <button id="exit-btn"   type="button">🔙 Exit</button>
+  </div>
+
+  <script>
+    // --- Config ---
+    const GH_PAGES_BASE   = "https://soazcomms.github.io/";
+    const STATUS_DIR      = "status"; // status/status-<label>.json
+    const WEBHOOK_URL     = "https://sound-kangaroo-unlikely.ngrok-free.app/DSN_webhook";
+    const POLL_INTERVAL_MS= 10_000;          // 10s
+    const TIMEOUT_MS_INIT = 5 * 60_000;      // 5 minutes
+    const EXTEND_MS       = 5 * 60_000;      // extend window by 5 minutes each time
+    // ---------------
+
+    const qs = new URLSearchParams(location.search);
+    const rawLabel = (qs.get("label") || "");
+    const label = rawLabel.slice(0, 8); // normalize DSN###-X form
+    const from  = qs.get("from");
+    const to    = qs.get("to");
+
+    const titleEl  = document.getElementById("title");
+    const statusEl = document.getElementById("status");
+    const linkEl   = document.getElementById("open-link");
+    const exitBtn  = document.getElementById("exit-btn");
+    const extendBtn= document.getElementById("extend-btn");
+
+    const barEl    = document.getElementById("bar");
+    const legL     = document.getElementById("leg-left");
+    const legR     = document.getElementById("leg-right");
+
+    if (label) titleEl.innerHTML = `🔬 Site <b>${label}</b>`;
+    if (!label || !from || !to) {
+      statusEl.textContent = "❌ Missing required URL params: label, from, to.";
+    } else {
+      kickoff();
+    }
+
+    exitBtn.addEventListener("click", () => {
+      if (!window.close()) history.back();
+    });
+
+    extendBtn.addEventListener("click", () => {
+      // Extend the timeout window and continue polling
+      extraTime += EXTEND_MS;
+      extendBtn.style.display = "none";
+      // update legend immediately
+      updateProgress();
+    });
+
+    // Cache-busted URLs
+    function statusUrl() {
+      return `${GH_PAGES_BASE}${STATUS_DIR}/status-${label}.json?t=${Date.now()}`;
+    }
+    function resolveResultUrl(htmlField) {
+      if (/^https?:\/\//i.test(htmlField)) return htmlField;
+      return GH_PAGES_BASE + htmlField.replace(/^\/+/, "");
+    }
+
+    // Track time window
+    const jobStart = Math.floor(Date.now() / 1000);
+    const t0 = Date.now();
+    let timeoutMs = TIMEOUT_MS_INIT;
+    let extraTime = 0;
+
+    // UI: progress bar
+    function fmt(sec) {
+      sec = Math.max(0, Math.floor(sec));
+      const m = Math.floor(sec/60), s = sec % 60;
+      return `${m}:${String(s).padStart(2,"0")}`;
+    }
+    function updateProgress(timedOut=false) {
+      const elapsed = Date.now() - t0;
+      const total = timeoutMs + extraTime;
+      const pct = Math.max(0, Math.min(100, (elapsed / total) * 100));
+      barEl.style.width = pct.toFixed(1) + "%";
+      barEl.setAttribute("aria-valuenow", pct.toFixed(0));
+      barEl.classList.toggle("timeout", timedOut);
+      legL.textContent = fmt(elapsed/1000);
+      const remain = Math.max(0, (total - elapsed)/1000);
+      legR.textContent = timedOut ? "Timed out" : `Timeout in ${fmt(remain)}`;
+    }
+
+    async function kickoff() {
+      try {
+        const res = await fetch(WEBHOOK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ label, from, to })
+        });
+        if (!res.ok) throw new Error(`Webhook HTTP ${res.status}`);
+        statusEl.innerHTML = `🔄 Running DSN analysis for <b>${label}</b><br/>⏳ Generating plots…`;
+      } catch (e) {
+        console.warn("Webhook trigger error:", e);
+        statusEl.textContent = "⏳ Processing… (webhook may be delayed)";
+      }
+      await pollForStatus();
+    }
+
+    async function pollForStatus() {
+      while (true) {
+        const elapsed = Date.now() - t0;
+        const total = timeoutMs + extraTime;
+        const timedOut = elapsed >= total;
+        updateProgress(timedOut);
+
+        if (timedOut) {
+          statusEl.innerHTML = "⏱️ Still working… might be a larger data window.<br/><span class='muted'>You can keep waiting.</span>";
+          extendBtn.style.display = "inline-block";
+          // Keep polling, just at the same interval, until user extends or result arrives
+        }
+
+        try {
+          const res = await fetch(statusUrl(), { cache: "no-store" });
+          if (res.ok) {
+            const data = await res.json();
+    if (data && data.status && data.html && data.timestamp >= jobStart) {
+              statusEl.innerHTML = data.status;
+              linkEl.href = resolveResultUrl(data.html);
+              linkEl.style.display = "inline-block";
+              // Fill progress bar to 100% in success color
+              barEl.style.width = "100%";
+              barEl.classList.remove("timeout");
+              legR.textContent = "Complete";
+              return;
+            }
+          }
+          if (!timedOut) {
+            statusEl.innerHTML = `⏳ Generating plots…`;
+          }
+        } catch (e) {
+          if (!timedOut) statusEl.innerHTML = `⏳ Waiting for processing…`;
+          console.warn("Fetch status failed:", e);
+        }
+
+        await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+      }
+    }
+  </script>
+</body>
+</html>
