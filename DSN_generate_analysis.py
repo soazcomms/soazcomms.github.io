@@ -75,17 +75,52 @@ else:
 
 # Stats
 print(f"✅ Filtered to {len(df_all)} records in time range")
-run_hours = (df_all['UTC'].iloc[-1]-df_all['UTC'].iloc[0]).total_seconds()/3600
+
+# Ensure UTC column is datetime and sorted
+df_all['UTC'] = pd.to_datetime(df_all['UTC'], errors='coerce', utc=True)
+df_all = df_all.sort_values('UTC').reset_index(drop=True)
+
+# Compute time differences in seconds
+diffs = df_all['UTC'].diff().dt.total_seconds()
+# Ignore first NaN
+diffs = diffs.iloc[1:]
+# Find the *mode* or *minimum* cadence (in seconds)
+min_delta = diffs.min()
+# Allow a tolerance for jitter (e.g., ±10%)
+tolerance = 0.10
+max_allowed = min_delta * (1 + tolerance)
+# Sum only differences that are within tolerance
+observing_seconds = diffs[diffs <= max_allowed].sum()
+# Convert to hours
+run_hours = observing_seconds / 3600.0
+#run_hours = (df_all['UTC'].iloc[-1]-df_all['UTC'].iloc[0]).total_seconds()/3600
 #
 df_local = df_all.copy()
 df_local['Local'] = df_local['UTC'].dt.tz_convert('America/Phoenix')
 df_local['Date'] = df_local['Local'].dt.date
 # Calculate differences between consecutive UTC timestamps
 night_df = df_local[(df_local['sunalt']<= -18)]
-dt = night_df["UTC"].diff().dropna()
+#dt = night_df["UTC"].diff().dropna()
 # Total duration in hours (sum of all intervals)
-night_hours = dt.dt.total_seconds().sum() / 3600
+#night_hours = dt.dt.total_seconds().sum() / 3600
+# Ensure UTC column is datetime and sorted
+night_df['UTC'] = pd.to_datetime(night_df['UTC'], errors='coerce', utc=True)
+night_df = night_df.sort_values('UTC').reset_index(drop=True)
+# Compute time differences in seconds
+night_diffs = night_df['UTC'].diff().dt.total_seconds()
+# Ignore first NaN
+night_diffs = night_diffs.iloc[1:]
+# Find the minimum cadence (seconds)
+min_delta_night = night_diffs.min()
+# Allow ±10% tolerance
+tolerance = 0.10
+max_allowed_night = min_delta_night * (1 + tolerance)
+# Sum only differences that are within tolerance
+night_seconds = night_diffs[night_diffs <= max_allowed_night].sum()
+# Convert to hours
+night_hours = night_seconds / 3600.0
 pct_night = 100 * night_hours / run_hours if run_hours else 0
+#
 count_le_0009 = (night_df['chisquared'] <= 0.009).sum()
 total = len(night_df['chisquared'])
 percent_le_0009 = 100 * count_le_0009 / total
@@ -162,17 +197,17 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
     tickvals = list(range(0, 48, 4))  # every hour
     ticktext = [str(int(hour_vals_for_row[i])) for i in tickvals]
     # Get z values
-    z_values = heat.values
-    z_min, z_max = np.nanmin(z_values), np.nanmax(z_values)
+    raw = heat.values.astype(float)  # raw NSB for hover
+    zmin, zmax = np.nanmin(raw), np.nanmax(raw)
     den = (z_max - z_min) if np.isfinite(z_max - z_min) and \
         (z_max - z_min) != 0 else 1.0
-    z_norm  = (z_values - z_min) / den
-    gamma   = 0.4
-    z_gamma = np.clip(z_norm, 0, 1) ** gamma
+    z_norm  = np.clip((raw - zmin) / den, 0, 1)
+    gamma   = 0.6
+    z_gamma = z_norm ** gamma
 
     fig2 = go.Figure(data=go.Heatmap(
         z=z_gamma,                     # for colors (gamma-stretched)
-        customdata=z_values,           # keep raw values here
+        customdata=raw.tolist(),           # keep raw values here
         hovertemplate="NSB: %{customdata:.1f} mag/arcsec²<extra></extra>",
         x=[str(c) for c in heat.columns],
         y=np.arange(z_gamma.shape[0]),
