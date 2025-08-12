@@ -73,39 +73,186 @@
     <button id="exit-btn"   type="button">🔙 Exit</button>
   </div>
 
-  <script>
-    // --- Config ---
-    const GH_PAGES_BASE   = "https://soazcomms.github.io/";
-    const STATUS_DIR      = "status"; // status/status-<label>.json
-    const WEBHOOK_URL     = "https://sound-kangaroo-unlikely.ngrok-free.app/DSN_webhook";
-    const POLL_INTERVAL_MS= 10_000;          // 10s
-    const TIMEOUT_MS_INIT = 5 * 60_000;      // 5 minutes
-    const EXTEND_MS       = 5 * 60_000;      // extend window by 5 minutes each time
-    // ---------------
+  // --- Config (unchanged) ---
+  const GH_PAGES_BASE   = "https://soazcomms.github.io/";
+  const STATUS_DIR      = "status";
+  const WEBHOOK_URL     = "https://sound-kangaroo-unlikely.ngrok-free.app/DSN_webhook";
+  const POLL_INTERVAL_MS= 10_000;
+  const TIMEOUT_MS_INIT = 5 * 60_000;
+  const EXTEND_MS       = 5 * 60_000;
 
-    const qs = new URLSearchParams(location.search);
-    const rawLabel = (qs.get("label") || "");
-    const label = rawLabel.slice(0, 8); // normalize DSN###-X form
-    const from  = qs.get("from");
-    const to    = qs.get("to");
+  // --- Helpers: label + time parsing / validation ---
+  const qs = new URLSearchParams(location.search);
 
-    const titleEl  = document.getElementById("title");
-    const statusEl = document.getElementById("status");
-    const linkEl   = document.getElementById("open-link");
-    const exitBtn  = document.getElementById("exit-btn");
-    const extendBtn= document.getElementById("extend-btn");
+  // Normalize label:
+  // - accept DSN014-S, DSN014S, DSN014S_Tubac -> DSN014-S
+  function normalizeLabel(s) {
+    if (!s) return null;
+    // insert dash before trailing S/T after 3 digits, then take first 8 chars
+    const fixed = s.replace(/^(\s*DSN\d{3})[-_]?([ST])\b.*/i, (_, a, b) => `${a.toUpperCase()}-${b.toUpperCase()}`);
+    return /^DSN\d{3}-[ST]$/i.test(fixed.slice(0, 8)) ? fixed.slice(0, 8).toUpperCase() : null;
+  }
 
-    const barEl    = document.getElementById("bar");
-    const legL     = document.getElementById("leg-left");
-    const legR     = document.getElementById("leg-right");
+  // Relative parser: now-<N><unit>, units: s,m,h,d,w,M (month≈30d), y (year≈365d)
+  function parseRelative(spec) {
+    if (!spec) return null;
+    if (/^now$/i.test(spec)) return new Date();
+    const m = /^now-(\d+)([smhdwMy])$/i.exec(spec);
+    if (!m) return null;
+    const n = +m[1], u = m[2].toLowerCase();
+    const msTable = { s:1e3, m:6e4, h:3.6e6, d:8.64e7, w:6.048e8, M:2.592e9, y:3.154e10 };
+    const ms = msTable[u] || 0;
+    return new Date(Date.now() - n * ms);
+  }
 
-    if (label) titleEl.innerHTML = `🔬 Site <b>${label}</b>`;
-    if (!label || !from || !to) {
-      statusEl.textContent = "❌ Missing required URL params: label, from, to.";
-    } else {
-      kickoff();
+  // Convert various forms to ISO string or null
+  function toISOFlexible(v) {
+    if (!v) return null;
+    // epoch milliseconds
+    if (/^\d{13}$/.test(v)) return new Date(+v).toISOString();
+    // epoch seconds
+    if (/^\d{10}$/.test(v)) return new Date(+v * 1000).toISOString();
+    // relative
+    const rel = parseRelative(v);
+    if (rel) return rel.toISOString();
+    // ISO-like
+    const d = new Date(v);
+    return isNaN(d) ? null : d.toISOString();
+  }
+
+  function prettyLocal(iso) {
+    try { return new Date(iso).toLocaleString(); } catch { return iso; }
+  }
+
+  // --- Read & validate inputs ---
+  const rawLabel = qs.get("label") || "";
+  const label = normalizeLabel(rawLabel);
+
+  let fromISO = toISOFlexible(qs.get("from"));
+  let toISO   = toISOFlexible(qs.get("to"));
+
+  const titleEl  = document.getElementById("title");
+  const statusEl = document.getElementById("status");
+  const linkEl   = document.getElementById("open-link");
+  const exitBtn  = document.getElementById("exit-btn");
+  const extendBtn= document.getElementById("extend-btn");
+  const barEl    = document.getElementById("bar");
+  const legL     = document.getElementById("leg-left");
+  const legR     = document.getElementById("leg-right");
+
+  // Reflect site + times in header if available
+  if (label) {
+    let extra = "";
+    if (fromISO && toISO) {
+      extra = `<br><span class="muted">${prettyLocal(fromISO)} → ${prettyLocal(toISO)}</span>`;
+    }
+    titleEl.innerHTML = `🔬 Site <b>${label || rawLabel}</b>${extra}`;
+  }
+
+  // Validate inputs
+  function guardAndExplain() {
+    if (!label) {
+      statusEl.innerHTML = "❌ Invalid or missing <b>label</b>. Expected like DSN014-S or DSN014S_*.";
+      return false;
+    }
+    if (!fromISO || !toISO) {
+      statusEl.innerHTML = "❌ Missing or invalid <b>from</b>/<b>to</b>. Use ISO, epoch (ms/sec), or relative like <code>now-30d</code>.";
+      return false;
+    }
+    if (new Date(fromISO) >= new Date(toISO)) {
+      statusEl.innerHTML = "❌ Time window invalid: <b>from</b> must be earlier than <b>to</b>.";
+      return false;
+    }
+    return true;
+  }
+
+  if (!guardAndExplain()) {
+    // Don’t proceed; user can navigate back
+  } else {
+    // --- Existing progress/timer wiring (unchanged below) ---
+    const jobStart = Math.floor(Date.now() / 1000);
+    const t0 = Date.now();
+    let timeoutMs = TIMEOUT_MS_INIT;
+    let extraTime = 0;
+
+    exitBtn.addEventListener("click", () => { if (!window.close()) history.back(); });
+    extendBtn.addEventListener("click", () => { extraTime += EXTEND_MS; extendBtn.style.display = "none"; updateProgress(); });
+
+    function fmt(sec) {
+      sec = Math.max(0, Math.floor(sec));
+      const m = Math.floor(sec/60), s = sec % 60;
+      return `${m}:${String(s).padStart(2,"0")}`;
+    }
+    function updateProgress(timedOut=false) {
+      const elapsed = Date.now() - t0;
+      const total = timeoutMs + extraTime;
+      const pct = Math.max(0, Math.min(100, (elapsed / total) * 100));
+      barEl.style.width = pct.toFixed(1) + "%";
+      barEl.setAttribute("aria-valuenow", pct.toFixed(0));
+      barEl.classList.toggle("timeout", timedOut);
+      legL.textContent = fmt(elapsed/1000);
+      const remain = Math.max(0, (total - elapsed)/1000);
+      legR.textContent = timedOut ? "Timed out" : `Timeout in ${fmt(remain)}`;
+    }
+    function statusUrl() { return `${GH_PAGES_BASE}${STATUS_DIR}/status-${label}.json?t=${Date.now()}`; }
+    function resolveResultUrl(htmlField) { return /^https?:\/\//i.test(htmlField) ? htmlField : GH_PAGES_BASE + htmlField.replace(/^\/+/, ""); }
+
+    async function kickoff() {
+      try {
+        const res = await fetch(WEBHOOK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ label, from: fromISO, to: toISO }) // send hardened ISO only
+        });
+        if (!res.ok) throw new Error(`Webhook HTTP ${res.status}`);
+        statusEl.innerHTML = `🔄 Running DSN analysis for <b>${label}</b><br/>⏳ Generating plots…`;
+      } catch (e) {
+        console.warn("Webhook trigger error:", e);
+        statusEl.textContent = "⏳ Processing… (webhook may be delayed)";
+      }
+      await pollForStatus();
     }
 
+    async function pollForStatus() {
+      while (true) {
+        const elapsed = Date.now() - t0;
+        const total = timeoutMs + extraTime;
+        const timedOut = elapsed >= total;
+        updateProgress(timedOut);
+
+        if (timedOut) {
+          statusEl.innerHTML = "⏱️ Still working… might be a larger data window.<br/><span class='muted'>You can keep waiting.</span>";
+          extendBtn.style.display = "inline-block";
+        }
+
+        try {
+          const res = await fetch(statusUrl(), { cache: "no-store" });
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.status && data.html && data.timestamp >= jobStart) {
+              statusEl.innerHTML = data.status;
+              linkEl.href = resolveResultUrl(data.html);
+              linkEl.style.display = "inline-block";
+              barEl.style.width = "100%";
+              barEl.classList.remove("timeout");
+              legR.textContent = "Complete";
+              return;
+            }
+          }
+          if (!timedOut) statusEl.innerHTML = `⏳ Generating plots…`;
+        } catch (e) {
+          if (!timedOut) statusEl.innerHTML = `⏳ Waiting for processing…`;
+          console.warn("Fetch status failed:", e);
+        }
+
+        await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+      }
+    }
+
+    // go!
+    kickoff();
+  }
+</script>
     exitBtn.addEventListener("click", () => {
       if (!window.close()) history.back();
     });
