@@ -295,7 +295,9 @@ fig3 = go.Figure(go.Heatmap(
     x=x_compact,
     y=y_centers,
     colorscale="Turbo",      # better than Viridis
-    colorbar=dict(title="log₁₀ density")
+    colorbar=dict(title="log₁₀ density",
+                  title_side="right",
+                  thickness=12)
 ))
 fig3.update_layout(
     title="Jellyfish Plot",
