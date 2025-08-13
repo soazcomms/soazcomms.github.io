@@ -170,58 +170,77 @@ hour_frac = (
     + ts_mst.dt.minute.astype(float) / 60.0
     + ts_mst.dt.second.astype(float) / 3600.0
 ).to_numpy() % 24.0
-# Plot 2: Heatmap by 15-min bin (wrapped 18:00→06:00)
+# Plot 2: Heatmap (15-min bins), wrapped to local night 17:00 → 07:00
 if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
-    # 15-min bins → indices 0..95
+    # Parse UTC and convert to MST (America/Phoenix), fallback: UTC-7
+    ts_utc = pd.to_datetime(df_all['UTC'], errors='coerce', utc=True)
+    try:
+        ts_mst = ts_utc.dt.tz_convert("America/Phoenix")
+    except Exception:
+        ts_mst = ts_utc - pd.Timedelta(hours=7)
+
+    # Fractional local hour in [0,24)
+    hour_frac = (
+        ts_mst.dt.hour.astype(float)
+        + ts_mst.dt.minute.astype(float) / 60.0
+        + ts_mst.dt.second.astype(float) / 3600.0
+    ) % 24.0
+
+    # 15-min binning → indices 0..95
     bin_size = 0.25  # hours
     bin_idx = np.floor(hour_frac / bin_size).astype(int).clip(0, 95)
 
-    # Wrap: 18:00–23:45 (72..95), then 00:00–05:45 (0..23) → total 48 bins
-    start_idx = int(17 / bin_size)  # 68
-    end_idx   = int(7 / bin_size)   # 28
-    x_edges = np.linspace(0, 24, 97)  # exact edges for 15-min bins
-    order = list(range(start_idx, len(x_edges) - 1)) + list(range(0, end_idx))
-    
-    # Keep only bins in that night window
-    sel_mask = (bin_idx >= start_idx) | (bin_idx < end_idx)
+    # Night window: 17:00–23:45 (68..95) and 00:00–06:45 (0..27) => 56 bins total
+    start_idx = int(17 / bin_size)      # 68
+    end_idx_excl = int(7 / bin_size)    # 28, exclusive: include 0..27 (last bin ends at 07:00)
+    sel_mask = (bin_idx >= start_idx) | (bin_idx < end_idx_excl)
+
     df_sel = df_all.loc[sel_mask].copy()
     ts_sel = ts_mst.loc[sel_mask]
     bins_sel = bin_idx[sel_mask]
 
-    # Wrapped compact positions 0..47
-    wrapped_pos = np.where(bins_sel >= start_idx, bins_sel - start_idx, bins_sel + (96 - start_idx))
+    # Wrap to compact positions 0..55 (start at 17:00)
+    # 17:00..23:45 → 0..27, then 00:00..06:45 → 28..55
+    wrapped_pos = np.where(
+        bins_sel >= start_idx,
+        bins_sel - start_idx,
+        (96 - start_idx) + bins_sel,   # 28 + [0..27] => 28..55
+    )
+
     df_sel['date'] = ts_sel.dt.date
     df_sel['bin_pos'] = wrapped_pos
     df_sel['SQM_num'] = pd.to_numeric(df_sel['SQM'], errors='coerce')
 
-    # Pivot to (y=bin_pos 0..47, x=date), mean SQM
-    heat = df_sel.pivot_table(index='bin_pos', columns='date', values='SQM_num', aggfunc='mean')
-    heat = heat.reindex(range(0, 48), axis=0)
+    # Pivot: rows = bin_pos (0..55), cols = date, values = mean SQM
+    heat = df_sel.pivot_table(index='bin_pos', columns='date',
+                              values='SQM_num', aggfunc='mean')
+    heat = heat.reindex(range(0, 56), axis=0)
 
-    # Y tick labels every hour (4 bins)
-    hour_vals_for_row = [x_edges[order[i]] % 24 for i in range(48)]
-    tickvals = list(range(0, 48, 4))  # every hour
-    ticktext = [str(int(hour_vals_for_row[i])) for i in tickvals]
-    # Get z values
-    raw = heat.values.astype(float)  # raw NSB for hover
-    z_min, z_max = np.nanmin(raw), np.nanmax(raw)
-    den = (z_max - z_min) if np.isfinite(z_max - z_min) and \
-        (z_max - z_min) != 0 else 1.0
-    z_norm  = np.clip((raw - z_min) / den, 0, 1)
-    gamma   = 0.6
+    # Build hour tick labels (every hour = 4 bins), starting at 17:00
+    tickvals = list(range(0, 56, 4))
+    ticktext = [str(int((17 + 0.25*i) % 24)) for i in tickvals]
+
+    # --- Gamma stretch for colors, show RAW in hover ---
+    raw = heat.values.astype(float)
+    zmin, zmax = np.nanmin(raw), np.nanmax(raw)
+    den = (zmax - zmin) if np.isfinite(zmax - zmin) and (zmax - zmin) != 0 else 1.0
+    z_norm = np.clip((raw - zmin) / den, 0, 1)
+    gamma = 0.4  # tweak 0.4–0.7 
     z_gamma = z_norm ** gamma
 
     fig2 = go.Figure(data=go.Heatmap(
-        z=z_gamma,                     # for colors (gamma-stretched)
-        customdata=raw.tolist(),           # keep raw values here
-        hovertemplate="NSB: %{customdata:.1f} mag/arcsec²<extra></extra>",
-        x=[str(c) for c in heat.columns],
-        y=np.arange(z_gamma.shape[0]),
+        z=z_gamma,                         # colorized (gamma-stretched)
+        customdata=raw.tolist(),           # RAW values for hover
+        hovertemplate="NSB: %{customdata:.2f} mag/arcsec²<extra></extra>",
+        x=[str(c) for c in heat.columns],  # dates
+        y=np.arange(56),                   # compact 0..55
         colorscale="Turbo",
-        colorbar=dict(title="Mean NSB", thickness=12)
+        colorbar=dict(title="Mean NSB", thickness=12),
+        hoverongaps=False
     ))
+
     fig2.update_layout(
-        title="NSB (mag/arcsec²) Heatmap",
+        title="NSB (mag/arcsec²) Heatmap — 17:00→07:00 (MST)",
         title_font=dict(size=24),
         title_x=0.5,
         xaxis=dict(title="Date"),
