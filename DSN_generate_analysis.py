@@ -231,11 +231,13 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
     fig2 = go.Figure(data=go.Heatmap(
         z=z_gamma,                       # colorized (gamma-stretched)
         customdata=raw.tolist(),         # RAW values for hover
-        hovertemplate="NSB: %{customdata:.2f} mag/arcsec²<extra></extra>",
+        hovertemplate="NSB: %{customdata:.1f} mag/arcsec²<extra></extra>",
         x=[str(c) for c in heat.columns],  # dates
         y=np.arange(56),                 # compact 0..55
         colorscale="Turbo",
-        colorbar=dict(title="Mean NSB", thickness=12),
+        colorbar=dict(title="Normalized NSB",
+                      title_side="right",
+                      thickness=12),
         hoverongaps=False
     ))
 
