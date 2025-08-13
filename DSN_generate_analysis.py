@@ -218,14 +218,14 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
 
     # Hour tick labels every hour (4 bins), starting at 17:00
     tickvals = list(range(0, 56, 4))
-    ticktext = [str(int((17 + 0.25*i) % 24)) for i in tickvals]
+    ticktext = [str(int((17 + bin_size*i) % 24)) for i in tickvals]
 
     # --- Gamma stretch for colors, show RAW in hover ---
     raw = heat.values.astype(float)
     zmin, zmax = np.nanmin(raw), np.nanmax(raw)
     den = (zmax - zmin) if np.isfinite(zmax - zmin) and (zmax - zmin) != 0 else 1.0
     z_norm = np.clip((raw - zmin) / den, 0, 1)
-    gamma = 0.5  # tweak 0.4–0.7 to taste
+    gamma = 0.4  # tweak 0.4–0.7
     z_gamma = z_norm ** gamma
 
     fig2 = go.Figure(data=go.Heatmap(
@@ -260,6 +260,7 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
 #    
 # --- Jellyfish (15-min bins from UTC → MST, wrapped night) ---
 # Wrap order: 17:00–23:45, then 00:00–07:45  (no x gap by using a compact index)
+x_edges = np.arange(0.0, 24.0001, bin_size)   # 0, 0.25, ..., 24.0
 start_idx = int(17 / 0.25)  # 68
 end_idx   = int(8 / 0.25)   # 32
 order = list(range(start_idx, len(x_edges) - 1)) + list(range(0, end_idx))
@@ -270,12 +271,11 @@ tickvals = list(range(0, len(order), 4))
 y = pd.to_numeric(df_all["SQM"], errors="coerce").to_numpy()
 
 # 15-min bins
-x_edges = np.arange(0.0, 24.0001, 0.25)   # 0, 0.25, ..., 24.0
 order = list(range(start_idx, len(x_edges) - 1)) + list(range(0, end_idx))
 # Robust Y range
 ymin = np.nanpercentile(y, 0.5) if np.isfinite(y).any() else 16
 ymax = np.nanpercentile(y, 99.5) if np.isfinite(y).any() else 22
-y_edges = np.linspace(max(8, ymin), min(24.5, ymax), 100)
+y_edges = np.linspace(max(7, ymin), min(24.5, ymax), 100)
 
 # 2D histogram and log contrast
 H, _, _ = np.histogram2d(hour_frac, y, bins=[x_edges, y_edges])
