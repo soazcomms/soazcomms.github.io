@@ -177,10 +177,11 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
     bin_idx = np.floor(hour_frac / bin_size).astype(int).clip(0, 95)
 
     # Wrap: 18:00–23:45 (72..95), then 00:00–05:45 (0..23) → total 48 bins
-    start_idx = int(18 / bin_size)  # 72
-    end_idx   = int(6  / bin_size)  # 24
-    order = list(range(start_idx, 96)) + list(range(0, end_idx))  # length 48
-
+    start_idx = int(17 / bin_size)  # 68
+    end_idx   = int(7 / bin_size)   # 28
+    x_edges = np.linspace(0, 24, 97)  # exact edges for 15-min bins
+    order = list(range(start_idx, len(x_edges) - 1)) + list(range(0, end_idx))
+    
     # Keep only bins in that night window
     sel_mask = (bin_idx >= start_idx) | (bin_idx < end_idx)
     df_sel = df_all.loc[sel_mask].copy()
@@ -198,7 +199,6 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
     heat = heat.reindex(range(0, 48), axis=0)
 
     # Y tick labels every hour (4 bins)
-    x_edges = np.linspace(0, 24, 97)  # exact edges for 15-min bins
     hour_vals_for_row = [x_edges[order[i]] % 24 for i in range(48)]
     tickvals = list(range(0, 48, 4))  # every hour
     ticktext = [str(int(hour_vals_for_row[i])) for i in tickvals]
