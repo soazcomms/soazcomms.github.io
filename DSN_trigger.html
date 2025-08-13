@@ -155,7 +155,7 @@
     if (fromISO && toISO) {
       extra = `<br><span class="muted">${prettyLocal(fromISO)} → ${prettyLocal(toISO)}</span>`;
     }
-    titleEl.innerHTML = `🔬 Site <b>${label || rawLabel}</b>${extra}`;
+    titleEl.innerHTML = `🔬 Site <b>${rawLabel}</b>${extra}`;
   }
 
   // Validate inputs
