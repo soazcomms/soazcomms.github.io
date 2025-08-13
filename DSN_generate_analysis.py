@@ -172,7 +172,7 @@ hour_frac = (
 ).to_numpy() % 24.0
 # Plot 2: Heatmap (15-min bins), wrapped to local night 17:00 → 07:00
 if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
-    # Parse UTC and convert to MST (America/Phoenix), fallback: UTC-7
+    # Parse UTC and convert to MST (America/Phoenix); fallback: UTC-7
     ts_utc = pd.to_datetime(df_all['UTC'], errors='coerce', utc=True)
     try:
         ts_mst = ts_utc.dt.tz_convert("America/Phoenix")
@@ -190,9 +190,9 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
     bin_size = 0.25  # hours
     bin_idx = np.floor(hour_frac / bin_size).astype(int).clip(0, 95)
 
-    # Night window: 17:00–23:45 (68..95) and 00:00–06:45 (0..27) => 56 bins total
-    start_idx = int(17 / bin_size)      # 68
-    end_idx_excl = int(7 / bin_size)    # 28, exclusive: include 0..27 (last bin ends at 07:00)
+    # Night window: 17:00–23:45 (68..95) and 00:00–06:45 (0..27) => 56 bins
+    start_idx = int(17 / bin_size)     # 68
+    end_idx_excl = int(7 / bin_size)   # 28 (exclusive)
     sel_mask = (bin_idx >= start_idx) | (bin_idx < end_idx_excl)
 
     df_sel = df_all.loc[sel_mask].copy()
@@ -216,7 +216,7 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
                               values='SQM_num', aggfunc='mean')
     heat = heat.reindex(range(0, 56), axis=0)
 
-    # Build hour tick labels (every hour = 4 bins), starting at 17:00
+    # Hour tick labels every hour (4 bins), starting at 17:00
     tickvals = list(range(0, 56, 4))
     ticktext = [str(int((17 + 0.25*i) % 24)) for i in tickvals]
 
@@ -225,15 +225,15 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
     zmin, zmax = np.nanmin(raw), np.nanmax(raw)
     den = (zmax - zmin) if np.isfinite(zmax - zmin) and (zmax - zmin) != 0 else 1.0
     z_norm = np.clip((raw - zmin) / den, 0, 1)
-    gamma = 0.4  # tweak 0.4–0.7 
+    gamma = 0.5  # tweak 0.4–0.7 to taste
     z_gamma = z_norm ** gamma
 
     fig2 = go.Figure(data=go.Heatmap(
-        z=z_gamma,                         # colorized (gamma-stretched)
-        customdata=raw.tolist(),           # RAW values for hover
+        z=z_gamma,                       # colorized (gamma-stretched)
+        customdata=raw.tolist(),         # RAW values for hover
         hovertemplate="NSB: %{customdata:.2f} mag/arcsec²<extra></extra>",
         x=[str(c) for c in heat.columns],  # dates
-        y=np.arange(56),                   # compact 0..55
+        y=np.arange(56),                 # compact 0..55
         colorscale="Turbo",
         colorbar=dict(title="Mean NSB", thickness=12),
         hoverongaps=False
@@ -275,7 +275,7 @@ order = list(range(start_idx, len(x_edges) - 1)) + list(range(0, end_idx))
 # Robust Y range
 ymin = np.nanpercentile(y, 0.5) if np.isfinite(y).any() else 16
 ymax = np.nanpercentile(y, 99.5) if np.isfinite(y).any() else 22
-y_edges = np.linspace(max(10, ymin), min(24.5, ymax), 100)
+y_edges = np.linspace(max(8, ymin), min(24.5, ymax), 100)
 
 # 2D histogram and log contrast
 H, _, _ = np.histogram2d(hour_frac, y, bins=[x_edges, y_edges])
