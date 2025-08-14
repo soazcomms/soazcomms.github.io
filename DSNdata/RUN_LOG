@@ -677,3 +677,7 @@ Wed Aug 13 18:42:29 UTC 2025 Created analysis plots.
 Wed Aug 13 18:59:07 UTC 2025 Created analysis plots.
 Wed Aug 13 19:06:35 UTC 2025 Created analysis plots.
 Thu Aug 14 00:23:28 UTC 2025 Created analysis plots.
+2025-08-14 00:29:16 Start DSN-process_data.
+2025-08-14 00:30:43 Uploaded DSN014T_Tubac_T_25_001.csv to influx
+ Uploaded DSN014-T_25_001.csv to Box
+Deleted temp files.
