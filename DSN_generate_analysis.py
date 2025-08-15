@@ -147,29 +147,69 @@ summary_html = f"""
 # set plot sizes
 plot_w=700
 plot_h=400
-# Plot 1: Histogram of NSB
-fig1 = px.histogram(df_all, x='SQM', nbins=60, title='NSB (mag/arcsec²) Histogram')
-fig1.update_layout(
-    title_font=dict(size=24),  # Larger title
-    title_x=0.5,               # Center title
-    width=plot_w,
-    height=plot_h
-)
-pio.write_html(fig1, file=str(outdir / f"{label}_histogram.html"),
-               auto_open=False)
-fig1.write_image(str(outdir / f"{label}_histogram.png"))
+# Plot 1: SQM histogram (overlay filtered: moonalt <= -10 AND chisquared <= 0.009)
+if 'SQM' in df_all.columns:
+    # Prepare data
+    SQM_all = pd.to_numeric(df_all['SQM'], errors='coerce')
+    mask = pd.Series(True, index=df_all.index)
+    if 'moonalt' in df_all.columns:
+        mask &= pd.to_numeric(df_all['moonalt'], errors='coerce') <= -10
+    else:
+        mask &= False  # if moonalt missing, filtered set becomes empty
 
-# For both heatmap and jellyfish
-# Parse UTC timestamps, always tz-aware
-ts_utc = pd.to_datetime(df_all["UTC"], errors="coerce", utc=True)
-# Convert to MST. Fallback to UTC-7 if tz db unavailable.
-ts_mst = ts_utc - pd.Timedelta(hours=7)
-# Fractional hour in MST (includes minutes/seconds)
-hour_frac = (
-    ts_mst.dt.hour.astype(float)
-    + ts_mst.dt.minute.astype(float) / 60.0
-    + ts_mst.dt.second.astype(float) / 3600.0
-).to_numpy() % 24.0
+    if 'chisquared' in df_all.columns:
+        mask &= pd.to_numeric(df_all['chisquared'], errors='coerce') <= 0.009
+    else:
+        mask &= False  # if chisquared missing, filtered set becomes empty
+
+    SQM_filt = pd.to_numeric(df_all.loc[mask, 'SQM'], errors='coerce')
+
+    # Drop NaNs
+    SQM_all = SQM_all.dropna()
+    SQM_filt = SQM_filt.dropna()
+
+    # Optional: consistent binning (auto works, but this keeps both traces aligned)
+    # If you prefer fixed bin width, uncomment the xbins dict and the same on both traces.
+    # xbins_cfg = dict(size=0.1)  # 0.1 mag bins
+
+    fig1 = go.Figure()
+
+    # Base (all data)
+    fig1.add_trace(go.Histogram(
+        x=SQM_all,
+        name="All",
+        opacity=0.55,
+        marker=dict(color="#1f77b4"),  # Plotly blue
+        # xbins=xbins_cfg,
+        hovertemplate="SQM: %{x:.2f}<br>Count: %{y}<extra>All</extra>"
+    ))
+
+    # Filtered overlay (red)
+    fig1.add_trace(go.Histogram(
+        x=SQM_filt,
+        name="moonalt ≤ −10° & χ² ≤ 0.009",
+        opacity=0.55,
+        marker=dict(color="red"),
+        # xbins=xbins_cfg,
+        hovertemplate="SQM: %{x:.2f}<br>Count: %{y}<extra>Filtered</extra>"
+    ))
+
+    fig1.update_layout(
+        barmode="overlay",
+        title="SQM Histogram (red = moonalt ≤ −10° & χ² ≤ 0.009)",
+        title_font=dict(size=24),
+        title_x=0.5,                     # center title
+        xaxis_title="SQM (mag/arcsec²)",
+        yaxis_title="Count",
+        width=plot_w,
+        height=plot_h,
+        legend=dict(orientation="h", y=1.08, x=0.0)
+    )
+
+    # Write files (match your existing naming)
+    pio.write_html(fig1, file=str(outdir / f"{label}_histogram.html"), auto_open=False)
+    fig1.write_image(str(outdir / f"{label}_histogram.png"))
+
 # Plot 2: Heatmap (15-min bins), wrapped to local night 17:00 → 07:00
 if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
     # Parse UTC and convert to MST (America/Phoenix); fallback: UTC-7
@@ -295,7 +335,7 @@ fig3 = go.Figure(go.Heatmap(
     x=x_compact,
     y=y_centers,
     colorscale="Turbo",      # better than Viridis
-    colorbar=dict(title="log₁₀ density",
+    colorbar=dict(title="log₁₀ normalized density",
                   title_side="right",
                   thickness=12)
 ))
