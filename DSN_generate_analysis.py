@@ -168,8 +168,8 @@ if 'SQM' in df_all.columns:
     SQM_all = SQM_all.dropna()
     SQM_filt = SQM_filt.dropna()
 
-    # Optional: consistent binning (auto works, but this keeps both traces aligned)
-    # If you prefer fixed bin width, uncomment the xbins dict and the same on both traces.
+    # Optional: consistent binning (auto works, keeps both traces aligned)
+    # For fixed bin width, uncomment the xbins dict and the same on both traces.
     # xbins_cfg = dict(size=0.1)  # 0.1 mag bins
 
     fig1 = go.Figure()
@@ -196,10 +196,10 @@ if 'SQM' in df_all.columns:
 
     fig1.update_layout(
         barmode="overlay",
-        title="SQM Histogram (red = moonalt ≤ −10° & χ² ≤ 0.009)",
+        title="NSB Histogram",
         title_font=dict(size=24),
         title_x=0.5,                     # center title
-        xaxis_title="SQM (mag/arcsec²)",
+        xaxis_title="SQM measurements (mag/arcsec²)",
         yaxis_title="Count",
         width=plot_w,
         height=plot_h,
@@ -235,7 +235,7 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
     end_idx_excl = int(7 / bin_size)   # 28 (exclusive)
     sel_mask = (bin_idx >= start_idx) | (bin_idx < end_idx_excl)
 
-    df_sel = df_all.loc[sel_mask].copy()
+    df_sel = SQM_filt.loc[sel_mask].copy() # df_all.loc[sel_mask].copy()
     ts_sel = ts_mst.loc[sel_mask]
     bins_sel = bin_idx[sel_mask]
 
@@ -310,7 +310,8 @@ order = list(range(start_idx, len(x_edges) - 1)) + list(range(0, end_idx))
 tickvals = list(range(0, len(order), 4))
 
 # Y values
-y = pd.to_numeric(df_all["SQM"], errors="coerce").to_numpy()
+#y = pd.to_numeric(df_all["SQM"], errors="coerce").to_numpy()
+y = pd.to_numeric(SQM_filt["SQM"], errors="coerce").to_numpy()
 
 # 15-min bins
 order = list(range(start_idx, len(x_edges) - 1)) + list(range(0, end_idx))
