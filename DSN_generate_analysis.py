@@ -221,39 +221,48 @@ if 'SQM' in df_all.columns:
     pio.write_html(fig1, file=str(outdir / f"{label}_histogram.html"),
                    auto_open=False)
     fig1.write_image(str(outdir / f"{label}_histogram.png"))
-
-# Plot 2: Heatmap (15-min bins), wrapped 17:00 → 07:00 MST
-if len(df_all) and 'UTC' in df_all.columns:
-    ts_utc = pd.to_datetime(df_use['UTC'], errors='coerce', utc=True)
+# Plot 2: Heatmap (15-min bins), wrapped to 17:00 → 07:00 MST, using ALL data
+if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
+    # Parse UTC and convert to MST (America/Phoenix); fallback: UTC-7
+    ts_utc = pd.to_datetime(df_all['UTC'], errors='coerce', utc=True)
     try:
         ts_mst = ts_utc.dt.tz_convert("America/Phoenix")
     except Exception:
         ts_mst = ts_utc - pd.Timedelta(hours=7)
 
+    # Fractional local hour in [0,24)
     hour_frac = (
         ts_mst.dt.hour.astype(float)
         + ts_mst.dt.minute.astype(float)/60.0
         + ts_mst.dt.second.astype(float)/3600.0
     ) % 24.0
 
-    bin_size = 0.25  # 15-min bins
-    bin_idx = np.floor(hour_frac / bin_size).astype(int).clip(0, 95)
+    bin_size = 0.25  # 15 min
+    # Make bin_idx a Series aligned with df_all.index
+    bin_idx = pd.Series(
+        np.floor(hour_frac / bin_size).astype(int).clip(0, 95),
+        index=df_all.index
+    )
 
-    # 17:00–23:45 (68..95) and 00:00–06:45 (0..27) → 56 bins
-    start_idx = int(17 / bin_size)      # 68
-    end_idx_excl = int(7 / bin_size)    # 28 (exclusive)
+    # Night window: 17:00–23:45 (68..95) and 00:00–06:45 (0..27) → 56 bins
+    start_idx    = int(17 / bin_size)   # 68
+    end_idx_excl = int(7  / bin_size)   # 28 (exclusive)
+    # sel_mask must be aligned Series
     sel_mask = (bin_idx >= start_idx) | (bin_idx < end_idx_excl)
 
-    df_sel = df_all.loc[sel_mask].copy()
-    ts_sel = ts_mst.loc[sel_mask]
-    bins_sel = bin_idx[sel_mask]
+    # Index df_all with aligned mask
+    df_sel  = df_all.loc[sel_mask].copy()
+    ts_sel  = ts_mst.loc[sel_mask]
+    bins_sel = bin_idx.loc[sel_mask].to_numpy()
 
+    # Wrap positions: 17:00..23:45 -> 0..27, 00:00..06:45 -> 28..55
     wrapped_pos = np.where(
         bins_sel >= start_idx,
         bins_sel - start_idx,
-        (96 - start_idx) + bins_sel,    # 28 + [0..27] → 28..55
+        (96 - start_idx) + bins_sel
     )
 
+    # Prepare values
     df_sel['date'] = ts_sel.dt.date
     df_sel['bin_pos'] = wrapped_pos
     df_sel['SQM_num'] = pd.to_numeric(df_sel['SQM'], errors='coerce')
@@ -262,10 +271,11 @@ if len(df_all) and 'UTC' in df_all.columns:
                               values='SQM_num', aggfunc='mean')
     heat = heat.reindex(range(0, 56), axis=0)
 
-    # tick labels every hour (4 bins) starting at 17:00
+    # Hour ticks every hour (4 bins), starting at 17:00
     tickvals = list(range(0, 56, 4))
     ticktext = [str(int((17 + 0.25*i) % 24)) for i in tickvals]
 
+    # Optional gamma stretch for color contrast
     raw = heat.values.astype(float)
     zmin, zmax = np.nanmin(raw), np.nanmax(raw)
     den = (zmax - zmin) if np.isfinite(zmax - zmin) and (zmax - zmin) != 0 else 1.0
@@ -275,30 +285,29 @@ if len(df_all) and 'UTC' in df_all.columns:
 
     fig2 = go.Figure(data=go.Heatmap(
         z=z_gamma,
-        customdata=raw.tolist(),
+        customdata=raw.tolist(),  # show raw values on hover
         hovertemplate="NSB: %{customdata:.2f} mag/arcsec²<extra></extra>",
         x=[str(c) for c in heat.columns],
         y=np.arange(56),
         colorscale="Turbo",
-        colorbar=dict(
-            title=dict(text="NSB", side="right"),
-            thickness=12
-        ),
+        colorbar=dict(title=dict(text="NSB", side="right"), thickness=12),
         hoverongaps=False
     ))
     fig2.update_layout(
-        title="NSB (mag/arcsec²) Heatmap",
+        title="NSB (mag/arcsec²) Heatmap — 17:00→07:00 (MST, all data)",
         title_font=dict(size=24),
         title_x=0.5,
         xaxis=dict(title="Date"),
-        yaxis=dict(title="Hour (MST)", tickmode="array", tickvals=tickvals,
+        yaxis=dict(title="Hour (MST)", tickmode="array",
+                   tickvals=tickvals,
                    ticktext=ticktext),
         width=plot_w, height=plot_h
     )
-    pio.write_html(fig2, file=str(outdir / f"{label}_heatmap.html"), auto_open=False)
+    pio.write_html(fig2, file=str(outdir / f"{label}_heatmap.html"),
+                   auto_open=False)
     fig2.write_image(str(outdir / f"{label}_heatmap.png"))
 else:
-    print("ℹ️ Heatmap skipped: no filtered rows or UTC missing.")
+    print("ℹ️ Heatmap skipped: missing UTC or SQM.")
 #    
 # --- Jellyfish (15-min bins from UTC → MST, wrapped night) ---
 # Wrap order: 17:00–23:45, then 00:00–07:45  (no x gap by using a compact index)
