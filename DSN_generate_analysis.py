@@ -390,32 +390,34 @@ else:
     print("ℹ️ Jellyfish skipped: no filtered rows or UTC missing.")
 #
 # Plot 4: Chi-squared Histogram (explicit overflow bin ≥1)
+# Plot 4: Chi-squared Histogram with overflow bin ≥1
 if 'chisquared' in df_all.columns:
     s = pd.to_numeric(df_all['chisquared'], errors='coerce').dropna()
 
-    # Bin edges up to 1.0 (fine bins)
-    bin_edges = np.linspace(0, 1, 100)  # 99 bins 0–1
-    hist, edges = np.histogram(s.clip(upper=1.0), bins=bin_edges)
+    # Define bins below 1.0
+    bin_edges = np.linspace(0, 1, 100, endpoint=False)  # up to <1.0
+    hist, edges = np.histogram(s[s < 1.0], bins=bin_edges)
 
-    # Count overflow separately
-    overflow = int((s > 1.0).sum())
+    # Overflow bin count (all >= 1.0)
+    overflow = int((s >= 1.0).sum())
 
-    # Append overflow as last bin
+    # Centers: normal bins + one overflow bin
     bin_centers = (edges[:-1] + edges[1:]) / 2
-    bin_centers = np.append(bin_centers, 1.05)  # place overflow bar just right of 1.0
+    bin_centers = np.append(bin_centers, 1.0)  # place overflow bar at x=1.0
+
     hist = np.append(hist, overflow)
 
-    # Labels for x-axis: 0, 0.25, 0.5, 0.75, ≥1
-    tickvals = [0.0, 0.25, 0.5, 0.75, 1.05]
-    ticktext = ["0.00", "0.25", "0.50", "0.75", "≥1"]
+    # Labels: normal ticks plus "≥1"
+    tickvals = list(np.linspace(0, 1, 5)) + [1.0]
+    ticktext = [f"{v:.2f}" for v in np.linspace(0, 1, 5)] + ["≥1"]
 
     # Build bar plot
     fig4 = go.Figure(go.Bar(
         x=bin_centers,
         y=hist,
-        width=[edges[1]-edges[0]] * (len(hist)-1) + [edges[1]-edges[0]],
+        width=[edges[1]-edges[0]] * (len(hist)-1) + [edges[1]-edges[0]*2],
         marker=dict(color="steelblue"),
-        hovertemplate="χ² bin center: %{x:.3f}<br>Count: %{y}<extra></extra>"
+        hovertemplate="χ² bin: %{x:.3f}<br>Count: %{y}<extra></extra>"
     ))
 
     # Red vertical line at 0.009
@@ -425,18 +427,16 @@ if 'chisquared' in df_all.columns:
     )
 
     fig4.update_layout(
-        title="χ² Histogram (last bar includes all ≥ 1.0)",
+        title="χ² Histogram (last bar = all ≥ 1.0)",
         title_x=0.5,
         bargap=0.02,
-        xaxis=dict(title="χ²", tickmode="array", tickvals=tickvals,
-                   ticktext=ticktext),
+        xaxis=dict(title="χ²", tickmode="array", tickvals=tickvals, ticktext=ticktext),
         yaxis=dict(title="Count"),
         width=plot_w, height=plot_h
     )
 
     # Save
-    pio.write_html(fig4, file=str(outdir / f"{label}_chisq.html"),
-                   auto_open=False)
+    pio.write_html(fig4, file=str(outdir / f"{label}_chisq.html"), auto_open=False)
     fig4.write_image(str(outdir / f"{label}_chisq.png"))
 # Generate main dashboard HTML
 main_html = f"<html><head><title>{label} Analysis</title></head><body>\n"
