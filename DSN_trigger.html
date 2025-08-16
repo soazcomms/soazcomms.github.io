@@ -72,7 +72,7 @@
   <!-- Progress -->
   <div class="progress-wrap" aria-label="Progress toward timeout window">
     <div class="progress"><div id="bar" class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div></div>
-    <div class="legend"><span id="leg-left" class="muted">0:00</span><span id="leg-right" class="muted">Timeout in 5:00</span></div>
+    <div class="legend"><span id="leg-left" class="muted">0:00</span><span id="leg-right" class="muted">Timeout in 7:00</span></div>
   </div>
 
   <a id="open-link" class="button" target="_blank" rel="noopener">📄 View Analysis Result</a>
@@ -87,8 +87,8 @@
   const STATUS_DIR      = "status";
   const WEBHOOK_URL     = "https://sound-kangaroo-unlikely.ngrok-free.app/DSN_webhook";
   const POLL_INTERVAL_MS= 10_000;
-  const TIMEOUT_MS_INIT = 5 * 60_000;
-  const EXTEND_MS       = 5 * 60_000;
+  const TIMEOUT_MS_INIT = 7 * 60_000;
+  const EXTEND_MS       = 7 * 60_000;
 
   // --- Helpers: label + time parsing / validation ---
   const qs = new URLSearchParams(location.search);
