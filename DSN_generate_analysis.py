@@ -194,7 +194,7 @@ if 'SQM' in df_all.columns:
         x=SQM_all,
         name="All",
         opacity=0.55,
-        marker=dict(color="#888888"),
+        marker=dict(color="#1f77b4"), # blue
         xbins=xbins_cfg,
         hovertemplate="SQM: %{x:.2f}<br>Count: %{y}<extra>All</extra>"
     ))
@@ -222,6 +222,7 @@ if 'SQM' in df_all.columns:
     fig1.write_image(str(outdir / f"{label}_histogram.png"))
 else:
     print("ℹ️ Histogram skipped: no SQM column.")
+
 # Plot 2: Heatmap (15-min bins), wrapped to 17:00 → 07:00 MST, using ALL data
 if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
     # Parse UTC and convert to MST (America/Phoenix); fallback: UTC-7
@@ -295,7 +296,7 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
         hoverongaps=False
     ))
     fig2.update_layout(
-        title="NSB (mag/arcsec²) Heatmap — 17:00→07:00 (MST, all data)",
+        title="NSB Heatmap — all data)",
         title_font=dict(size=24),
         title_x=0.5,
         xaxis=dict(title="Date"),
@@ -370,11 +371,11 @@ if len(df_use) and 'UTC' in df_use.columns:
     ))
 
     fig3.update_layout(
-        title="Jellyfish — 17:00→07:00 (MST), moonalt ≤ -10°, χ² ≤ 0.009",
+        title="Jellyfish Plot, moonalt ≤ -10°, χ² ≤ 0.009",
         title_font=dict(size=24),
         title_x=0.5,
         xaxis=dict(
-            title="Local Hour (MST)",
+            title="MST",
             tickmode="array",
             tickvals=tickvals,
             ticktext=ticktext
@@ -422,11 +423,16 @@ if 'chisquared' in df_all.columns:
         bgcolor="rgba(255,255,255,0.6)"
     )
 
+    # Label right edge as "≥1"
+    tickvals = [0.0, 0.25, 0.5, 0.75, 1.0]
+    ticktext = ["0.00", "0.25", "0.50", "0.75", "≥1"]
+
     fig4.update_layout(
-        title="χ² Histogram",
+        title="χ² Histogram (last bar contains all > 1.0)",
         title_x=0.5,
         bargap=0.02,
-        xaxis=dict(title="χ²", range=[0, 1]),
+        xaxis=dict(title="χ²", range=[0, 1], tickmode="array",
+                   tickvals=tickvals, ticktext=ticktext),
         yaxis=dict(title="Count"),
         width=plot_w, height=plot_h
     )
