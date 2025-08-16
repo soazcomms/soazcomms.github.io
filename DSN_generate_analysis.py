@@ -296,7 +296,7 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
         hoverongaps=False
     ))
     fig2.update_layout(
-        title="NSB Heatmap — all data)",
+        title="NSB Heatmap — all data",
         title_font=dict(size=24),
         title_x=0.5,
         xaxis=dict(title="Date"),
@@ -388,59 +388,56 @@ if len(df_use) and 'UTC' in df_use.columns:
     fig3.write_image(str(outdir / f"{label}_jellyfish.png"))
 else:
     print("ℹ️ Jellyfish skipped: no filtered rows or UTC missing.")
-# Plot 4: Chi-squared Histogram (cap at 1.0; overflow -> last bin)
+#
+# Plot 4: Chi-squared Histogram (explicit overflow bin ≥1)
 if 'chisquared' in df_all.columns:
-    s = pd.to_numeric(df_all['chisquared'], errors='coerce')
+    s = pd.to_numeric(df_all['chisquared'], errors='coerce').dropna()
 
-    # Count overflow, then cap to 1.0 (put all >1 into last bin)
-    overflow = (s > 1.0).sum()
-    s_cap = s.clip(upper=1.0)
+    # Bin edges up to 1.0 (fine bins)
+    bin_edges = np.linspace(0, 1, 100)  # 99 bins 0–1
+    hist, edges = np.histogram(s.clip(upper=1.0), bins=bin_edges)
 
-    # Optional: nudge exact 1.0 to ensure it lands inside the last bin if your
-    # plotting lib treats the right edge as open; comment out if not needed.
-    s_cap = np.where(s_cap >= 1.0, np.nextafter(1.0, 0.0), s_cap)
+    # Count overflow separately
+    overflow = int((s > 1.0).sum())
 
-    fig4 = go.Figure(go.Histogram(
-        x=s_cap,
-        nbinsx=100,
-        xbins=dict(start=0.0, end=1.0),  # explicit 0..1 range
-        marker=dict(color="#4e79a7"),
-        hovertemplate="χ²: %{x:.4f}<br>count: %{y}<extra></extra>"
+    # Append overflow as last bin
+    bin_centers = (edges[:-1] + edges[1:]) / 2
+    bin_centers = np.append(bin_centers, 1.05)  # place overflow bar just right of 1.0
+    hist = np.append(hist, overflow)
+
+    # Labels for x-axis: 0, 0.25, 0.5, 0.75, ≥1
+    tickvals = [0.0, 0.25, 0.5, 0.75, 1.05]
+    ticktext = ["0.00", "0.25", "0.50", "0.75", "≥1"]
+
+    # Build bar plot
+    fig4 = go.Figure(go.Bar(
+        x=bin_centers,
+        y=hist,
+        width=[edges[1]-edges[0]] * (len(hist)-1) + [edges[1]-edges[0]],
+        marker=dict(color="steelblue"),
+        hovertemplate="χ² bin center: %{x:.3f}<br>Count: %{y}<extra></extra>"
     ))
 
-    # Red reference line at 0.009
+    # Red vertical line at 0.009
     fig4.add_vline(
         x=0.009, line_width=2, line_dash="dash", line_color="red",
         annotation_text="0.009", annotation_position="top right"
     )
 
-    # Show overflow count (how many were >1 and thus added into the 1.0 bin)
-    fig4.add_annotation(
-        x=0.995, y=1, xref="x", yref="paper",
-        xanchor="right", yanchor="top",
-        text=f"overflow (χ²>1): {int(overflow)}",
-        showarrow=False, font=dict(size=12, color="#444"),
-        bgcolor="rgba(255,255,255,0.6)"
-    )
-
-    # Label right edge as "≥1"
-    tickvals = [0.0, 0.25, 0.5, 0.75, 1.0]
-    ticktext = ["0.00", "0.25", "0.50", "0.75", "≥1"]
-
     fig4.update_layout(
-        title="χ² Histogram (last bar contains all > 1.0)",
+        title="χ² Histogram (last bar includes all ≥ 1.0)",
         title_x=0.5,
         bargap=0.02,
-        xaxis=dict(title="χ²", range=[0, 1], tickmode="array",
-                   tickvals=tickvals, ticktext=ticktext),
+        xaxis=dict(title="χ²", tickmode="array", tickvals=tickvals,
+                   ticktext=ticktext),
         yaxis=dict(title="Count"),
         width=plot_w, height=plot_h
     )
 
+    # Save
     pio.write_html(fig4, file=str(outdir / f"{label}_chisq.html"),
                    auto_open=False)
     fig4.write_image(str(outdir / f"{label}_chisq.png"))
-#
 # Generate main dashboard HTML
 main_html = f"<html><head><title>{label} Analysis</title></head><body>\n"
 main_html += f"<h1>{label} Analysis</h1>\n"
