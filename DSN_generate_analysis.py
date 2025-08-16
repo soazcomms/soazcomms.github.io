@@ -223,7 +223,7 @@ if 'SQM' in df_all.columns:
     fig1.write_image(str(outdir / f"{label}_histogram.png"))
 
 # Plot 2: Heatmap (15-min bins), wrapped 17:00 → 07:00 MST
-if len(df_use) and 'UTC' in df_use.columns:
+if len(df_all) and 'UTC' in df_all.columns:
     ts_utc = pd.to_datetime(df_use['UTC'], errors='coerce', utc=True)
     try:
         ts_mst = ts_utc.dt.tz_convert("America/Phoenix")
@@ -244,7 +244,7 @@ if len(df_use) and 'UTC' in df_use.columns:
     end_idx_excl = int(7 / bin_size)    # 28 (exclusive)
     sel_mask = (bin_idx >= start_idx) | (bin_idx < end_idx_excl)
 
-    df_sel = df_use.loc[sel_mask].copy()
+    df_sel = df_all.loc[sel_mask].copy()
     ts_sel = ts_mst.loc[sel_mask]
     bins_sel = bin_idx[sel_mask]
 
@@ -287,11 +287,12 @@ if len(df_use) and 'UTC' in df_use.columns:
         hoverongaps=False
     ))
     fig2.update_layout(
-        title="NSB (mag/arcsec²) Heatmap — 17:00→07:00 (MST), moonalt ≤ -10°, χ² ≤ 0.009",
+        title="NSB (mag/arcsec²) Heatmap",
         title_font=dict(size=24),
         title_x=0.5,
         xaxis=dict(title="Date"),
-        yaxis=dict(title="Hour (MST)", tickmode="array", tickvals=tickvals, ticktext=ticktext),
+        yaxis=dict(title="Hour (MST)", tickmode="array", tickvals=tickvals,
+                   ticktext=ticktext),
         width=plot_w, height=plot_h
     )
     pio.write_html(fig2, file=str(outdir / f"{label}_heatmap.html"), auto_open=False)
@@ -367,7 +368,7 @@ if 'chisquared' in df_all.columns:
 
     # Optional: nudge exact 1.0 to ensure it lands inside the last bin if your
     # plotting lib treats the right edge as open; comment out if not needed.
-    # s_cap = np.where(s_cap >= 1.0, np.nextafter(1.0, 0.0), s_cap)
+    s_cap = np.where(s_cap >= 1.0, np.nextafter(1.0, 0.0), s_cap)
 
     fig4 = go.Figure(go.Histogram(
         x=s_cap,
@@ -388,11 +389,12 @@ if 'chisquared' in df_all.columns:
         x=0.995, y=1, xref="x", yref="paper",
         xanchor="right", yanchor="top",
         text=f"overflow (χ²>1): {int(overflow)}",
-        showarrow=False, font=dict(size=12, color="#444"), bgcolor="rgba(255,255,255,0.6)"
+        showarrow=False, font=dict(size=12, color="#444"),
+        bgcolor="rgba(255,255,255,0.6)"
     )
 
     fig4.update_layout(
-        title="χ² Histogram (0–1; >1 in last bin)",
+        title="χ² Histogram",
         title_x=0.5,
         bargap=0.02,
         xaxis=dict(title="χ²", range=[0, 1]),
