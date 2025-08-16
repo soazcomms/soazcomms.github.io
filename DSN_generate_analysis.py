@@ -309,59 +309,84 @@ if 'UTC' in df_all.columns and 'SQM' in df_all.columns:
 else:
     print("ℹ️ Heatmap skipped: missing UTC or SQM.")
 #    
-# --- Jellyfish (15-min bins from UTC → MST, wrapped night) ---
-# Wrap order: 17:00–23:45, then 00:00–07:45  (no x gap by using a compact index)
 # Plot 3: Jellyfish (use filtered SQM only)
-if 'UTC' in df_use.columns:
-    x_edges = np.arange(0.0, 24.0001, bin_size)   # 0, 0.25, ..., 24.0
+if len(df_use) and 'UTC' in df_use.columns:
+    # UTC → MST
+    ts_utc = pd.to_datetime(df_use['UTC'], errors='coerce', utc=True)
+    try:
+        ts_mst = ts_utc.dt.tz_convert("America/Phoenix")
+    except Exception:
+        ts_mst = ts_utc - pd.Timedelta(hours=7)
+
+    # Fractional hour [0,24)
+    hour_frac = (
+        ts_mst.dt.hour.astype(float)
+        + ts_mst.dt.minute.astype(float) / 60.0
+        + ts_mst.dt.second.astype(float) / 3600.0
+    ) % 24.0
+
+    # SQM numeric
+    sqm_vals = pd.to_numeric(df_use['SQM'], errors='coerce')
+
+    # One mask to drop NaNs from BOTH
+    m = hour_frac.notna() & sqm_vals.notna()
+    hour = hour_frac.loc[m].to_numpy()
+    yval = sqm_vals.loc[m].to_numpy()
+
+    # Bin edges
+    x_edges = np.arange(0.0, 24.0001, 0.25)  # 15-min bins
+    # Choose y binning (0.1 mag bins over observed range)
+    y_min = float(np.nanmin(yval)) if yval.size else 20.0
+    y_max = float(np.nanmax(yval)) if yval.size else 23.0
+    y_edges = np.arange(np.floor(y_min*10)/10.0, np.ceil(y_max*10)/10.0 +
+                        0.0001, 0.1)
+
+    # 2D histogram (x=time, y=SQM)
+    H, _, _ = np.histogram2d(hour, yval, bins=[x_edges, y_edges])  # (Nx, Ny)
+
+    # Wrap x (time) from 17:00→07:00
     start_idx = int(17 / 0.25)  # 68
-    end_idx   = int(8 / 0.25)   # 32
-    order = list(range(start_idx, len(x_edges) - 1)) + list(range(0, end_idx))
-    # Put ticks every hour (4 bins apart) with MST hour labels
-    tickvals = list(range(0, len(order), 4))
+    end_idx_excl = int(7 / 0.25)  # 28
+    # concatenate [17:00..24:00) then [00:00..07:00)
+    H_wrap = np.concatenate([H[start_idx:96, :],
+                             H[0:end_idx_excl, :]], axis=0)  # (56, Ny)
 
-    # Y values
-    #y = pd.to_numeric(df_all["SQM"], errors="coerce").to_numpy()
-    y = pd.to_numeric(df_use["SQM"], errors="coerce").to_numpy()
+    # Centers for axes
+    x_centers = 0.5 * (x_edges[:-1] + x_edges[1:])
+    x_night = np.concatenate([x_centers[start_idx:96],
+                              x_centers[0:end_idx_excl]])  # (56,)
+    y_centers = 0.5 * (y_edges[:-1] + y_edges[1:])  # (Ny,)
 
-    # 15-min bins
-    order = list(range(start_idx, len(x_edges) - 1)) + list(range(0, end_idx))
-    # Robust Y range
-    ymin = np.nanpercentile(y, 0.5) if np.isfinite(y).any() else 16
-    ymax = np.nanpercentile(y, 99.5) if np.isfinite(y).any() else 22
-    y_edges = np.linspace(max(7, ymin), min(24.5, ymax), 100)
+    # Log color to enhance contrast
+    Z = np.log10(H_wrap.T + 1.0)  # transpose so Z is Ny x 56
 
-    # 2D histogram and log contrast
-    H, _, _ = np.histogram2d(hour_frac, y, bins=[x_edges, y_edges])
-    Hlog = np.log10(H + 1.0)
-
-    Z = Hlog[order, :]                 # (Nx, Ny)
-    x_compact = np.arange(len(order))  # 0..59 (15*4 bins)
-    # Put ticks every hour (4 bins apart) with MST hour labels
-    tickvals = list(range(0, len(order), 4))
-    ticktext = [str(int(x_edges[order[i]] % 24)) for i in tickvals]
-    y_centers = 0.5 * (y_edges[:-1] + y_edges[1:])
-    
-    fig3 = go.Figure(go.Heatmap(
-        z=Z.T,
-        x=x_compact,
+    fig3 = go.Figure(data=go.Heatmap(
+        z=Z,
+        x=x_night,
         y=y_centers,
-        colorscale="Turbo",      # better than Viridis
-        colorbar=dict(title="log₁₀ normalized density",
-                      title_side="right",
-                      thickness=12)
+        colorscale="Turbo",
+        colorbar=dict(title="log₁₀ count", thickness=12),
+        hovertemplate="Hour: %{x:.2f} h<br>NSB: %{y:.2f} \
+            mag/arcsec²<br>log₁₀(count): %{z:.2f}<extra></extra>",
+        hoverongaps=False
     ))
+
+    # Hour ticks every hour starting at 17:00 wrap (labels 17..23,0..7)
+    tickvals = np.arange(0, 56, 4)  # index positions every hour
+    ticktext = [str(int((17 + 0.25*i) % 24)) for i in tickvals]
+    # Map tick positions in data coordinates:
+    tickpos = x_night[tickvals]
+
     fig3.update_layout(
-        title="Jellyfish Plot",
-        title_font=dict(size=24),  # Larger title
+        title="Jellyfish Plot, moonalt ≤ -10°, χ² ≤ 0.009",
+        title_font=dict(size=24),
         title_x=0.5,
-        xaxis=dict(title="Hour (MST)", tickmode="array", tickvals=tickvals,
+        xaxis=dict(title="MST", tickmode="array", tickvals=tickpos,
                    ticktext=ticktext),
-        yaxis=dict(title="NSB mag/arcsec²"),
+        yaxis=dict(title="NSB (mag/arcsec²)"),
         width=plot_w, height=plot_h
     )
 
-    # Save
     pio.write_html(fig3, file=str(outdir / f"{label}_jellyfish.html"),
                    auto_open=False)
     fig3.write_image(str(outdir / f"{label}_jellyfish.png"))
