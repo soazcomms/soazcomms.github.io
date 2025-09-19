@@ -31,15 +31,15 @@ def rename_files_and_update_table(tess_folder, tess_table_path):
     directory = Path(tess_folder)
     files_only = [f for f in directory.iterdir() if f.is_file() \
                   and not f.name.startswith('.')]    #
-    files_T = [f for f in files_only if "-T" in f.name]
-    print("******** files_T : ",files_T)
-    for file_path in files_T:
+    files_s = [f for f in files_only if "stars" in f.name]
+    print("******** files_s : ",files_s)
+    for file_path in files_s:
         print(" file_path ",file_path)
         filename = os.path.basename(file_path)
-        site_name = filename.split('_')[0]
-        row = tess_table.loc[tess_table['Site'] == site_name]
+        alias_name = filename.split('_')[0]
+        row = tess_table.loc[tess_table['Alias'] == alias_name]
         if row.empty:
-            print(f"Site {site_name} not found in ",tess_table_path," Skip.")
+            print(f"Alias {alias_name} not found in ",tess_table_path," Skip.")
             return
         seq_number = int(row['Sequence'].values[0])
         site_name = row['Site'].values[0]
