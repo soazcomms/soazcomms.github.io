@@ -695,3 +695,19 @@ Fri Aug 29 14:30:04 UTC 2025 Created analysis plots.
 Sat Aug 30 16:52:17 UTC 2025 Created analysis plots.
 Wed Sep  3 16:11:54 UTC 2025 Created analysis plots.
 Sat Sep 13 21:01:21 UTC 2025 Created analysis plots.
+2025-09-19 17:37:20 Start DSN-process_data.
+2025-09-19 17:42:13 Uploaded DSN008S_OracleSP_S_25_003.csv DSN008S_OracleSP_S_25_004.csv DSN014S_Tubac_S_25_019.csv DSN014S_Tubac_S_25_020.csv DSN014S_Tubac_S_25_021.csv DSN014T_Tubac_T_25.01.csv DSN014T_Tubac_T_25.02.csv DSN021S_VATT_S_25_004.csv DSN021S_VATT_S_25_005.csv DSN021S_VATT_S_25_006.csv DSN029T_JB_T_25_004.csv DSN029T_JB_T_25_005.csv DSN029T_JB_T_25_006.csv to influx
+ Uploaded DSN008-S_25_003.csv
+DSN008-S_25_004.csv
+DSN014-S_25_019.csv
+DSN014-S_25_020.csv
+DSN014-S_25_021.csv
+DSN014-T_25.01.csv
+DSN014-T_25.02.csv
+DSN021-S_25_004.csv
+DSN021-S_25_005.csv
+DSN021-S_25_006.csv
+DSN029-T_25_004.csv
+DSN029-T_25_005.csv
+DSN029-T_25_006.csv to Box
+Deleted temp files.
