@@ -717,3 +717,8 @@ Fri Sep 19 19:04:07 UTC 2025 Created analysis plots.
 Fri Sep 19 20:28:57 UTC 2025 Created analysis plots.
 Fri Sep 19 20:41:27 UTC 2025 Created analysis plots.
 Fri Sep 19 20:53:40 UTC 2025 Created analysis plots.
+2025-09-21 17:45:06 Start DSN-process_data.
+2025-09-21 17:47:23 Uploaded DSN016S_SaguaroNP_S_25_003.csv DSN024S_Winer_S_2025-037.csv to influx
+ Uploaded DSN016-S_25_003.csv
+DSN024-S_2025-037.csv to Box
+Deleted temp files.
