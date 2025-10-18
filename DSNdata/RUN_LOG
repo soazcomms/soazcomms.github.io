@@ -728,3 +728,15 @@ Deleted temp files.
 DSN024-S_2025-038.csv
 DSN029-T_25_007.csv to Box
 Deleted temp files.
+2025-10-18 23:12:39 Start DSN-process_data.
+2025-10-18 23:16:42 Uploaded DSN014S_Tubac_S_25_023.csv DSN014S_Tubac_S_25_024.csv DSN014S_Tubac_S_25_025.csv DSN014T_Tubac_T_25_003.csv DSN016S_SaguaroNP_S_25_007.csv DSN016S_SaguaroNP_S_25_009.csv DSN021S_VATT_S_25_008.csv DSN024S_Winer_S_2025-039.csv DSN024S_Winer_S_2025-040.csv to influx
+ Uploaded DSN014-S_25_023.csv
+DSN014-S_25_024.csv
+DSN014-S_25_025.csv
+DSN014-T_25_003.csv
+DSN016-S_25_007.csv
+DSN016-S_25_009.csv
+DSN021-S_25_008.csv
+DSN024-S_2025-039.csv
+DSN024-S_2025-040.csv to Box
+Deleted temp files.
