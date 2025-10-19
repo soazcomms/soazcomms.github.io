@@ -4,7 +4,7 @@ The Dark Sky Network (DSN): monitoring the night sky brightness over Southern Ar
 for the next ten years, starting in 2025. We use SQM and TESS units. Several units are in place, and have
 been running for up to 7 years. Their data are periodically incorporated in our data space. 
 We took delivery of SQM units on 2/6/25 and TESS units on 5/19/25. 
-As of 6/20/25, we have 14 units in the DSN.
+As of 10/19/25, we have 17 units in the DSN.
 > [!CAUTION]
 > This code is a work in progress.
 
