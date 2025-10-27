@@ -2,3 +2,5 @@
 [2025-10-27 15:21:46] Running: python3 /Users/soazdsn/DSN/scripts/DSN_generate_csv.py --label DSN019-S_MtLemmon --from 2025-03-31 --to 2025-11-30 --site-repo /Users/soazdsn/DSN/soazcomms.github.io
 python3: can't open file '/Users/soazdsn/DSN/scripts/DSN_generate_csv.py': [Errno 2] No such file or directory
 [2025-10-27 15:30:16] CSV job start for DSN019-S_MtLemmon 2025-03-31..2025-11-30
+[2025-10-27 15:30:17] Running: python3 /Users/soazdsn/DSN/DSNcode/DSN_generate_csv.py --label DSN019-S_MtLemmon --from 2025-03-31 --to 2025-11-30 --site-repo /Users/soazdsn/DSN/soazcomms.github.io
+soazcomms@darksky.org
