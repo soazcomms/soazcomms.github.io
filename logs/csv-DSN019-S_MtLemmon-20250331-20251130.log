@@ -80,3 +80,8 @@ To https://github.com/soazcomms/soazcomms.github.io
 actions@github.com
 error: cannot pull with rebase: You have unstaged changes.
 error: please commit or stash them.
+[main 96534a48] Publish CSV for DSN019-S_MtLemmon 20250331..20251130
+ 2 files changed, 8 insertions(+), 3 deletions(-)
+To https://github.com/soazcomms/soazcomms.github.io
+   c38a3ad9..96534a48  main -> main
+{"status": "\u2705 CSV ready for DSN019-S_MtLemmon 20250331-20251130", "csv": "https://soazcomms.github.io/DSNdata/data_20250331_20251130.csv", "csv_raw": "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/DSNdata/data_20250331_20251130.csv", "timestamp": 1761607331}
