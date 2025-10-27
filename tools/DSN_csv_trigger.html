@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>DSN CSV Export</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:2rem;line-height:1.45}
+    .wrap{max-width:780px}
+    h1{margin:0 0 .5rem 0}
+    .muted{color:#666}
+    .row{margin:1rem 0}
+    .btn{display:inline-block;padding:.6rem 1rem;border:1px solid #ddd;border-radius:8px;text-decoration:none}
+    .btn[disabled]{opacity:.5;pointer-events:none}
+    .ok{color:#0a6}
+    .bad{color:#b00}
+    .bar{height:8px;background:#eee;border-radius:6px;overflow:hidden}
+    .bar>span{display:block;height:100%;width:0%;background:#09f;transition:width .6s}
+    code{background:#f6f8fa;padding:.1rem .3rem;border-radius:4px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>DSN CSV Export</h1>
+    <div class="muted" id="desc">Preparing…</div>
+
+    <div class="row">
+      <div class="bar"><span id="bar"></span></div>
+    </div>
+
+    <div class="row">
+      <a id="dl" class="btn" target="_blank" rel="noopener" style="display:none;">⬇ Download CSV</a>
+      <a id="retry" class="btn" href="#" style="display:none;">↻ Retry</a>
+    </div>
+
+    <div class="row muted" id="status">Waiting for job to start…</div>
+  </div>
+
+<script>
+(function(){
+  // ===== CONFIG =====
+  const GH_PAGES_BASE = "https://soazcomms.github.io/";           // your Pages root
+  const WEBHOOK_URL   = "https://sound-kangaroo-unlikely.ngrok-free.app/DSN_webhook";
+  // ==================
+
+  const qs   = new URLSearchParams(location.search);
+  const label= (qs.get("label")||"DSN").trim();
+  const from = (qs.get("from") || "").trim();   // accept YYYY-MM-DD or ISO
+  const to   = (qs.get("to")   || "").trim();
+
+  const statusEl = document.getElementById("status");
+  const barEl    = document.getElementById("bar");
+  const dlEl     = document.getElementById("dl");
+  const retryEl  = document.getElementById("retry");
+  document.getElementById("desc").textContent = `Label: ${label} · Range: ${from} → ${to}`;
+
+  // Normalize ISO → YYYY-MM-DD for payload; server can parse either
+  function toIsoDate(s){ return String(s).slice(0,10); }
+  const payload = { label, from: toIsoDate(from), to: toIsoDate(to), mode: "csv" };
+
+  // kick off the job (fire-and-forget)
+  fetch(WEBHOOK_URL, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload)
+  }).then(r => r.ok ? r.json().catch(()=>({status:"ok"})) : Promise.reject(r.status))
+    .then(()=> { statusEl.textContent = "Triggered… generating CSV"; })
+    .catch(()=> { statusEl.textContent = "Triggered (no response body)"; });
+
+  // poll status JSON
+  const jobStart = Date.now()/1000|0;
+  const statusUrl = `${GH_PAGES_BASE}status/status-${encodeURIComponent(label)}.json`;
+
+  let pct = 8;
+  barEl.style.width = pct+"%";
+  const tick = setInterval(()=> {
+    pct = Math.min(92, pct+2);
+    barEl.style.width = pct+"%";
+  }, 1200);
+
+  const poll = setInterval(async () => {
+    try{
+      const resp = await fetch(statusUrl + "?t=" + Date.now(), { cache:"no-store" });
+      if(!resp.ok) return;
+      const data = await resp.json();
+      if(!data || !data.timestamp) return;
+
+      // wait for fresh status (avoid stale file)
+      if (data.timestamp < jobStart) return;
+
+      // found CSV?
+      if (data.csv) {
+        clearInterval(poll);
+        clearInterval(tick);
+        barEl.style.width = "100%";
+
+        // absolute or relative path
+        const csvUrl = /^https?:\/\//i.test(data.csv) ? data.csv
+                       : GH_PAGES_BASE + String(data.csv).replace(/^\/+/, "");
+        dlEl.href = csvUrl;
+        dlEl.style.display = "inline-block";
+        statusEl.innerHTML = `<span class="ok">✅ CSV ready.</span>`;
+
+        // optional: pretty filename via downloader
+        // dlEl.href = `${GH_PAGES_BASE}tools/DSN_csv_download.html?src=${encodeURIComponent(csvUrl)}&label=${encodeURIComponent(label)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+        return;
+      }
+
+      // still running; surface message if provided
+      if (data.status) statusEl.textContent = data.status;
+
+    }catch(e){
+      // ignore transient fetch errors
+    }
+  }, 2000);
+
+  retryEl.onclick = (e)=>{ e.preventDefault(); location.reload(); };
+})();
+</script>
+</body>
+</html>
