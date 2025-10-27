@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>CSV Download</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 2rem; }
+    .box { padding: 1rem; border: 1px solid #ddd; border-radius: 8px; max-width: 720px; }
+    .muted { color: #666; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <div class="box" id="status">Preparing download…</div>
+  <script>
+    (async () => {
+      const qs = new URLSearchParams(location.search);
+      // Expect either ?src=<CSV URL> OR ?path=<relative path>
+      const src = qs.get("src") || qs.get("path");
+      const label = (qs.get("label") || "DSN").replace(/[^\w\-\.]+/g, "_");
+      const from = (qs.get("from") || "").replace(/[^0-9]/g, "");
+      const to   = (qs.get("to")   || "").replace(/[^0-9]/g, "");
+
+      const fileName = `DSN_${label}_${from}_${to}.csv`;
+      const status = document.getElementById("status");
+
+      if (!src) {
+        status.innerHTML = "Missing <code>src</code> (or <code>path</code>) query parameter.";
+        return;
+      }
+
+      try {
+        // Prefer relative URLs to avoid CORS on GitHub Pages
+        const url = src.startsWith("/") || src.startsWith("./") ? src : new URL(src, location.origin).toString();
+        const resp = await fetch(url, { cache: "no-store" });
+        if (!resp.ok) throw new Error(`Fetch failed (${resp.status})`);
+
+        const blob = await resp.blob();
+        const blobUrl = URL.createObjectURL(blob);
+
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(blobUrl);
+
+        status.innerHTML = `Downloading <strong>${fileName}</strong>…<div class="muted">If nothing happens, your browser may have blocked pop-ups; click <a href="${url}">here</a>.</div>`;
+      } catch (e) {
+        status.innerHTML = `Download failed: ${e.message}<div class="muted">URL tried: <code>${src}</code></div>`;
+      }
+    })();
+  </script>
+</body>
+</html>
