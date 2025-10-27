@@ -29,3 +29,8 @@ subprocess.CalledProcessError: Command '['git', 'push']' returned non-zero exit 
 [2025-10-27 15:37:02] CSV job start for DSN019-S_MtLemmon 2025-03-31..2025-11-30
 [2025-10-27 15:37:03] Running: python3 /Users/soazdsn/DSN/DSNcode/DSN_generate_csv.py --label DSN019-S_MtLemmon --from 2025-03-31 --to 2025-11-30 --site-repo /Users/soazdsn/DSN/soazcomms.github.io
 actions@github.com
+[main aaead2e0] Publish CSV for DSN019-S_MtLemmon 20250331..20251130
+ 2 files changed, 5 insertions(+), 3 deletions(-)
+To https://github.com/soazcomms/soazcomms.github.io
+   fa32aba2..aaead2e0  main -> main
+{"status": "\u2705 CSV ready for DSN019-S_MtLemmon 20250331-20251130", "csv": "DSNdata/data_20250331_20251130.csv", "timestamp": 1761604623}
