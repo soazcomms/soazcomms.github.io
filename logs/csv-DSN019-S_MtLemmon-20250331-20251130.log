@@ -26,3 +26,4 @@ Traceback (most recent call last):
   File "/Users/soazdsn/anaconda3/envs/python310/lib/python3.10/subprocess.py", line 526, in run
     raise CalledProcessError(retcode, process.args,
 subprocess.CalledProcessError: Command '['git', 'push']' returned non-zero exit status 1.
+[2025-10-27 15:37:02] CSV job start for DSN019-S_MtLemmon 2025-03-31..2025-11-30
