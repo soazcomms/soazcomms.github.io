@@ -1,6 +1,15 @@
 {
-  "status": "\u2705 CSV complete for DSN019-S_MtLemmon",
-  "timestamp": 1761612465,
-  "csv": "https://soazcomms.github.io/DSNdata/data_20250331_20251130.csv",
-  "log": "logs/csv-DSN019-S_MtLemmon-20250331-20251130.log"
+  "status": "\u23f3 running",
+  "phase": "running",
+  "pid": null,
+  "started": 1761613048,
+  "elapsed": 0,
+  "csv": "DSNdata/data_20250331_20251130.csv",
+  "csv_raw": "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/DSNdata/data_20250331_20251130.csv",
+  "csv_size": 34,
+  "log": "logs/csv-DSN019-S_MtLemmon-20250331-20251130.log",
+  "log_tail": "error: please commit or stash them.\n[main 4c7a2111] Publish CSV for DSN019-S_MtLemmon 20250331..20251130\n 2 files changed, 8 insertions(+), 3 deletions(-)\nTo https://github.com/soazcomms/soazcomms.github.io\n   a2bcc68b..4c7a2111  main -> main\n{\"status\": \"\\u2705 CSV ready for DSN019-S_MtLemmon 20250331-20251130\", \"csv\": \"https://soazcomms.github.io/DSNdata/data_20250331_20251130.csv\", \"csv_raw\": \"https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/DSNdata/data_20250331_20251130.csv\", \"timestamp\": 1761607595}\n[2025-10-27 16:26:55] CSV job start for DSN019-S_MtLemmon 2025-03-31..2025-11-30\n[2025-10-27 16:26:56] Running: python3 /Users/soazdsn/DSN/DSNcode/DSN_generate_csv.py --label DSN019-S_MtLemmon --from 2025-03-31 --to 2025-11-30 --site-repo /Users/soazdsn/DSN/soazcomms.github.io\nactions@github.com\nerror: cannot pull with rebase: You have unstaged changes.\nerror: please commit or stash them.\n[main 5543dbce] Publish CSV for DSN019-S_MtLemmon 20250331..20251130\n 2 files changed, 8 insertions(+), 3 deletions(-)\nTo https://github.com/soazcomms/soazcomms.github.io\n   63faacba..5543dbce  main -> main\n{\"status\": \"\\u2705 CSV ready for DSN019-S_MtLemmon 20250331-20251130\", \"csv\": \"https://soazcomms.github.io/DSNdata/data_20250331_20251130.csv\", \"csv_raw\": \"https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/DSNdata/data_20250331_20251130.csv\", \"timestamp\": 1761607616}\n[2025-10-27 17:02:20] CSV job start for DSN019-S_MtLemmon 2025-03-31..2025-11-30\n[2025-10-27 17:41:11] CSV job start for DSN019-S_MtLemmon 2025-03-31..2025-11-30\n[2025-10-27 17:47:42] CSV job start for DSN019-S_MtLemmon 2025-03-31..2025-11-30\n[2025-10-28T00:57:28Z] CSV job start for DSN019-S_MtLemmon 2025-03-31..2025-11-30\n",
+  "rc": null,
+  "note": null,
+  "timestamp": 1761613048
 }
