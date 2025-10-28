@@ -128,3 +128,4 @@ usage: DSN_generate_csv.py [-h] --label LABEL --from FROM_DATE --to TO_DATE
                            [--site-repo SITE_REPO] [--source SOURCE]
                            [--cmd CMD]
 DSN_generate_csv.py: error: unrecognized arguments: --out /Users/soazdsn/DSN/soazcomms.github.io/DSNdata/data_20250331_20251130.csv
+[2025-10-28T01:02:31Z] ERROR rc=2
