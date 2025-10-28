@@ -114,3 +114,4 @@ Traceback (most recent call last):
   File "/Users/soazdsn/DSN/DSNcode/DSN_generate_csv.py", line 104, in <module>
     run(["git","reset","--hard"], cwd=repo, check=False)
 NameError: name 'repo' is not defined. Did you mean: 'repr'?
+[2025-10-28T00:57:35Z] ERROR rc=1
