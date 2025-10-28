@@ -115,3 +115,4 @@ Traceback (most recent call last):
     run(["git","reset","--hard"], cwd=repo, check=False)
 NameError: name 'repo' is not defined. Did you mean: 'repr'?
 [2025-10-28T00:57:35Z] ERROR rc=1
+[2025-10-28T00:59:53Z] CSV job start for DSN019-S_MtLemmon 2025-03-31..2025-11-30
