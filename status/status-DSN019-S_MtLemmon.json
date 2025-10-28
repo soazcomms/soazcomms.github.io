@@ -1,15 +1,15 @@
 {
-  "status": "\u23f3 running",
-  "phase": "running",
+  "status": "\u274c CSV failed",
+  "phase": "error",
   "pid": null,
   "started": 1761613486,
-  "elapsed": 7,
+  "elapsed": 8,
   "csv": "DSNdata/data_20250331_20251130.csv",
   "csv_raw": "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/DSNdata/data_20250331_20251130.csv",
   "csv_size": 34,
   "log": "logs/csv-DSN019-S_MtLemmon-20250331-20251130.log",
-  "log_tail": "Traceback (most recent call last):\n  File \"/Users/soazdsn/DSN/DSNcode/DSN_generate_csv.py\", line 104, in <module>\n    run([\"git\",\"reset\",\"--hard\"], cwd=repo, check=False)\nNameError: name 'repo' is not defined. Did you mean: 'repr'?\n[2025-10-28T00:57:35Z] ERROR rc=1\n[2025-10-28T00:59:53Z] CSV job start for DSN019-S_MtLemmon 2025-03-31..2025-11-30\n[2025-10-28T00:59:54Z] Running: python3 /Users/soazdsn/DSN/DSNcode/DSN_generate_csv.py --label DSN019-S_MtLemmon --from 2025-03-31 --to 2025-11-30 --site-repo /Users/soazdsn/DSN/soazcomms.github.io --out /Users/soazdsn/DSN/soazcomms.github.io/DSNdata/data_20250331_20251130.csv\nusage: DSN_generate_csv.py [-h] --label LABEL --from FROM_DATE --to TO_DATE\n                           [--site-repo SITE_REPO] [--source SOURCE]\n                           [--cmd CMD]\nDSN_generate_csv.py: error: unrecognized arguments: --out /Users/soazdsn/DSN/soazcomms.github.io/DSNdata/data_20250331_20251130.csv\n[2025-10-28T01:00:00Z] ERROR rc=2\n[2025-10-28T01:02:24Z] CSV job start for DSN019-S_MtLemmon 2025-03-31..2025-11-30\n[2025-10-28T01:02:25Z] Running: python3 /Users/soazdsn/DSN/DSNcode/DSN_generate_csv.py --label DSN019-S_MtLemmon --from 2025-03-31 --to 2025-11-30 --site-repo /Users/soazdsn/DSN/soazcomms.github.io --out /Users/soazdsn/DSN/soazcomms.github.io/DSNdata/data_20250331_20251130.csv\nusage: DSN_generate_csv.py [-h] --label LABEL --from FROM_DATE --to TO_DATE\n                           [--site-repo SITE_REPO] [--source SOURCE]\n                           [--cmd CMD]\nDSN_generate_csv.py: error: unrecognized arguments: --out /Users/soazdsn/DSN/soazcomms.github.io/DSNdata/data_20250331_20251130.csv\n[2025-10-28T01:02:31Z] ERROR rc=2\n[2025-10-28T01:04:46Z] CSV job start for DSN019-S_MtLemmon 2025-03-31..2025-11-30\n",
-  "rc": null,
+  "log_tail": "  File \"/Users/soazdsn/DSN/DSNcode/DSN_generate_csv.py\", line 104, in <module>\n    run([\"git\",\"reset\",\"--hard\"], cwd=repo, check=False)\nNameError: name 'repo' is not defined. Did you mean: 'repr'?\n[2025-10-28T00:57:35Z] ERROR rc=1\n[2025-10-28T00:59:53Z] CSV job start for DSN019-S_MtLemmon 2025-03-31..2025-11-30\n[2025-10-28T00:59:54Z] Running: python3 /Users/soazdsn/DSN/DSNcode/DSN_generate_csv.py --label DSN019-S_MtLemmon --from 2025-03-31 --to 2025-11-30 --site-repo /Users/soazdsn/DSN/soazcomms.github.io --out /Users/soazdsn/DSN/soazcomms.github.io/DSNdata/data_20250331_20251130.csv\nusage: DSN_generate_csv.py [-h] --label LABEL --from FROM_DATE --to TO_DATE\n                           [--site-repo SITE_REPO] [--source SOURCE]\n                           [--cmd CMD]\nDSN_generate_csv.py: error: unrecognized arguments: --out /Users/soazdsn/DSN/soazcomms.github.io/DSNdata/data_20250331_20251130.csv\n[2025-10-28T01:00:00Z] ERROR rc=2\n[2025-10-28T01:02:24Z] CSV job start for DSN019-S_MtLemmon 2025-03-31..2025-11-30\n[2025-10-28T01:02:25Z] Running: python3 /Users/soazdsn/DSN/DSNcode/DSN_generate_csv.py --label DSN019-S_MtLemmon --from 2025-03-31 --to 2025-11-30 --site-repo /Users/soazdsn/DSN/soazcomms.github.io --out /Users/soazdsn/DSN/soazcomms.github.io/DSNdata/data_20250331_20251130.csv\nusage: DSN_generate_csv.py [-h] --label LABEL --from FROM_DATE --to TO_DATE\n                           [--site-repo SITE_REPO] [--source SOURCE]\n                           [--cmd CMD]\nDSN_generate_csv.py: error: unrecognized arguments: --out /Users/soazdsn/DSN/soazcomms.github.io/DSNdata/data_20250331_20251130.csv\n[2025-10-28T01:02:31Z] ERROR rc=2\n[2025-10-28T01:04:46Z] CSV job start for DSN019-S_MtLemmon 2025-03-31..2025-11-30\n[2025-10-28T01:04:54Z] ERROR rc=2\n",
+  "rc": 2,
   "note": null,
-  "timestamp": 1761613493
+  "timestamp": 1761613494
 }
