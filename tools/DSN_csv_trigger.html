@@ -15,7 +15,7 @@
   .ok{color:#0a6}
   .err{color:#b00}
   .bar{height:8px;background:#eee;border-radius:6px;overflow:hidden}
-  .bar>span{display:block;height:100%;width:0%;transition:width .6s}
+  .bar>span{display:block;height:100%;width:0%}
 </style>
 </head>
 <body>
@@ -26,7 +26,6 @@
   <div class="row"><div class="bar"><span id="bar"></span></div></div>
 
   <div class="row">
-    <!-- Visible from the start; enabled when backend says done -->
     <button id="download" class="btn" disabled>⬇ Download CSV</button>
     <a id="viewlog" class="btn" target="_blank" rel="noopener" style="display:none;">🪵 View log</a>
     <a id="retry" class="btn" href="#" style="display:none;">↻ Retry</a>
@@ -36,36 +35,39 @@
 </div>
 
 <script>
-// ======= CONFIG (edit if needed) =======
+// ======= CONFIG =======
 const GH_PAGES_BASE = "https://soazcomms.github.io/";
 const WEBHOOK_URL   = "https://sound-kangaroo-unlikely.ngrok-free.app/DSN_csv";
 const CLEANUP_URL   = "https://sound-kangaroo-unlikely.ngrok-free.app/DSN_cleanup";
-// timings
-const POLL_MS       = 900;      // status JSON cadence
-const AVAIL_MS      = 900;      // CDN availability retry cadence
-const MAX_WAIT_MS   = 120000;   // cap while trying to fetch file
-const CLEANUP_DELAY = 4000;     // delete AFTER download trigger
-// =======================================
 
-// helpers
+// polling/availability windows (kept short so it never “hangs”)
+const POLL_MS       = 900;
+const AVAIL_MS      = 700;
+const MAX_WAIT_MS   = 25000;   // max wait while trying to fetch file (25s)
+const CLEANUP_DELAY = 4000;    // delete AFTER download trigger (ms)
+// =======================
+
+// ---- helpers ----
+function bust(u){ return `${u}${u.includes("?")?"&":"?"}bust=${Date.now()}`; }
+
 async function tinyOk(url){
-  const u = `${url}${url.includes("?") ? "&" : "?"}bust=${Date.now()}`;
   try {
-    const r = await fetch(u, { method:"GET", headers:{ "Range":"bytes=0-0" }, cache:"no-store", mode:"cors" });
+    const r = await fetch(bust(url), { method:"GET", headers:{ "Range":"bytes=0-0" }, cache:"no-store", mode:"cors" });
     return r.ok;
   } catch { return false; }
 }
+
 async function forceDownload(url, filename){
-  const u = `${url}${url.includes("?") ? "&" : "?"}bust=${Date.now()}`;
-  const r = await fetch(u, { cache:"no-store", mode:"cors" });
+  const r = await fetch(bust(url), { cache:"no-store", mode:"cors" });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   const blob = await r.blob();
   const a = document.createElement("a");
   const blobUrl = URL.createObjectURL(blob);
   a.href = blobUrl; a.download = filename || "export.csv";
   document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=> URL.revokeObjectURL(blobUrl), 6000);
+  setTimeout(()=> URL.revokeObjectURL(blobUrl), 5000);
 }
+// -----------------
 
 (function(){
   const qs      = new URLSearchParams(location.search);
@@ -82,14 +84,20 @@ async function forceDownload(url, filename){
 
   descEl.textContent = `Label: ${label} · Range: ${from} → ${to}`;
 
-  // ALWAYS-MOVING BAR (never a dead turd)
-  let pct = 4;
-  (function tickBar(){
-    // advance quickly while running, slower after done to give visual closure
-    pct = Math.min(98, pct + 2);
-    barEl.style.width = pct + "%";
-    setTimeout(tickBar, 800);
-  })();
+  // ALWAYS-ANIMATING PROGRESS (never a dead bar)
+  let pct = 0, done = false, lastTick = performance.now();
+  function anim(ts){
+    const dt = ts - lastTick;
+    lastTick = ts;
+    if (!done) {
+      // smooth ramp 0→98%, bounce slightly to show life
+      pct += (dt/1000) * 8;       // ~8%/s
+      if (pct > 98) pct = 92;     // bounce between 92–98 while running
+      barEl.style.width = pct.toFixed(2) + "%";
+    }
+    requestAnimationFrame(anim);
+  }
+  requestAnimationFrame(anim);
 
   const toYMD = s => String(s).slice(0,10).replaceAll("/","-");
   const yFrom = toYMD(from), yTo = toYMD(to);
@@ -105,42 +113,33 @@ async function forceDownload(url, filename){
     body: JSON.stringify({ label, from: yFrom, to: yTo })
   }).catch(()=>{});
 
-  // show log link when available
-  function setLogLink(path){
-    const abs = /^https?:\/\//i.test(path) ? path
-              : GH_PAGES_BASE + String(path).replace(/^\/+/, "");
-    logEl.href = `${abs}${abs.includes("?") ? "&" : "?"}bust=${Date.now()}`;
-    logEl.style.display = "inline-block";
-  }
-
   let pagesAbs = "", rawAbs = "";
 
-  // download click — NO “preparing” lie; live retries with counters
+  // Download click — bounded retries with live counters; NEVER hangs
   dlBtn.onclick = async () => {
     if (dlBtn.disabled) return;
     dlBtn.disabled = true;
 
     const start = Date.now();
-    let tries = 0, used = "";
+    let tries = 0, use = "";
 
     while (Date.now() - start < MAX_WAIT_MS) {
       tries++;
       statusEl.textContent = `⬇ Downloading… try ${tries} (t=${Math.floor((Date.now()-start)/1000)}s)`;
-      // prefer Pages, fallback to Raw
-      if (pagesAbs && await tinyOk(pagesAbs)) { used = pagesAbs; break; }
-      if (rawAbs   && await tinyOk(rawAbs))   { used = rawAbs;   break; }
+      if (pagesAbs && await tinyOk(pagesAbs)) { use = pagesAbs; break; }
+      if (rawAbs   && await tinyOk(rawAbs))   { use = rawAbs;   break; }
       await new Promise(r => setTimeout(r, AVAIL_MS));
     }
 
-    if (!used) {
+    if (!use) {
       dlBtn.disabled = false;
-      statusEl.innerHTML = `<span class="err">File not available yet (CDN lag). Click again in a few seconds.</span>`;
+      statusEl.innerHTML = `<span class="err">File not live yet (CDN). Click again in a few seconds.</span>`;
       return;
     }
 
     try {
-      await forceDownload(used, prettyName);
-      barEl.style.width = "100%";
+      await forceDownload(use, prettyName);
+      done = true; barEl.style.width = "100%";
       statusEl.innerHTML = `<span class="ok">Download started — cleaning up…</span>`;
     } catch (e) {
       dlBtn.disabled = false;
@@ -169,16 +168,22 @@ async function forceDownload(url, filename){
     }, CLEANUP_DELAY);
   };
 
-  // poll status JSON
+  // poll status JSON (with cache-buster)
   const poll = setInterval(async () => {
     let data;
     try {
-      const resp = await fetch(`${statusURL}?bust=${Date.now()}`, { cache: "no-store" });
+      const resp = await fetch(bust(statusURL), { cache: "no-store" });
       if (!resp.ok) return;
       data = await resp.json();
     } catch { return; }
 
-    if (data.log) setLogLink(data.log);
+    if (data.log) {
+      const logAbs = /^https?:\/\//i.test(data.log)
+        ? data.log
+        : GH_PAGES_BASE + String(data.log).replace(/^\/+/, "");
+      logEl.href = bust(logAbs);
+      logEl.style.display = "inline-block";
+    }
 
     if (data.csv) {
       pagesAbs = /^https?:\/\//i.test(data.csv)
@@ -190,15 +195,14 @@ async function forceDownload(url, filename){
     const phase = (data.phase || "").toLowerCase();
 
     if (phase === "running") {
-      // keep text fresh; bar is independent and never stalls
       statusEl.textContent = data.status || "⚙️ Working…";
       return;
     }
 
     if (phase === "done") {
       clearInterval(poll);
-      dlBtn.disabled = false;         // enable immediately
       statusEl.innerHTML = `<span class="ok">✅ CSV ready. Click Download.</span>`;
+      dlBtn.disabled = false; // enable immediately
       return;
     }
 
@@ -206,8 +210,7 @@ async function forceDownload(url, filename){
       clearInterval(poll);
       const note = data.note ? ` <small>${data.note}</small>` : "";
       statusEl.innerHTML = `<span class="err">❌ Failed.</span>${note}`;
-      retryEl.style.display = "inline-block";
-      retryEl.onclick = (e)=>{ e.preventDefault(); location.reload(); };
+      document.getElementById("retry").style.display = "inline-block";
       return;
     }
   }, POLL_MS);
