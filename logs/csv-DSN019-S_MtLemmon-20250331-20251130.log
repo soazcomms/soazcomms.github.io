@@ -131,3 +131,5 @@ DSN_generate_csv.py: error: unrecognized arguments: --out /Users/soazdsn/DSN/soa
 [2025-10-28T01:02:31Z] ERROR rc=2
 [2025-10-28T01:04:46Z] CSV job start for DSN019-S_MtLemmon 2025-03-31..2025-11-30
 [2025-10-28T01:04:54Z] ERROR rc=2
+[2025-10-29T00:04:07Z] CSV job start for DSN019-S_MtLemmon 2025-03-31..2025-11-30
+[2025-10-29T00:04:07Z] Running: python3 -u /Users/soazdsn/DSN/DSNcode/DSN_generate_csv.py --label DSN019-S_MtLemmon --from 2025-03-31 --to 2025-11-30 --site-repo /Users/soazdsn/DSN/soazcomms.github.io
