@@ -26,29 +26,28 @@
   <div class="row"><div class="bar"><span id="bar"></span></div></div>
 
   <div class="row">
-    <!-- Visible from the start; becomes enabled when ready -->
+    <!-- Visible from the start; enabled when backend says done -->
     <button id="download" class="btn" disabled>⬇ Download CSV</button>
     <a id="viewlog" class="btn" target="_blank" rel="noopener" style="display:none;">🪵 View log</a>
     <a id="retry" class="btn" href="#" style="display:none;">↻ Retry</a>
   </div>
 
-  <div class="row muted" id="status">Waiting for job to start…</div>
+  <div class="row muted" id="status">Waiting…</div>
 </div>
 
 <script>
-// ======= CONFIG =======
+// ======= CONFIG (edit if needed) =======
 const GH_PAGES_BASE = "https://soazcomms.github.io/";
 const WEBHOOK_URL   = "https://sound-kangaroo-unlikely.ngrok-free.app/DSN_csv";
 const CLEANUP_URL   = "https://sound-kangaroo-unlikely.ngrok-free.app/DSN_cleanup";
-
 // timings
-const POLL_MS       = 900;     // status JSON cadence
-const AVAIL_MS      = 1200;    // CDN availability retry cadence
-const MAX_WAIT_MS   = 120000;  // max wait while clicking download
-const CLEANUP_DELAY = 4000;    // delete AFTER download trigger (ms) — per your requirement
-// =======================
+const POLL_MS       = 900;      // status JSON cadence
+const AVAIL_MS      = 900;      // CDN availability retry cadence
+const MAX_WAIT_MS   = 120000;   // cap while trying to fetch file
+const CLEANUP_DELAY = 4000;     // delete AFTER download trigger
+// =======================================
 
-// ---- helpers ----
+// helpers
 async function tinyOk(url){
   const u = `${url}${url.includes("?") ? "&" : "?"}bust=${Date.now()}`;
   try {
@@ -56,7 +55,6 @@ async function tinyOk(url){
     return r.ok;
   } catch { return false; }
 }
-
 async function forceDownload(url, filename){
   const u = `${url}${url.includes("?") ? "&" : "?"}bust=${Date.now()}`;
   const r = await fetch(u, { cache:"no-store", mode:"cors" });
@@ -66,9 +64,8 @@ async function forceDownload(url, filename){
   const blobUrl = URL.createObjectURL(blob);
   a.href = blobUrl; a.download = filename || "export.csv";
   document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=> URL.revokeObjectURL(blobUrl), 5000);
+  setTimeout(()=> URL.revokeObjectURL(blobUrl), 6000);
 }
-// -----------------
 
 (function(){
   const qs      = new URLSearchParams(location.search);
@@ -85,12 +82,13 @@ async function forceDownload(url, filename){
 
   descEl.textContent = `Label: ${label} · Range: ${from} → ${to}`;
 
-  // ALWAYS-MOVING PROGRESS BAR (independent of backend)
-  let pct = 5;
+  // ALWAYS-MOVING BAR (never a dead turd)
+  let pct = 4;
   (function tickBar(){
+    // advance quickly while running, slower after done to give visual closure
     pct = Math.min(98, pct + 2);
     barEl.style.width = pct + "%";
-    setTimeout(tickBar, 1000);
+    setTimeout(tickBar, 800);
   })();
 
   const toYMD = s => String(s).slice(0,10).replaceAll("/","-");
@@ -105,50 +103,55 @@ async function forceDownload(url, filename){
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ label, from: yFrom, to: yTo })
-  }).then(() => {
-    statusEl.textContent = "Triggered… generating CSV";
-  }).catch(() => {
-    statusEl.textContent = "Triggered (no response)";
-  });
+  }).catch(()=>{});
+
+  // show log link when available
+  function setLogLink(path){
+    const abs = /^https?:\/\//i.test(path) ? path
+              : GH_PAGES_BASE + String(path).replace(/^\/+/, "");
+    logEl.href = `${abs}${abs.includes("?") ? "&" : "?"}bust=${Date.now()}`;
+    logEl.style.display = "inline-block";
+  }
 
   let pagesAbs = "", rawAbs = "";
 
-  // Download click handler — deletes ONLY AFTER download trigger
+  // download click — NO “preparing” lie; live retries with counters
   dlBtn.onclick = async () => {
-    if (dlBtn.disabled) return; // safety
+    if (dlBtn.disabled) return;
     dlBtn.disabled = true;
-    dlBtn.textContent = "⬇ Downloading…";
-    statusEl.textContent = "Preparing your download…";
 
-    // Retry Pages→Raw until reachable (or time out)
-    const deadline = Date.now() + MAX_WAIT_MS;
-    let use = "";
-    while (Date.now() < deadline) {
-      if (pagesAbs && await tinyOk(pagesAbs)) { use = pagesAbs; break; }
-      if (rawAbs   && await tinyOk(rawAbs))   { use = rawAbs;   break; }
+    const start = Date.now();
+    let tries = 0, used = "";
+
+    while (Date.now() - start < MAX_WAIT_MS) {
+      tries++;
+      statusEl.textContent = `⬇ Downloading… try ${tries} (t=${Math.floor((Date.now()-start)/1000)}s)`;
+      // prefer Pages, fallback to Raw
+      if (pagesAbs && await tinyOk(pagesAbs)) { used = pagesAbs; break; }
+      if (rawAbs   && await tinyOk(rawAbs))   { used = rawAbs;   break; }
       await new Promise(r => setTimeout(r, AVAIL_MS));
     }
-    if (!use) {
+
+    if (!used) {
       dlBtn.disabled = false;
-      dlBtn.textContent = "⬇ Download CSV";
-      statusEl.innerHTML = `<span class="err">File not available yet (CDN delay). Click again in a few seconds.</span>`;
+      statusEl.innerHTML = `<span class="err">File not available yet (CDN lag). Click again in a few seconds.</span>`;
       return;
     }
 
     try {
-      await forceDownload(use, prettyName);
-      statusEl.innerHTML = `<span class="ok">Download started. Cleaning up…</span>`;
+      await forceDownload(used, prettyName);
+      barEl.style.width = "100%";
+      statusEl.innerHTML = `<span class="ok">Download started — cleaning up…</span>`;
     } catch (e) {
       dlBtn.disabled = false;
-      dlBtn.textContent = "⬇ Download CSV";
       statusEl.innerHTML = `<span class="err">Download failed: ${e.message}</span>`;
       return;
     }
 
-    // cleanup only AFTER download trigger (your requirement)
+    // delete AFTER download trigger
     setTimeout(async () => {
       try {
-        const cr = await fetch("https://sound-kangaroo-unlikely.ngrok-free.app/DSN_cleanup", {
+        const cr = await fetch(CLEANUP_URL, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ label, from: yFrom, to: yTo })
@@ -166,7 +169,7 @@ async function forceDownload(url, filename){
     }, CLEANUP_DELAY);
   };
 
-  // poll status
+  // poll status JSON
   const poll = setInterval(async () => {
     let data;
     try {
@@ -175,16 +178,8 @@ async function forceDownload(url, filename){
       data = await resp.json();
     } catch { return; }
 
-    // log link
-    if (data.log) {
-      const logAbs = /^https?:\/\//i.test(data.log)
-        ? data.log
-        : GH_PAGES_BASE + String(data.log).replace(/^\/+/, "");
-      logEl.href = `${logAbs}${logAbs.includes("?") ? "&" : "?"}bust=${Date.now()}`;
-      logEl.style.display = "inline-block";
-    }
+    if (data.log) setLogLink(data.log);
 
-    // csv urls (both)
     if (data.csv) {
       pagesAbs = /^https?:\/\//i.test(data.csv)
         ? data.csv
@@ -195,23 +190,20 @@ async function forceDownload(url, filename){
     const phase = (data.phase || "").toLowerCase();
 
     if (phase === "running") {
-      // keep UI lively (and bar ticks independently)
+      // keep text fresh; bar is independent and never stalls
       statusEl.textContent = data.status || "⚙️ Working…";
       return;
     }
 
     if (phase === "done") {
       clearInterval(poll);
-      barEl.style.width = "100%";
-      statusEl.innerHTML = `<span class="ok">✅ CSV ready. Click the button to download.</span>`;
-      dlBtn.disabled = false;                // <— enable immediately on done
-      dlBtn.textContent = "⬇ Download CSV";
+      dlBtn.disabled = false;         // enable immediately
+      statusEl.innerHTML = `<span class="ok">✅ CSV ready. Click Download.</span>`;
       return;
     }
 
     if (phase === "error") {
       clearInterval(poll);
-      barEl.style.width = "100%";
       const note = data.note ? ` <small>${data.note}</small>` : "";
       statusEl.innerHTML = `<span class="err">❌ Failed.</span>${note}`;
       retryEl.style.display = "inline-block";
