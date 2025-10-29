@@ -1,4 +1,4 @@
-time,SQM,lum,chisquared,moonalt
+time (UT),radiance (mag/sq asec),radiance nW/cm2/sr,chisquared,Moon altitude (deg)
 2025-03-31T02:01:05Z,11.01,0.06203,653.68064,17.4
 2025-03-31T02:06:05Z,12.3,0.00694,199.23499,16.4
 2025-03-31T02:11:05Z,13.76,0.00707,51.9237,15.4
