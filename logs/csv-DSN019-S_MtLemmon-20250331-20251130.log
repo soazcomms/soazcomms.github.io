@@ -2,3 +2,5 @@
 [2025-10-29T17:50:43Z] Running: python3 -u /Users/soazdsn/DSN/DSNcode/DSN_generate_csv.py --label DSN019-S_MtLemmon --from 2025-03-31 --to 2025-11-30 --site-repo /Users/soazdsn/DSN/soazcomms.github.io --influx-url https://us-east-1-1.aws.cloud2.influxdata.com --influx-org DSN --influx-bucket DSNdata --influx-token '<redacted>'
 [2025-10-29T18:05:22Z] CSV job start for DSN019-S_MtLemmon 2025-03-31..2025-11-30
 [2025-10-29T18:05:22Z] Running: python3 -u /Users/soazdsn/DSN/DSNcode/DSN_generate_csv.py --label DSN019-S_MtLemmon --from 2025-03-31 --to 2025-11-30 --site-repo /Users/soazdsn/DSN/soazcomms.github.io --influx-url https://us-east-1-1.aws.cloud2.influxdata.com --influx-org DSN --influx-bucket DSNdata --influx-token '<redacted>'
+[2025-10-29T18:05:44Z] CSV job start for DSN019-S_MtLemmon 2025-03-31..2025-11-30
+[2025-10-29T18:05:44Z] Running: python3 -u /Users/soazdsn/DSN/DSNcode/DSN_generate_csv.py --label DSN019-S_MtLemmon --from 2025-03-31 --to 2025-11-30 --site-repo /Users/soazdsn/DSN/soazcomms.github.io --influx-url https://us-east-1-1.aws.cloud2.influxdata.com --influx-org DSN --influx-bucket DSNdata --influx-token '<redacted>'
