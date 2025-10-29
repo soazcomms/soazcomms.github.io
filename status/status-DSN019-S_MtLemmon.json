@@ -1,7 +1,7 @@
 {
   "phase": "running",
-  "status": "\u23f3 Waiting for CSV to go live\u2026 14s",
-  "note": "checking Pages, then raw",
+  "status": "\u23f3 CSV running for DSN019-S_MtLemmon",
+  "note": "starting\u2026",
   "beat": 0,
   "csv": "DSNdata/DSN019-S_MtLemmon_20250331_20251130.csv",
   "csv_raw": "https://raw.githubusercontent.com/soazcomms.github.io/main/DSNdata/DSN019-S_MtLemmon_20250331_20251130.csv",
