@@ -61,3 +61,12 @@
 [2025-10-29T21:34:51Z] CSV job start for DSN019-S_MtLemmon 2025-03-31..2025-11-30
 [2025-10-29T21:34:51Z] Running: python3 -u /Users/soazdsn/DSN/DSNcode/DSN_generate_csv.py --label DSN019-S_MtLemmon --from 2025-03-31 --to 2025-11-30 --site-repo /Users/soazdsn/DSN/soazcomms.github.io --out /Users/soazdsn/DSN/soazcomms.github.io/DSNdata/DSN019-S_MtLemmon_20250331_20251130.csv --influx-url https://us-east-1-1.aws.cloud2.influxdata.com --influx-org DSN --influx-bucket DSNdata --influx-token <redacted> <redacted>
 [2025-10-29T21:34:51Z] GIT add ['logs/csv-DSN019-S_MtLemmon-20250331-20251130.log']
+[2025-10-29T21:40:20Z] GIT add ['status/status-DSN019-S_MtLemmon.json']
+[2025-10-29T21:40:20Z] GIT add rc=0
+[2025-10-29T21:40:20Z] GIT commit: status start DSN019-S_MtLemmon 2025-03-31..2025-11-30
+[2025-10-29T21:40:20Z] GIT commit rc=0
+[2025-10-29T21:40:20Z] GIT push origin main
+[2025-10-29T21:40:23Z] GIT push rc=0
+[2025-10-29T21:40:23Z] CSV job start for DSN019-S_MtLemmon 2025-03-31..2025-11-30
+[2025-10-29T21:40:23Z] Running: python3 -u /Users/soazdsn/DSN/DSNcode/DSN_generate_csv.py --label DSN019-S_MtLemmon --from 2025-03-31 --to 2025-11-30 --site-repo /Users/soazdsn/DSN/soazcomms.github.io --out /Users/soazdsn/DSN/soazcomms.github.io/DSNdata/DSN019-S_MtLemmon_20250331_20251130.csv --influx-url https://us-east-1-1.aws.cloud2.influxdata.com --influx-org DSN --influx-bucket DSNdata --influx-token <redacted> <redacted>
+[2025-10-29T21:40:23Z] GIT add ['logs/csv-DSN019-S_MtLemmon-20250331-20251130.log']
