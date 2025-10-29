@@ -1,53 +1,44 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>DSN CSV Export</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:2rem;line-height:1.45}
-    .wrap{max-width:780px}
-    h1{margin:0 0 .5rem 0}
-    .muted{color:#666}
-    .row{margin:1rem 0}
-    .btn{display:inline-block;padding:.6rem 1rem;border:1px solid #ddd;border-radius:8px;text-decoration:none;cursor:pointer}
-    .btn[disabled]{opacity:.5;pointer-events:none}
-    .ok{color:#0a6}
-    .err{color:#b00}
-    .bar{height:8px;background:#eee;border-radius:6px;overflow:hidden}
-    .bar>span{display:block;height:100%;width:0%;transition:width .6s}
-    .hint{font-size:.9rem;color:#666}
-    iframe.dl{display:none;width:0;height:0;border:0}
-  </style>
+<meta charset="utf-8" />
+<title>DSN CSV Export</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:2rem;line-height:1.45}
+  .wrap{max-width:780px}
+  h1{margin:0 0 .5rem 0}
+  .muted{color:#666}
+  .row{margin:1rem 0}
+  .btn{display:inline-block;padding:.6rem 1rem;border:1px solid #ddd;border-radius:8px;text-decoration:none;cursor:pointer}
+  .btn[disabled]{opacity:.5;pointer-events:none}
+  .ok{color:#0a6}
+  .err{color:#b00}
+  .bar{height:8px;background:#eee;border-radius:6px;overflow:hidden}
+  .bar>span{display:block;height:100%;width:0%;transition:width .6s}
+  .hint{font-size:.9rem;color:#666}
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>DSN CSV Export</h1>
-    <div class="muted" id="desc">Preparing…</div>
+<div class="wrap">
+  <h1>DSN CSV Export</h1>
+  <div class="muted" id="desc">Preparing…</div>
 
-    <div class="row">
-      <div class="bar"><span id="bar"></span></div>
-    </div>
+  <div class="row"><div class="bar"><span id="bar"></span></div></div>
 
-    <div class="row">
-      <a id="download" class="btn" style="display:none;">⬇ Download CSV</a>
-      <a id="viewlog" class="btn" target="_blank" rel="noopener" style="display:none;">🪵 View log</a>
-      <a id="retry" class="btn" href="#" style="display:none;">↻ Retry</a>
-    </div>
-
-    <div class="row muted" id="status">Waiting for job to start…</div>
-    <div class="row hint" id="hint" style="display:none;">Tip: if your browser blocks automatic downloads, click the button again.</div>
-
-    <!-- hidden iframe used to trigger same-origin download without CORS -->
-    <iframe id="dlFrame" class="dl" sandbox></iframe>
+  <div class="row">
+    <a id="download" class="btn" style="display:none;">⬇ Download CSV</a>
+    <a id="viewlog" class="btn" target="_blank" rel="noopener" style="display:none;">🪵 View log</a>
+    <a id="retry" class="btn" href="#" style="display:none;">↻ Retry</a>
   </div>
 
+  <div class="row muted" id="status">Waiting for job to start…</div>
+  <div class="row hint" id="hint" style="display:none;"></div>
+</div>
+
 <script>
-// ---------------- CONFIG ----------------
 const GH_PAGES_BASE = "https://soazcomms.github.io/";
 const WEBHOOK_URL   = "https://sound-kangaroo-unlikely.ngrok-free.app/DSN_csv";
-const CLEANUP_URL   = "https://sound-kangaroo-unlikely.ngrok-free.app/DSN_cleanup";
-// ---------------------------------------
 
 (function(){
   const qs      = new URLSearchParams(location.search);
@@ -61,14 +52,12 @@ const CLEANUP_URL   = "https://sound-kangaroo-unlikely.ngrok-free.app/DSN_cleanu
   const retryEl = document.getElementById("retry");
   const descEl  = document.getElementById("desc");
   const hintEl  = document.getElementById("hint");
-  const dlFrame = document.getElementById("dlFrame");
 
   descEl.textContent = `Label: ${label} · Range: ${from} → ${to}`;
 
   const toYMD = s => String(s).slice(0,10).replaceAll("/","-");
   const yFrom = toYMD(from), yTo = toYMD(to);
 
-  // kick the job
   fetch(WEBHOOK_URL, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -79,12 +68,10 @@ const CLEANUP_URL   = "https://sound-kangaroo-unlikely.ngrok-free.app/DSN_cleanu
     statusEl.textContent = "Triggered (no response)";
   });
 
-  // progress bar
   let pct = 8;
   barEl.style.width = pct + "%";
   const tick = setInterval(() => { pct = Math.min(95, pct + 2); barEl.style.width = pct + "%"; }, 1200);
 
-  // poll status json (we rely on GH Pages same-origin URL only)
   const safeLabel = (label || "").replace(/[^\w.\-]+/g, "_");
   const statusRel = `status/status-${safeLabel}.json`;
   const statusURL = GH_PAGES_BASE + statusRel;
@@ -97,7 +84,6 @@ const CLEANUP_URL   = "https://sound-kangaroo-unlikely.ngrok-free.app/DSN_cleanu
       data = await resp.json();
     } catch (_e) { return; }
 
-    // log link
     if (data.log) {
       const logAbs = /^https?:\/\//i.test(data.log)
         ? data.log
@@ -106,13 +92,11 @@ const CLEANUP_URL   = "https://sound-kangaroo-unlikely.ngrok-free.app/DSN_cleanu
       logEl.style.display = "inline-block";
     }
 
-    // compute the Pages CSV URL (same-origin)
     const pagesAbs = data.csv
       ? (/^https?:\/\//i.test(data.csv) ? data.csv
          : GH_PAGES_BASE.replace(/\/+$/, "") + "/" + String(data.csv).replace(/^\/+/, ""))
       : "";
 
-    // phase handling first
     const phase = (data.phase || "").toLowerCase();
     if (phase === "done") {
       clearInterval(poll); clearInterval(tick);
@@ -122,33 +106,12 @@ const CLEANUP_URL   = "https://sound-kangaroo-unlikely.ngrok-free.app/DSN_cleanu
       if (pagesAbs) {
         const pretty = `${label}_${yFrom}_${yTo}.csv`;
         const bust   = `${pagesAbs}${pagesAbs.includes("?") ? "&" : "?"}bust=${Date.now()}`;
-
-        // show direct download link (same-origin) — no fetch, no CORS
         dlEl.href = bust;
-        dlEl.download = pretty;        // forces "Save As" for same-origin
+        dlEl.download = pretty;    // same-origin "Save As"
         dlEl.style.display = "inline-block";
         hintEl.style.display = "block";
-
-        // also set up a click handler that triggers cleanup shortly after
-        dlEl.onclick = (ev) => {
-          // allow default navigation/download to proceed
-          // in parallel, use hidden iframe (same-origin) to ping the same URL
-          // then cleanup after a short grace period
-          try {
-            dlFrame.src = bust;
-          } catch(_){}
-          setTimeout(async () => {
-            try {
-              const cResp = await fetch(CLEANUP_URL, {
-                method: "POST",
-                headers: { "content-type": "application/json" },
-                body: JSON.stringify({ label, from: yFrom, to: yTo })
-              });
-              const ok = cResp.ok && (await cResp.json()).ok;
-              if (ok) statusEl.textContent = "♻️ CSV deleted from GitHub after download.";
-            } catch(_){}
-          }, 1500);
-        };
+        const secs = (data.expires_in ?? 180);
+        hintEl.textContent = `Note: file auto-deletes server-side in ~${secs}s. If your browser blocks the first attempt, click the button again.`;
       }
       return;
     }
@@ -162,13 +125,12 @@ const CLEANUP_URL   = "https://sound-kangaroo-unlikely.ngrok-free.app/DSN_cleanu
       return;
     }
 
-    // still running: surface last generator line if provided
     if (data.note && String(data.note).trim().length > 0) {
       statusEl.textContent = `⚙️ ${data.note}`;
     } else {
       statusEl.textContent = "⚙️ Working…";
     }
-  }, 800);
+  }, 900);
 
   retryEl.onclick = (e)=>{ e.preventDefault(); location.reload(); };
 })();
