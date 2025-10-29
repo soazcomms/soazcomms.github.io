@@ -1,6 +1,6 @@
 {
   "phase": "running",
-  "status": "\u23f3 Waiting for CSV to go live\u2026 102s",
+  "status": "\u23f3 Waiting for CSV to go live\u2026 74s",
   "note": "checking Pages, then raw",
   "beat": 0,
   "csv": "DSNdata/DSN019-S_MtLemmon_20250331_20251130.csv",
