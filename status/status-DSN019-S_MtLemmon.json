@@ -1,8 +1,8 @@
 {
   "phase": "running",
-  "status": "\u23f3 CSV running for DSN019-S_MtLemmon",
+  "status": "\u2699\ufe0f Working\u2026 (6s)",
   "csv": "DSNdata/data_20241129_20260401.csv",
   "csv_raw": "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/DSNdata/data_20241129_20260401.csv",
   "log": "logs/csv-DSN019-S_MtLemmon-20241129-20260401.log",
-  "timestamp": 1761707050
+  "timestamp": 1761707059
 }
