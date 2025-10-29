@@ -2,64 +2,56 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>DSN CSV Export (auto-download)</title>
+<title>DSN CSV Export</title>
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <style>
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:2rem;line-height:1.45}
+  .wrap{max-width:780px}
+  h1{margin:0 0 .5rem 0}
   .muted{color:#666}
+  .row{margin:1rem 0}
+  .btn{display:inline-block;padding:.6rem 1rem;border:1px solid #ddd;border-radius:8px;text-decoration:none;cursor:pointer}
+  .btn[disabled]{opacity:.5;pointer-events:none}
   .ok{color:#0a6}
   .err{color:#b00}
+  .bar{height:8px;background:#eee;border-radius:6px;overflow:hidden}
+  .bar>span{display:block;height:100%;width:0%;transition:width .5s}
 </style>
 </head>
 <body>
-<div id="msg" class="muted">Starting…</div>
+<div class="wrap">
+  <h1>DSN CSV Export</h1>
+  <div class="muted" id="desc">Preparing…</div>
+
+  <div class="row"><div class="bar"><span id="bar"></span></div></div>
+
+  <div class="row">
+    <button id="download" class="btn" style="display:none;">⬇ Download CSV</button>
+    <a id="viewlog" class="btn" target="_blank" rel="noopener" style="display:none;">🪵 View log</a>
+    <a id="retry" class="btn" href="#" style="display:none;">↻ Retry</a>
+  </div>
+
+  <div class="row muted" id="status">Waiting for job to start…</div>
+</div>
+
 <script>
-// ======= CONFIG (edit if needed) =======
+// ======= CONFIG =======
 const GH_PAGES_BASE = "https://soazcomms.github.io/";
 const WEBHOOK_URL   = "https://sound-kangaroo-unlikely.ngrok-free.app/DSN_csv";
 const CLEANUP_URL   = "https://sound-kangaroo-unlikely.ngrok-free.app/DSN_cleanup";
-// Download/cleanup timings
-const RETRY_MS      = 1200;    // status poll + availability check cadence
-const MAX_WAIT_MS   = 120000;  // max wait for CDN after 'done'
+
+// timings
+const POLL_MS       = 900;
+const RETRY_MS      = 1200;    // availability retry cadence on click
+const MAX_WAIT_MS   = 120000;  // max wait for CDN while clicking download
 const CLEANUP_DELAY = 4000;    // delete AFTER download trigger (ms)
-// =======================================
+// =======================
 
-// Parse inputs
-const qs    = new URLSearchParams(location.search);
-const label = (qs.get("label")||"").trim();
-const from  = (qs.get("from") || "").trim();
-const to    = (qs.get("to")   || "").trim();
-const msgEl = document.getElementById("msg");
-
-function toYMD(s){ return String(s).slice(0,10).replaceAll("/","-"); }
-const yFrom = toYMD(from), yTo = toYMD(to);
-const safeLabel = (label || "").replace(/[^\w.\-]+/g, "_");
-
-// Kick job (fire-and-forget)
-fetch(WEBHOOK_URL, {
-  method: "POST",
-  headers: { "content-type": "application/json" },
-  body: JSON.stringify({ label, from: yFrom, to: yTo })
-}).catch(()=>{});
-
-// Status JSON
-const statusRel = `status/status-${safeLabel}.json`;
-const statusURL = GH_PAGES_BASE + statusRel;
-
-// Helper: tiny HEAD-ish fetch (Range 0-0) to test availability without caching
-async function tinyOk(url){
-  const u = `${url}${url.includes("?") ? "&" : "?"}bust=${Date.now()}`;
-  try{
-    const r = await fetch(u, { method:"GET", headers:{ "Range":"bytes=0-0" }, cache:"no-store", mode:"cors" });
-    return r.ok;
-  }catch{ return false; }
-}
-
-// Helper: fetch CSV as Blob and force browser download (no preview)
-async function forceDownload(url, filename){
+// util: force download via Blob (prevents inline rendering)
+async function forceDownload(url, filename) {
   const u = `${url}${url.includes("?") ? "&" : "?"}bust=${Date.now()}`;
   const r = await fetch(u, { cache:"no-store", mode:"cors" });
-  if(!r.ok) throw new Error(`HTTP ${r.status}`);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
   const blob = await r.blob();
   const a = document.createElement("a");
   const blobUrl = URL.createObjectURL(blob);
@@ -68,102 +60,176 @@ async function forceDownload(url, filename){
   document.body.appendChild(a);
   a.click();
   a.remove();
-  setTimeout(()=> URL.revokeObjectURL(blobUrl), 5000);
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
 }
 
-// Poll for status -> when done, try to download via Pages then Raw
-(async function main(){
-  if(!label || !from || !to){
-    msgEl.className = "err";
-    msgEl.textContent = "Missing required query params: label, from, to";
-    return;
-  }
-  msgEl.textContent = `Running for ${label} ${yFrom} → ${yTo}…`;
+// util: tiny reachability check
+async function tinyOk(url) {
+  const u = `${url}${url.includes("?") ? "&" : "?"}bust=${Date.now()}`;
+  try {
+    const r = await fetch(u, { method:"GET", headers:{ "Range":"bytes=0-0" }, cache:"no-store", mode:"cors" });
+    return r.ok;
+  } catch { return false; }
+}
 
-  let phase = "";
-  let csvRel = "", rawAbs = "", pagesAbs = "";
-  let started = Date.now();
+(function(){
+  const qs      = new URLSearchParams(location.search);
+  const label   = (qs.get("label")||"").trim();
+  const from    = (qs.get("from") || "").trim();
+  const to      = (qs.get("to")   || "").trim();
 
-  // Poll status until phase: done or error
-  while(true){
-    try{
-      const r = await fetch(`${statusURL}?bust=${Date.now()}`, { cache: "no-store" });
-      if(r.ok){
-        const data = await r.json();
-        phase = (data.phase || "").toLowerCase();
-        csvRel = data.csv || "";
-        if(csvRel){
-          pagesAbs = /^https?:\/\//i.test(csvRel) ? csvRel
-                    : GH_PAGES_BASE.replace(/\/+$/, "") + "/" + String(csvRel).replace(/^\/+/, "");
-          rawAbs   = data.csv_raw || `https://raw.githubusercontent.com/soazcomms.github.io/main/${csvRel}`;
+  const descEl  = document.getElementById("desc");
+  const statusEl= document.getElementById("status");
+  const barEl   = document.getElementById("bar");
+  const dlBtn   = document.getElementById("download");
+  const logEl   = document.getElementById("viewlog");
+  const retryEl = document.getElementById("retry");
+
+  descEl.textContent = `Label: ${label} · Range: ${from} → ${to}`;
+
+  // progress bar that ALWAYS moves
+  let pct = 8;
+  barEl.style.width = pct + "%";
+  const tick = setInterval(() => {
+    try { pct = Math.min(98, pct + 2); barEl.style.width = pct + "%"; } catch {}
+  }, 1000);
+
+  const toYMD = s => String(s).slice(0,10).replaceAll("/","-");
+  const yFrom = toYMD(from), yTo = toYMD(to);
+  const prettyName = `${label}_${yFrom}_${yTo}.csv`;
+
+  // kick job (fire-and-forget)
+  fetch(WEBHOOK_URL, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ label, from: yFrom, to: yTo })
+  }).then(() => {
+    statusEl.textContent = "Triggered… generating CSV";
+  }).catch(() => {
+    statusEl.textContent = "Triggered (no response)";
+  });
+
+  const safeLabel = (label || "").replace(/[^\w.\-]+/g, "_");
+  const statusRel = `status/status-${safeLabel}.json`;
+  const statusURL = GH_PAGES_BASE + statusRel;
+
+  let pagesAbs = "", rawAbs = "", phase = "", lastStatus = "";
+
+  // show download button and wire click handler
+  function armDownload() {
+    if (!dlBtn.dataset.armed) {
+      dlBtn.dataset.armed = "1";
+      dlBtn.style.display = "inline-block";
+      dlBtn.textContent = "⬇ Download CSV";
+      dlBtn.disabled = false;
+
+      dlBtn.onclick = async () => {
+        dlBtn.disabled = true;
+        dlBtn.textContent = "⬇ Downloading…";
+        statusEl.textContent = "Preparing your download…";
+
+        // try Pages first, then Raw, with retries up to MAX_WAIT_MS
+        const deadline = Date.now() + MAX_WAIT_MS;
+        let url = "";
+        while (Date.now() < deadline) {
+          if (pagesAbs && await tinyOk(pagesAbs)) { url = pagesAbs; break; }
+          if (rawAbs   && await tinyOk(rawAbs))   { url = rawAbs;   break; }
+          await new Promise(r => setTimeout(r, RETRY_MS));
         }
-        if(phase === "done" || phase === "error") break;
-        msgEl.textContent = data.status || `Working… (+${Math.floor((Date.now()-started)/1000)}s)`;
-      }
-    }catch{ /* ignore */ }
-    await new Promise(r => setTimeout(r, RETRY_MS));
-    if(Date.now() - started > 30*60*1000){ // safety net 30 min
-      msgEl.className = "err";
-      msgEl.textContent = "Timed out waiting for completion.";
+        if (!url) {
+          dlBtn.disabled = false;
+          dlBtn.textContent = "⬇ Download CSV";
+          statusEl.innerHTML = `<span class="err">File not available yet (CDN delay). Click again in a few seconds.</span>`;
+          return;
+        }
+
+        try {
+          await forceDownload(url, prettyName);
+          statusEl.innerHTML = `<span class="ok">Download started. Cleaning up…</span>`;
+        } catch (e) {
+          dlBtn.disabled = false;
+          dlBtn.textContent = "⬇ Download CSV";
+          statusEl.innerHTML = `<span class="err">Download failed: ${e.message}</span>`;
+          return;
+        }
+
+        // cleanup only AFTER download trigger
+        setTimeout(async () => {
+          try {
+            const cr = await fetch("https://sound-kangaroo-unlikely.ngrok-free.app/DSN_cleanup", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ label, from: yFrom, to: yTo })
+            });
+            if (!cr.ok) throw new Error(`Cleanup HTTP ${cr.status}`);
+            const js = await cr.json().catch(()=> ({}));
+            if (js && js.ok) {
+              statusEl.innerHTML = `<span class="ok">Done. CSV removed from server.</span>`;
+            } else {
+              statusEl.innerHTML = `<span class="err">Cleanup responded not-ok; file may still exist.</span>`;
+            }
+          } catch (e) {
+            statusEl.innerHTML = `<span class="err">Cleanup error: ${e.message}</span>`;
+          }
+        }, CLEANUP_DELAY);
+      };
+    }
+  }
+
+  // poll status
+  const poll = setInterval(async () => {
+    let data;
+    try {
+      const resp = await fetch(`${statusURL}?bust=${Date.now()}`, { cache: "no-store" });
+      if (!resp.ok) return;
+      data = await resp.json();
+    } catch { return; }
+
+    // log link
+    if (data.log) {
+      const logAbs = /^https?:\/\//i.test(data.log)
+        ? data.log
+        : GH_PAGES_BASE + String(data.log).replace(/^\/+/, "");
+      logEl.href = `${logAbs}${logAbs.includes("?") ? "&" : "?"}bust=${Date.now()}`;
+      logEl.style.display = "inline-block";
+    }
+
+    // csv urls (both)
+    if (data.csv) {
+      pagesAbs = /^https?:\/\//i.test(data.csv)
+        ? data.csv
+        : GH_PAGES_BASE.replace(/\/+$/, "") + "/" + String(data.csv).replace(/^\/+/, "");
+    }
+    rawAbs = data.csv_raw || (data.csv ? `https://raw.githubusercontent.com/soazcomms.github.io/main/${data.csv}` : "");
+
+    phase = (data.phase || "").toLowerCase();
+    lastStatus = data.status || "";
+
+    if (phase === "running") {
+      // keep UI lively
+      statusEl.textContent = lastStatus || "⚙️ Working…";
       return;
     }
-  }
 
-  if(phase === "error"){
-    msgEl.className = "err";
-    msgEl.textContent = "Job failed. Check the log in your repo.";
-    return;
-  }
-
-  // 'done' -> wait for CSV to be actually reachable, then download
-  msgEl.className = "muted";
-  msgEl.textContent = "Preparing your download…";
-
-  const pretty = `${label}_${yFrom}_${yTo}.csv`;
-  const deadline = Date.now() + MAX_WAIT_MS;
-  let urlToUse = "";
-
-  while(Date.now() < deadline){
-    if(pagesAbs && await tinyOk(pagesAbs)){ urlToUse = pagesAbs; break; }
-    if(rawAbs   && await tinyOk(rawAbs)){   urlToUse = rawAbs;   break; }
-    await new Promise(r => setTimeout(r, RETRY_MS));
-  }
-
-  if(!urlToUse){
-    msgEl.className = "err";
-    msgEl.textContent = "File not available yet (CDN delay). Try refreshing this page in a few seconds.";
-    return;
-  }
-
-  try{
-    await forceDownload(urlToUse, pretty);
-    msgEl.className = "ok";
-    msgEl.textContent = "Download started. Cleaning up…";
-  }catch(e){
-    msgEl.className = "err";
-    msgEl.textContent = `Download failed: ${e.message}`;
-    return;
-  }
-
-  // Cleanup AFTER a short delay (never before)
-  setTimeout(async () => {
-    try{
-      const cr = await fetch(CLEANUP_URL, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ label, from: yFrom, to: yTo })
-      });
-      if(!cr.ok) throw new Error(`Cleanup HTTP ${cr.status}`);
-      const js = await cr.json().catch(()=>({}));
-      if(js && js.ok){
-        msgEl.textContent = "Done. CSV removed from server.";
-      }else{
-        msgEl.textContent = "Download complete. Cleanup response not-ok (file may still be present).";
-      }
-    }catch(e){
-      msgEl.textContent = `Download complete. Cleanup error: ${e.message}`;
+    if (phase === "done") {
+      clearInterval(poll); clearInterval(tick);
+      barEl.style.width = "100%";
+      statusEl.innerHTML = `<span class="ok">✅ CSV ready.</span>`;
+      // show download button immediately (even if CDN lagging); click handler will retry
+      armDownload();
+      return;
     }
-  }, CLEANUP_DELAY);
+
+    if (phase === "error") {
+      clearInterval(poll); clearInterval(tick);
+      barEl.style.width = "100%";
+      const note = data.note ? ` <small>${data.note}</small>` : "";
+      statusEl.innerHTML = `<span class="err">❌ Failed.</span>${note}`;
+      retryEl.style.display = "inline-block";
+      retryEl.onclick = (e)=>{ e.preventDefault(); location.reload(); };
+      return;
+    }
+  }, POLL_MS);
 })();
 </script>
 </body>
