@@ -1,0 +1,2 @@
+[2025-10-29T00:17:53Z] CSV job start for DSN019-S_MtLemmon 2025-03-31..2025-11-30
+[2025-10-29T00:17:53Z] Running: python3 -u /Users/soazdsn/DSN/DSNcode/DSN_generate_csv.py --label DSN019-S_MtLemmon --from 2025-03-31 --to 2025-11-30 --site-repo /Users/soazdsn/DSN/soazcomms.github.io
