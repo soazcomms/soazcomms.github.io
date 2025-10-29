@@ -1,10 +1,10 @@
 {
   "phase": "running",
-  "status": "\u23f3 CSV running for DSN019-S_MtLemmon",
-  "note": "starting\u2026",
-  "beat": 0,
+  "status": "\u2699\ufe0f Working\u2026 (5s)",
+  "note": "[main f09d59af] Publish CSV for DSN019-S_MtLemmon 20241129..20250731",
+  "beat": 1,
   "csv": "DSNdata/DSN019-S_MtLemmon_20241129_20250731.csv",
   "csv_raw": "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/DSNdata/DSN019-S_MtLemmon_20241129_20250731.csv",
   "log": "logs/csv-DSN019-S_MtLemmon-20241129-20250731.log",
-  "timestamp": 1761767653
+  "timestamp": 1761767658
 }
