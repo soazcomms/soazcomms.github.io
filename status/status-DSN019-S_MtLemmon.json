@@ -1,9 +1,8 @@
 {
-  "phase": "error",
-  "status": "\u274c CSV failed (rc=2)",
-  "note": "ERROR: Influx query 401: {\"code\":\"unauthorized\",\"message\":\"unauthorized access\"}",
+  "phase": "running",
+  "status": "\u23f3 CSV running for DSN019-S_MtLemmon",
   "csv": "DSNdata/data_20250331_20251130.csv",
   "csv_raw": "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/DSNdata/data_20250331_20251130.csv",
   "log": "logs/csv-DSN019-S_MtLemmon-20250331-20251130.log",
-  "timestamp": 1761761157
+  "timestamp": 1761761172
 }
