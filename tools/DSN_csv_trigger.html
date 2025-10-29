@@ -15,7 +15,7 @@
   .ok{color:#0a6}
   .err{color:#b00}
   .bar{height:8px;background:#eee;border-radius:6px;overflow:hidden}
-  .bar>span{display:block;height:100%;width:0%;transition:width .6s}
+  .bar>span{display:block;height:100%;width:0%;transition:width .5s}
   .hint{font-size:.9rem;color:#666}
   iframe.dl{display:none;width:0;height:0;border:0}
 </style>
@@ -34,7 +34,7 @@
   </div>
 
   <div class="row muted" id="status">Waiting for job to start…</div>
-  <div class="row hint" id="hint" style="display:none;">The file will be removed automatically a few seconds <strong>after</strong> you click Download.</div>
+  <div class="row hint" id="hint" style="display:none;">After you click <b>Download</b>, the file will be removed a few seconds later.</div>
 
   <!-- hidden iframe used to trigger same-origin navigation download (Safari/Chromium safe) -->
   <iframe id="dlFrame" class="dl" sandbox></iframe>
@@ -45,15 +45,17 @@
 const GH_PAGES_BASE = "https://soazcomms.github.io/";
 const WEBHOOK_URL   = "https://sound-kangaroo-unlikely.ngrok-free.app/DSN_csv";
 const CLEANUP_URL   = "https://sound-kangaroo-unlikely.ngrok-free.app/DSN_cleanup";
-const CLEANUP_DELAY_MS = 5000;   // wait AFTER click before cleanup
-const VERIFY_SPAN_MS   = 4000;   // brief verification window; if 404 persists, skip cleanup
+const CLEANUP_DELAY_MS = 5000;   // delete a few seconds AFTER click
+const VERIFY_MS        = 4000;   // brief verify window; if not live, skip cleanup
 // ----------------------
 
-// Tiny GET to check availability (uses Range so it’s lightweight)
-async function tinyGet(url) {
+// lightweight checker (prevents deleting a file that isn’t live yet)
+async function tinyOk(url) {
   const u = `${url}${url.includes("?") ? "&" : "?"}bust=${Date.now()}`;
-  const r = await fetch(u, { method:"GET", headers:{"Range":"bytes=0-0"}, cache:"no-store", mode:"cors" });
-  return r.ok;
+  try {
+    const r = await fetch(u, { method:"GET", headers:{ "Range":"bytes=0-0" }, cache:"no-store", mode:"cors" });
+    return r.ok;
+  } catch { return false; }
 }
 
 (function(){
@@ -72,10 +74,17 @@ async function tinyGet(url) {
 
   descEl.textContent = `Label: ${label} · Range: ${from} → ${to}`;
 
+  // progress bar that always moves while running/publishing
+  let pct = 8;
+  barEl.style.width = pct + "%";
+  const tick = setInterval(() => {
+    try { pct = Math.min(98, pct + 2); barEl.style.width = pct + "%"; } catch {}
+  }, 900);
+
   const toYMD = s => String(s).slice(0,10).replaceAll("/","-");
   const yFrom = toYMD(from), yTo = toYMD(to);
 
-  // Kick the job
+  // kick job
   fetch(WEBHOOK_URL, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -86,12 +95,6 @@ async function tinyGet(url) {
     statusEl.textContent = "Triggered (no response)";
   });
 
-  // Progress bar
-  let pct = 8;
-  barEl.style.width = pct + "%";
-  const tick = setInterval(() => { pct = Math.min(95, pct + 2); barEl.style.width = pct + "%"; }, 1200);
-
-  // Poll status JSON
   const safeLabel = (label || "").replace(/[^\w.\-]+/g, "_");
   const statusRel = `status/status-${safeLabel}.json`;
   const statusURL = GH_PAGES_BASE + statusRel;
@@ -102,9 +105,17 @@ async function tinyGet(url) {
       const resp = await fetch(`${statusURL}?bust=${Date.now()}`, { cache: "no-store" });
       if (!resp.ok) return;
       data = await resp.json();
-    } catch (_e) { return; }
+    } catch { return; }
 
-    // Log link
+    // show elapsed seconds even if note missing
+    if ((data.phase || "").toLowerCase() === "running" && typeof data.timestamp === "number") {
+      const age = Math.max(0, Math.floor(Date.now()/1000) - data.timestamp);
+      statusEl.textContent = data.note && data.note.trim().length
+        ? `⚙️ ${data.note} (+${age}s)`
+        : `⚙️ Working… (+${age}s)`;
+    }
+
+    // log link
     if (data.log) {
       const logAbs = /^https?:\/\//i.test(data.log)
         ? data.log
@@ -113,13 +124,12 @@ async function tinyGet(url) {
       logEl.style.display = "inline-block";
     }
 
-    // Pages CSV URL (same-origin)
+    // CSV URL on Pages (same-origin with this page)
     const pagesAbs = data.csv
       ? (/^https?:\/\//i.test(data.csv) ? data.csv
          : GH_PAGES_BASE.replace(/\/+$/, "") + "/" + String(data.csv).replace(/^\/+/, ""))
       : "";
 
-    // Phase handling
     const phase = (data.phase || "").toLowerCase();
     if (phase === "done") {
       clearInterval(poll); clearInterval(tick);
@@ -129,33 +139,31 @@ async function tinyGet(url) {
 
       if (pagesAbs) {
         const pretty = `${label}_${yFrom}_${yTo}.csv`;
-        dlEl.style.display = "inline-block";
-        dlEl.href = `${pagesAbs}${pagesAbs.includes("?") ? "&" : "?"}bust=${Date.now()}`;
+        const bust   = `${pagesAbs}${pagesAbs.includes("?") ? "&" : "?"}bust=${Date.now()}`;
+        dlEl.href = bust;
         dlEl.download = pretty;
+        dlEl.style.display = "inline-block";
 
-        // On click: trigger download via hidden iframe, THEN cleanup after a delay.
-        dlEl.onclick = async (ev) => {
-          // Let the anchor work, but also force a same-origin navigation download in parallel (Safari-safe)
-          try { dlFrame.src = `${pagesAbs}${pagesAbs.includes("?") ? "&" : "?"}bust=${Date.now()}`; } catch(_){}
-          statusEl.textContent = "⬇ Download started… scheduling cleanup.";
+        dlEl.onclick = async () => {
+          // trigger a same-origin navigation download (Safari-safe)
+          try { dlFrame.src = `${pagesAbs}${pagesAbs.includes("?") ? "&" : "?"}bust=${Date.now()}`; } catch {}
+          statusEl.textContent = "⬇ Download started… will remove the file after a short delay.";
 
-          // Verify briefly that the file is still reachable (avoid deleting if CDN not serving yet)
-          const endVerify = Date.now() + VERIFY_SPAN_MS;
-          let verified = false;
-          while (Date.now() < endVerify) {
-            try {
-              if (await tinyGet(pagesAbs)) { verified = true; break; }
-            } catch(_){}
-            await new Promise(r => setTimeout(r, 400));
+          // verify briefly that the file is live (avoid premature deletion)
+          const t0 = Date.now();
+          let ok = false;
+          while (Date.now() - t0 < VERIFY_MS) {
+            if (await tinyOk(pagesAbs)) { ok = true; break; }
+            await new Promise(r => setTimeout(r, 350));
           }
 
           setTimeout(async () => {
-            if (!verified) {
-              statusEl.textContent = "⚠️ Skipped cleanup (file not verified). Try again or delete later.";
+            if (!ok) {
+              statusEl.textContent = "⚠️ Skipped cleanup (file not verified yet). You can re-open this page later to delete.";
               return;
             }
             try {
-              const cResp = await fetch("https://sound-kangaroo-unlikely.ngrok-free.app/DSN_cleanup", {
+              const cResp = await fetch(CLEANUP_URL, {
                 method: "POST",
                 headers: { "content-type": "application/json" },
                 body: JSON.stringify({ label, from: yFrom, to: yTo })
@@ -183,13 +191,6 @@ async function tinyGet(url) {
       statusEl.innerHTML = `<span class="err">❌ Failed.</span>${note}`;
       document.getElementById("retry").style.display = "inline-block";
       return;
-    }
-
-    // Still running: surface last generator line if provided
-    if (data.note && String(data.note).trim().length > 0) {
-      statusEl.textContent = `⚙️ ${data.note}`;
-    } else {
-      statusEl.textContent = "⚙️ Working…";
     }
   }, 900);
 
