@@ -116,7 +116,7 @@
 
   const pollTimer = setInterval(async () => {
     const data = await getStatus();
-    if (!data) return;
+if (data) data.note = "";    if (!data) return;
 
     // live log link if present
     if (data.log) {
