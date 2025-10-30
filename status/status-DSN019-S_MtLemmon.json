@@ -1,10 +1,1 @@
-{
-  "phase": "running",
-  "status": "⏳ Waiting for CSV to go live… 119s",
-  "note": "",
-  "beat": 0,
-  "csv": "DSNdata/DSN019-S_MtLemmon_20250331_20251130.csv",
-  "csv_raw": "https://raw.githubusercontent.com/soazcomms.github.io/main/DSNdata/DSN019-S_MtLemmon_20250331_20251130.csv",
-  "log": "logs/csv-DSN019-S_MtLemmon-20250331-20251130.log",
-  "timestamp": 1761782276
-}
+{"phase": "done", "status": "✅ CSV complete for DSN019-S_MtLemmon", "note": "", "csv": "DSNdata/DSN019-S_MtLemmon_20250331_20251130.csv", "csv_raw": "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/DSNdata/DSN019-S_MtLemmon_20250331_20251130.csv", "log": "logs/csv-DSN019-S_MtLemmon-20250331-20251130.log", "timestamp": 1761845807}
