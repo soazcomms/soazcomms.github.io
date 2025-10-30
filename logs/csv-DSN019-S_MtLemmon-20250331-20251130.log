@@ -37,3 +37,7 @@ To https://github.com/soazcomms/soazcomms.github.io
 To https://github.com/soazcomms/soazcomms.github.io
    0949bc8d..e6a7f925  main -> main
 
+=== CSV JOB START ===
+PULL:
+error: cannot pull with rebase: You have unstaged changes.
+error: please commit or stash them.
