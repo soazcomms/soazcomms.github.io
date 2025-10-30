@@ -18,3 +18,7 @@ To https://github.com/soazcomms/soazcomms.github.io
    af8e4f9f..6d03bbe2  main -> main
 
 [DONE] DSNdata/DSN019-S_MtLemmon_20250331_20251130.csv
+=== CSV JOB START ===
+PULL:
+error: cannot pull with rebase: You have unstaged changes.
+error: please commit or stash them.
