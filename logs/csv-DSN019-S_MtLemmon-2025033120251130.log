@@ -1,0 +1,5 @@
+=== CSV JOB START ===
+[2025-10-31T18:39:43Z] Request label=DSN019-S_MtLemmon from=2025-03-31 to=2025-11-30
+SITE_REPO=/Users/soazdsn/DSN/soazcomms.github.io
+CODE_DIR=/Users/soazdsn/DSN/DSNcode
+GENERATOR=/Users/soazdsn/DSN/DSNcode/DSN_generate_csv.py
