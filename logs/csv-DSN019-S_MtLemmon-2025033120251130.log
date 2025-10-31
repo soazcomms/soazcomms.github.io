@@ -97,3 +97,4 @@ To https://github.com/soazcomms/soazcomms.github.io
  ! [remote rejected]   main -> main (push declined due to repository rule violations)
 error: failed to push some refs to 'https://github.com/soazcomms/soazcomms.github.io'
 Everything up-to-date
+ERROR: CSV not written or empty.
