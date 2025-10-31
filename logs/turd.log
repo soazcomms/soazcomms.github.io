@@ -36,3 +36,5 @@
 [2025-10-31T22:03:45Z] HTML step=log_head_ok label=DSN019-S_MtLemmon from=2025-03-31 to=2025-11-30 note=raw
 [2025-10-31T22:03:45Z] HTML step=heartbeat label=DSN019-S_MtLemmon from=2025-03-31 to=2025-11-30 note=pct=32.8%
 [2025-10-31T22:03:45Z] DONE published DSNdata/DSN019-S_MtLemmon_20250331_20251130.csv
+[2025-10-31T22:03:46Z] HTML step=log_head_ok label=DSN019-S_MtLemmon from=2025-03-31 to=2025-11-30 note=raw
+[2025-10-31T22:03:46Z] HTML step=heartbeat label=DSN019-S_MtLemmon from=2025-03-31 to=2025-11-30 note=pct=33.5%
