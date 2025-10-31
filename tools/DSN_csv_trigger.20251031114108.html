@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8" />
+<title>DSN CSV Export</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:20px;line-height:1.45}
+  .wrap{max-width:780px}
+  h1{margin:0 0 .5rem 0}
+  .muted{color:#666}
+  .row{margin:1rem 0}
+  .btn{display:inline-block;padding:.6rem 1rem;border:1px solid #ddd;border-radius:8px;text-decoration:none;cursor:pointer}
+  .btn.disabled{opacity:.5;pointer-events:none}
+  .ok{color:#0a6}
+  .err{color:#b00}
+  .bar{height:14px;background:#222;border-radius:7px;overflow:hidden;outline:2px solid #900}
+  .bar>span{display:block;height:100%;width:0%;
+            background:#ff1744;box-shadow:0 0 6px #ff1744,0 0 12px #ff1744;transition:width .25s ease}
+  .done .bar>span{background:#18c37e;box-shadow:0 0 6px #18c37e,0 0 12px #18c37e}
+  .hint{font-size:.9rem;color:#666}
+</style>
+
+<div class="wrap" id="wrap">
+  <h1>DSN CSV Export</h1>
+  <div class="muted" id="desc">Preparing…</div>
+
+  <div class="row"><div class="bar"><span id="bar"></span></div></div>
+
+  <div class="row">
+    <a id="download" class="btn disabled" href="#">⬇ Download CSV</a>
+    <a id="viewlog" class="btn disabled" target="_blank" rel="noopener" href="#">🪵 View log</a>
+    <a id="retry"   class="btn" href="#" style="display:none;">↻ Retry</a>
+  </div>
+
+  <div class="row muted" id="status">⚙️ Working…</div>
+  <div class="row hint"   id="hint" style="display:none;"></div>
+</div>
+
+<script>
+(function(){
+  // ===== constants =====
+  var GH_PAGES_BASE = "https://soazcomms.github.io";
+  var GH_RAW_BASE   = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main";
+  var WEBHOOK_ORIG  = "https://sound-kangaroo-unlikely.ngrok-free.app";
+  var WEBHOOK_URL   = WEBHOOK_ORIG + "/DSN_csv";
+  var CLEANUP_URL   = WEBHOOK_ORIG + "/DSN_cleanup";
+  var TURD_URL      = WEBHOOK_ORIG + "/DSN_turd";
+
+  // ===== DOM =====
+  var wrapEl  = document.getElementById("wrap");
+  var statusEl= document.getElementById("status");
+  var barFill = document.getElementById("bar");
+  var dlEl    = document.getElementById("download");
+  var logEl   = document.getElementById("viewlog");
+  var retryEl = document.getElementById("retry");
+  var descEl  = document.getElementById("desc");
+  var hintEl  = document.getElementById("hint");
+
+  // ===== query =====
+  var qs    = new URLSearchParams(location.search);
+  var label = (qs.get("label")||"").trim();
+  var fromQ = (qs.get("from")  ||"").trim();
+  var toQ   = (qs.get("to")    ||"").trim();
+
+  function toYMD(s){ return String(s).slice(0,10).replace(/\//g,"-"); }
+  var yFrom = toYMD(fromQ), yTo = toYMD(toQ);
+  var yFromC = yFrom.replace(/-/g,"");
+  var yToC   = yTo.replace(/-/g,"");
+  var safeLabel = (label||"").replace(/[^\w.\-]+/g, "_");
+  descEl.textContent = "Label: "+label+" · Range: "+yFrom+" → "+yTo;
+
+  // paths
+  var csvRel = "DSNdata/"+safeLabel+"_"+yFromC+"_"+yToC+".csv";
+  var logRel = "logs/csv-"+safeLabel+"-"+yFromC+yToC+".log";
+  var csvRAW = GH_RAW_BASE+"/"+csvRel;
+  var csvPGS = GH_PAGES_BASE+"/"+csvRel;
+  var logRAW = GH_RAW_BASE+"/"+logRel;
+  var logPGS = GH_PAGES_BASE+"/"+logRel;
+
+  // ===== utils (no await) =====
+  function bust(u){ return u + (u.indexOf("?")>-1 ? "&" : "?") + "bust=" + Date.now(); }
+  function setDisabled(a, dis){ if(dis){ a.classList.add("disabled"); a.setAttribute("aria-disabled","true"); } else { a.classList.remove("disabled"); a.removeAttribute("aria-disabled"); } }
+
+  function xhrHEAD(url, ok, fail){
+    try{
+      var x = new XMLHttpRequest();
+      x.open("HEAD", bust(url), true);
+      x.onreadystatechange = function(){
+        if (x.readyState === 4){
+          if (x.status>=200 && x.status<400) ok(); else fail && fail(x.status);
+        }
+      };
+      x.send(null);
+    }catch(e){ fail && fail(0); }
+  }
+
+  function xhrGETBlob(url, ok, fail){
+    try{
+      var x = new XMLHttpRequest();
+      x.open("GET", bust(url), true);
+      x.responseType = "blob";
+      x.onreadystatechange = function(){
+        if (x.readyState === 4){
+          if (x.status>=200 && x.status<400) ok(x.response);
+          else fail && fail(x.status);
+        }
+      };
+      x.send(null);
+    }catch(e){ fail && fail(0); }
+  }
+
+  function postJSON(url, obj, ok, fail){
+    // sendBeacon first, fallback to XHR
+    try{
+      var payload = JSON.stringify(obj||{});
+      var blob = new Blob([payload], {type:"application/json"});
+      if (navigator.sendBeacon && navigator.sendBeacon(url, blob)){
+        ok && ok(); 
+        return;
+      }
+    }catch(_){}
+    try{
+      var x = new XMLHttpRequest();
+      x.open("POST", url, true);
+      x.setRequestHeader("content-type","application/json");
+      x.onreadystatechange = function(){
+        if (x.readyState === 4){
+          if (x.status>=200 && x.status<400) ok && ok(x.responseText);
+          else fail && fail(x.status, x.responseText);
+        }
+      };
+      x.send(JSON.stringify(obj||{}));
+    }catch(e){ fail && fail(0, String(e)); }
+  }
+
+  function turd(step, note){
+    postJSON(TURD_URL, {step:step, note:note||"", label:label, from:yFrom, to:yTo});
+  }
+
+  // ===== progress (monotonic, no await) =====
+  var done=false, start=Date.now();
+  barFill.style.width = "20%"; // jumpstart
+  var tick = setInterval(function(){
+    if (done) return;
+    var elapsed = Date.now()-start;
+    var capMs = 45000;
+    var pct = Math.min(97, 20 + (elapsed/capMs)*77);
+    barFill.style.width = pct.toFixed(1) + "%";
+  }, 200);
+
+  // ===== log link: enable as soon as either RAW or Pages exists =====
+  function tryEnableLog(){
+    xhrHEAD(logRAW, function(){
+      logEl.href = bust(logRAW); setDisabled(logEl,false); turd("log_head_ok","raw");
+    }, function(){
+      xhrHEAD(logPGS, function(){
+        logEl.href = bust(logPGS); setDisabled(logEl,false); turd("log_head_ok","pages");
+      });
+    });
+  }
+
+  // ===== download handler (no await) =====
+  function armDownload(urls){
+    setDisabled(dlEl,false);
+    dlEl.onclick = function(e){
+      e.preventDefault();
+      statusEl.textContent = "Preparing download…";
+      turd("download_click","start");
+      var pretty = safeLabel+"_"+yFrom+"_"+yTo+".csv";
+
+      function tryNext(i){
+        if (i>=urls.length){
+          statusEl.innerHTML = "⚠️ Download failed: HTTP 404";
+          turd("download_fail_final");
+          return;
+        }
+        var u = urls[i];
+        turd("download_try", u);
+        xhrGETBlob(u, function(blob){
+          var obj = URL.createObjectURL(blob);
+          var a = document.createElement("a");
+          a.href = obj; a.download = pretty;
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(function(){ URL.revokeObjectURL(obj); }, 1500);
+
+          // cleanup after download begins
+          postJSON(CLEANUP_URL, {csv: csvRel}, function(){ turd("cleanup_sent_ok"); }, function(){ turd("cleanup_sent_fail"); });
+
+          done=true; clearInterval(tick); barFill.style.width="100%"; wrapEl.classList.add("done");
+          statusEl.innerHTML = '<span class="ok">✅ CSV downloaded.</span>';
+          hintEl.style.display="block"; hintEl.textContent = "If your browser blocks the first attempt, click Download again.";
+          turd("download_done");
+        }, function(){
+          tryNext(i+1);
+        });
+      }
+      tryNext(0);
+    };
+  }
+
+  // ===== start job =====
+  turd("page_load","HTML loaded");
+  postJSON(WEBHOOK_URL, {label:label, from:yFrom, to:yTo},
+    function(){ turd("post_job_ok"); },
+    function(){ turd("post_job_fail"); }
+  );
+
+  // ===== polling (RAW first) =====
+  logEl.href = bust(logRAW);
+  var MAX_MS = 45000, CAD = 700;
+  var poll = setInterval(function(){
+    if (done) return;
+
+    tryEnableLog();
+
+    // CSV?
+    xhrHEAD(csvRAW, function(){
+      clearInterval(poll);
+      done=true; clearInterval(tick); barFill.style.width="100%"; wrapEl.classList.add("done");
+      statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
+      armDownload([csvRAW, csvPGS]);
+      turd("csv_head_ok","raw");
+    }, function(){
+      xhrHEAD(csvPGS, function(){
+        clearInterval(poll);
+        done=true; clearInterval(tick); barFill.style.width="100%"; wrapEl.classList.add("done");
+        statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
+        armDownload([csvRAW, csvPGS]);
+        turd("csv_head_ok","pages");
+      }, function(){
+        // not found yet
+        if ((Date.now()-start) > MAX_MS){
+          clearInterval(poll); clearInterval(tick);
+          barFill.style.width="100%";
+          statusEl.innerHTML = '<span class="err">❌ File not found where expected.</span>';
+          retryEl.style.display="inline-block";
+          retryEl.onclick = function(ev){ ev.preventDefault(); turd("retry_click"); location.reload(); };
+          turd("timeout_no_csv");
+        }
+      });
+    });
+  }, CAD);
+})();
+</script>
+</html>
+
+<!-- STAMP: DSN_csv_trigger 20251031114108 -->
+<div id="stamp" style="position:fixed;right:8px;bottom:8px;font:12px/1.2 monospace;color:#999;">STAMP 20251031114108</div>
