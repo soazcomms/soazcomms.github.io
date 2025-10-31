@@ -132,3 +132,4 @@
 [2025-10-31T22:04:51Z] HTML step=cleanup_check label=DSN019-S_MtLemmon from=2025-03-31 to=2025-11-30 note=try 1
 [2025-10-31T22:04:51Z] cleanup done: DSNdata/DSN019-S_MtLemmon_20250331_20251130.csv
 [2025-10-31T22:04:52Z] HTML step=cleanup_check label=DSN019-S_MtLemmon from=2025-03-31 to=2025-11-30 note=try 2
+[2025-10-31T22:04:53Z] HTML step=cleanup_sent_ok label=DSN019-S_MtLemmon from=2025-03-31 to=2025-11-30 note=DSNdata/DSN019-S_MtLemmon_20250331_20251130.csv
