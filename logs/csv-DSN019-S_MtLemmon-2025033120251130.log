@@ -41,3 +41,8 @@ To https://github.com/soazcomms/soazcomms.github.io
 error: failed to push some refs to 'https://github.com/soazcomms/soazcomms.github.io'
 Everything up-to-date
 [DONE] DSNdata/DSN019-S_MtLemmon_20250331_20251130.csv
+=== CSV JOB START ===
+[2025-10-31T22:18:32Z] Request label=DSN019-S_MtLemmon from=2025-03-31 to=2025-11-30
+SITE_REPO=/Users/soazdsn/DSN/soazcomms.github.io
+CODE_DIR=/Users/soazdsn/DSN/DSNcode
+GENERATOR=/Users/soazdsn/DSN/DSNcode/DSN_generate_csv.py
