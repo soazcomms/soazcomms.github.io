@@ -21,3 +21,22 @@ To https://github.com/soazcomms/soazcomms.github.io
 SITE_REPO=/Users/soazdsn/DSN/soazcomms.github.io
 CODE_DIR=/Users/soazdsn/DSN/DSNcode
 GENERATOR=/Users/soazdsn/DSN/DSNcode/DSN_generate_csv.py
+[RC] 0
+HEAD is now at fe50ae47 [TURD] update
+Your branch is ahead of 'origin/main' by 11 commits.
+  (use "git push" to publish your local commits)
+HEAD is now at 420c00a9 [TURD] update
+[main 2f8a24ab] Publish CSV for DSN019-S_MtLemmon 20250331..20251130
+ 1 file changed, 5018 insertions(+)
+ create mode 100644 DSNdata/DSN019-S_MtLemmon_20250331_20251130.csv
+HEAD is now at e7330d8e [TURD] update
+On branch main
+Your branch is up to date with 'origin/main'.
+
+nothing to commit, working tree clean
+{"status": "\u2705 CSV ready for DSN019-S_MtLemmon 20250331-20251130", "csv": "https://soazcomms.github.io/DSNdata/DSN019-S_MtLemmon_20250331_20251130.csv", "csv_raw": "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/DSNdata/DSN019-S_MtLemmon_20250331_20251130.csv", "timestamp": 1761948219}
+Already on 'main'
+To https://github.com/soazcomms/soazcomms.github.io
+ ! [remote rejected]   main -> main (cannot lock ref 'refs/heads/main': is at 2f8a24ab41ec789e02e0700b1e2a35265ad8420a but expected 420c00a951fd8bf58906e6925ec9a034602ccda8)
+error: failed to push some refs to 'https://github.com/soazcomms/soazcomms.github.io'
+Everything up-to-date
