@@ -170,3 +170,5 @@
 [2025-10-31T22:05:45Z] HTML step=cleanup_check label=DSN019-S_MtLemmon from=2025-03-31 to=2025-11-30 note=try 37
 [2025-10-31T22:05:46Z] HTML step=cleanup_check label=DSN019-S_MtLemmon from=2025-03-31 to=2025-11-30 note=try 38
 [2025-10-31T22:05:49Z] HTML step=cleanup_check label=DSN019-S_MtLemmon from=2025-03-31 to=2025-11-30 note=try 39
+[2025-10-31T22:05:49Z] HTML step=cleanup_check label=DSN019-S_MtLemmon from=2025-03-31 to=2025-11-30 note=try 40
+[2025-10-31T22:05:49Z] HTML step=cleanup_timeout label=DSN019-S_MtLemmon from=2025-03-31 to=2025-11-30 note=not gone after 40 tries
