@@ -124,3 +124,8 @@
 [2025-10-31T22:04:27Z] HTML step=heartbeat label=DSN019-S_MtLemmon from=2025-03-31 to=2025-11-30 note=pct=59.9%
 [2025-10-31T22:04:27Z] HTML step=log_head_ok label=DSN019-S_MtLemmon from=2025-03-31 to=2025-11-30 note=raw
 [2025-10-31T22:04:28Z] HTML step=csv_head_ok label=DSN019-S_MtLemmon from=2025-03-31 to=2025-11-30 note=raw=200
+[2025-10-31T22:04:49Z] HTML step=download_click label=DSN019-S_MtLemmon from=2025-03-31 to=2025-11-30 note=start
+[2025-10-31T22:04:49Z] HTML step=download_try label=DSN019-S_MtLemmon from=2025-03-31 to=2025-11-30 note=https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/DSNdata/DSN019-S_MtLemmon_20250331_20251130.csv
+[2025-10-31T22:04:49Z] HTML step=cleanup_request label=DSN019-S_MtLemmon from=2025-03-31 to=2025-11-30 note=DSNdata/DSN019-S_MtLemmon_20250331_20251130.csv
+[2025-10-31T22:04:49Z] HTML step=download_done label=DSN019-S_MtLemmon from=2025-03-31 to=2025-11-30 note=
+[2025-10-31T22:04:49Z] POST /DSN_cleanup csv=DSNdata/DSN019-S_MtLemmon_20250331_20251130.csv
