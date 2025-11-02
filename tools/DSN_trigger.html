@@ -3,12 +3,7 @@
 <head>
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-0PQTHF10EQ"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-0PQTHF10EQ');
-  </script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config','G-0PQTHF10EQ');</script>
   <meta charset="UTF-8" />
   <title>🔬 DSN Analysis</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -17,24 +12,20 @@
   <meta http-equiv="Expires" content="0" />
   <style>
     :root { --primary:#007bff; --accent:#87CEFA; --ok:#2e7d32; --warn:#c62828; --barbg:#edf2f7; }
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; text-align:center; margin:2rem; }
+    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,sans-serif; text-align:center; margin:2rem; }
     h2 { margin-bottom:.25rem; }
     #status { margin:.5rem 0 .5rem; font-size:1.05rem; min-height:2.4em; }
-    a.button {
-      display:none; margin-top:.75rem; padding:.6rem 1.2rem; font-size:1rem;
-      background:var(--primary); color:#fff; text-decoration:none; border-radius:8px;
-    }
+    a.button { display:none; margin-top:.75rem; padding:.6rem 1.2rem; font-size:1rem; background:var(--primary); color:#fff; text-decoration:none; border-radius:8px; }
     .actions { margin-top:.75rem; display:flex; gap:.5rem; justify-content:center; flex-wrap:wrap; }
     button { padding:.55rem .95rem; font-size:.95rem; border:0; border-radius:8px; cursor:pointer; }
     #exit-btn { background:var(--accent); }
     #extend-btn { background:#e0e7ff; }
     .muted { color:#666; font-size:.9rem; }
-    .progress-wrap { width: min(720px, 90vw); margin: 1rem auto .25rem; text-align: center; }
-    .progress { width: 50%; margin: 0 auto; height: 12px; background: var(--barbg); border-radius: 999px; overflow: hidden; box-shadow: inset 0 0 0 1px #e2e8f0; }
-    .legend { width: 50%; margin: .35rem auto 0; display: flex; justify-content: space-between; font-size: .85rem; color: #555; }
-    .bar { height:100%; width:0%; background: linear-gradient(90deg, #69c, #38bdf8 40%, #22c55e 75%, #16a34a 100%); transition: width .4s ease; }
-    .bar.timeout { background: linear-gradient(90deg, #f59e0b, #ef4444); }
-    .legend { display:flex; justify-content:space-between; font-size:.85rem; margin-top:.35rem; color:#555; }
+    .progress-wrap { width:min(720px,90vw); margin:1rem auto .25rem; text-align:center; }
+    .progress { width:50%; margin:0 auto; height:12px; background:var(--barbg); border-radius:999px; overflow:hidden; box-shadow:inset 0 0 0 1px #e2e8f0; }
+    .legend { width:50%; margin:.35rem auto 0; display:flex; justify-content:space-between; font-size:.85rem; color:#555; }
+    .bar { height:100%; width:0%; background:linear-gradient(90deg,#69c,#38bdf8 40%,#22c55e 75%,#16a34a 100%); transition:width .4s ease; }
+    .bar.timeout { background:linear-gradient(90deg,#f59e0b,#ef4444); }
   </style>
 </head>
 <body>
@@ -54,65 +45,65 @@
   </div>
 
 <script>
-  const GH_PAGES_BASE    = "https://soazcomms.github.io/";
-  const STATUS_DIR       = "status";
+  const GH_PAGES_BASE = "https://soazcomms.github.io/";
+  const STATUS_DIR    = "status";
+
+  // **** REQUIRED: ngrok must be up (HTTPS) ****
+  const WEBHOOK_ORIG  = "https://sound-kangaroo-unlikely.ngrok-free.app";
+  const WEBHOOK_URL   = WEBHOOK_ORIG + "/DSN_webhook";
+  const TURD_URL      = WEBHOOK_ORIG + "/DSN_turd";
 
   const POLL_INTERVAL_MS = 10_000;
   const TIMEOUT_MS_INIT  = 7 * 60_000;
   const EXTEND_MS        = 7 * 60_000;
 
-  /* REQUIRED: ngrok must be up */
-  const WEBHOOK_ORIG = "https://sound-kangaroo-unlikely.ngrok-free.app";
-  const WEBHOOK_URL  = WEBHOOK_ORIG + "/DSN_webhook";
-  const TURD_URL     = WEBHOOK_ORIG + "/DSN_turd";
+  const DEBUG_TURD = true;
+  const RUN_ID     = "run-" + Date.now() + "-" + Math.random().toString(36).slice(2,8);
 
-  const DEBUG_TURD   = true;
-  const RUN_ID       = "run-" + Date.now() + "-" + Math.random().toString(36).slice(2,8);
-
+  // ---- bullet-proof turd: always tries a GET pixel so logs appear even if CORS blocks fetch
   function turd(step, note) {
     if (!DEBUG_TURD) return;
-    const payload = { step, note: String(note||""), where:"HTML", label, from: fromISO, to: toISO, run_id: RUN_ID, ts: Date.now() };
+    const qs = new URLSearchParams({
+      step: step, note: String(note||""), where:"HTML",
+      run_id: RUN_ID, ts: String(Date.now()),
+      label: (typeof label!=="undefined" ? label : ""), from: (typeof fromISO!=="undefined"?fromISO:""), to: (typeof toISO!=="undefined"?toISO:"")
+    });
+    // Pixel GET (works without CORS)
+    try { (new Image()).src = TURD_URL + "?" + qs.toString(); } catch(_) {}
+    // Best-effort POST (ok if blocked)
     try {
-      if (navigator.sendBeacon) {
-        const blob = new Blob([JSON.stringify(payload)], {type:"text/plain;charset=UTF-8"});
-        if (navigator.sendBeacon(TURD_URL, blob)) return;
-      }
-    } catch(_) {}
-    try {
-      fetch(TURD_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=UTF-8"}, body:JSON.stringify(payload), keepalive:true, mode:"no-cors" });
-      return;
-    } catch(_) {}
-    try {
-      const q = new URLSearchParams({ step:payload.step, note:payload.note, where:payload.where, label:payload.label, from:payload.from, to:payload.to, run_id:payload.run_id, ts:String(payload.ts) });
-      (new Image()).src = TURD_URL + "?" + q.toString();
+      fetch(TURD_URL, { method:"POST", mode:"no-cors",
+        headers:{"Content-Type":"text/plain;charset=UTF-8"},
+        body: JSON.stringify(Object.fromEntries(qs))
+      });
     } catch(_) {}
   }
+
+  // Global traps -> always logged
+  window.addEventListener("error", e => turd("window_error", (e && e.message) || "err"));
+  window.addEventListener("unhandledrejection", e => turd("unhandled_rejection", (e && (e.reason && e.reason.message)) || "rej"));
 
   const qs    = new URLSearchParams(location.search);
   const label = (qs.get("label")||"").trim();
   const from  = (qs.get("from") || "").trim();
   const to    = (qs.get("to")   || "").trim();
-  function toISO(s) { if (!s) return ""; try { return new Date(s).toISOString(); } catch { return ""; } }
+  function toISO(s){ if(!s) return ""; try { return new Date(s).toISOString(); } catch { return ""; } }
   const fromISO = toISO(from);
   const toISO   = toISO(to);
   turd("page_load", location.search);
 
-  const titleEl = document.getElementById("title");
-  const statusEl= document.getElementById("status");
-  const linkEl  = document.getElementById("open-link");
-  const barEl   = document.getElementById("bar");
-  const legL    = document.getElementById("leg-left");
-  const legR    = document.getElementById("leg-right");
-  const extendBtn = document.getElementById("extend-btn");
-  const exitBtn   = document.getElementById("exit-btn");
+  const titleEl  = document.getElementById("title");
+  const statusEl = document.getElementById("status");
+  const linkEl   = document.getElementById("open-link");
+  const barEl    = document.getElementById("bar");
+  const legL     = document.getElementById("leg-left");
+  const legR     = document.getElementById("leg-right");
+  const extendBtn= document.getElementById("extend-btn");
+  const exitBtn  = document.getElementById("exit-btn");
   if (label) titleEl.textContent = `🔬 DSN Analysis — ${label}`;
 
   const jobStart = Date.now();
-  let timeoutMs  = TIMEOUT_MS_INIT;
-  let extraTime  = 0;
-  let lastStamp  = 0;
-  let lastNote   = "";
-  let lastStatus = "";
+  let timeoutMs  = TIMEOUT_MS_INIT, extraTime=0, lastStamp=0, lastNote="", lastStatus="";
 
   function mmss(ms){ const s=Math.max(0,Math.floor(ms/1000)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
   function updateProgress(timedOut){
@@ -124,60 +115,66 @@
     legR.textContent = timedOut ? "Waiting…" : `Timeout in ${mmss(Math.max(0,total-elapsed))}`;
   }
   function softExtend(ms, why){ extraTime += ms; turd("auto_extend", `${why} +${Math.round(ms/60000)}m`); }
-  extendBtn.addEventListener("click", ()=>{ extraTime += EXTEND_MS; extendBtn.style.display="none"; statusEl.innerHTML="⏳ Extended… still working."; turd("manual_extend", `+${Math.round(EXTEND_MS/60000)}m`); });
+  extendBtn.addEventListener("click", ()=>{ extraTime+=EXTEND_MS; extendBtn.style.display="none"; statusEl.innerHTML="⏳ Extended… still working."; turd("manual_extend", `+${Math.round(EXTEND_MS/60000)}m`); });
   exitBtn.addEventListener("click", ()=>{ window.close(); });
 
-  // --- ROBUST STATUS LOOKUP: try full label JSON then short label JSON ---
   function statusUrls(){
-    const safeFull  = (label || "").replace(/[^\w.\-]+/g, "_");
-    const shortPart = (label || "").split("_")[0];                      // e.g. "DSN019-S"
-    const safeShort = (shortPart || "").replace(/[^\w.\-]+/g, "_");
+    const safeFull  = (label||"").replace(/[^\w.\-]+/g,"_");
+    const shortPart = (label||"").split("_")[0];
+    const safeShort = (shortPart||"").replace(/[^\w.\-]+/g,"_");
     const bust = `?bust=${Date.now()}`;
-    const u1 = `${GH_PAGES_BASE}${STATUS_DIR}/status-${safeFull}.json${bust}`;
-    const u2 = `${GH_PAGES_BASE}${STATUS_DIR}/status-${safeShort}.json${bust}`;
-    return [u1, u2];
+    return [
+      `${GH_PAGES_BASE}${STATUS_DIR}/status-${safeFull}.json${bust}`,
+      `${GH_PAGES_BASE}${STATUS_DIR}/status-${safeShort}.json${bust}`
+    ];
   }
-  function resolveResultUrl(relOrAbs){ return /^https?:\/\//i.test(relOrAbs) ? relOrAbs : `${GH_PAGES_BASE}${String(relOrAbs).replace(/^\/+/, "")}`; }
+  function resolveResultUrl(relOrAbs){ return /^https?:\/\//i.test(relOrAbs) ? relOrAbs : `${GH_PAGES_BASE}${String(relOrAbs).replace(/^\/+/,"")}`; }
 
-  /* ==== PRE-FLIGHT: verify ngrok reachable before posting the job ==== */
-  async function preflightNgrok() {
-    const url = WEBHOOK_ORIG + "/health";
-    try {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 5000);
-      const res = await fetch(url, { method: "GET", mode: "cors", signal: ctrl.signal, cache: "no-store" });
-      clearTimeout(t);
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      turd("preflight_ok", url);
-      return true;
-    } catch (e) {
-      turd("preflight_fail", (e && e.message) ? e.message : "no-reach");
-      return false;
-    }
+  // ===== PRE-FLIGHT: prove ngrok reachable even if fetch/CORS is blocked =====
+  function pingPixel(url, timeoutMs=4000){
+    return new Promise(res=>{
+      let done=false; const img=new Image();
+      const to=setTimeout(()=>{ if(!done){ done=true; img.src=""; res(false); } }, timeoutMs);
+      img.onload=()=>{ if(!done){ done=true; clearTimeout(to); res(true); } };
+      img.onerror=()=>{ if(!done){ done=true; clearTimeout(to); res(false); } };
+      img.referrerPolicy="no-referrer";
+      img.src=url + (url.includes("?")?"&":"?") + "ts=" + Date.now();
+    });
   }
-  /* ================================================================ */
+  async function preflightNgrok(){
+    // 1) Pixel GET to /DSN_turd — doesn’t care about CORS
+    const ok1 = await pingPixel(TURD_URL + "?step=preflight_pixel&where=HTML&run_id="+encodeURIComponent(RUN_ID));
+    if (ok1) { turd("preflight_ok_pixel","1x1 ok"); return true; }
+    // 2) Optional /health fetch (may be CORS blocked)
+    try {
+      const ctrl = new AbortController(); const t=setTimeout(()=>ctrl.abort(),5000);
+      const r = await fetch(WEBHOOK_ORIG + "/health", { method:"GET", cache:"no-store", signal:ctrl.signal });
+      clearTimeout(t);
+      if (r.ok) { turd("preflight_ok_health","HTTP "+r.status); return true; }
+      turd("preflight_fail_health","HTTP "+r.status); return false;
+    } catch(e){ turd("preflight_fail_health",(e&&e.message)||"health_err"); return false; }
+  }
+  // ==========================================================================
 
   (async function main(){
     statusEl.innerHTML = label
       ? `🔄 Running DSN analysis for <b>${label}</b><br/>⏳ Generating plots…`
       : `🔄 Running DSN analysis…<br/>⏳ Generating plots…`;
 
-    /* ==== PRE-FLIGHT call right before webhook POST ==== */
+    // require ngrok up before posting
     const ok = await preflightNgrok();
     if (!ok) {
-      statusEl.innerHTML = `❌ ngrok unreachable at <code>${WEBHOOK_ORIG}</code><br/><span class="muted">Run <b>GoWebhook</b> (ensure tunnel active) and reload.</span>`;
-      const barEl2 = document.getElementById("bar");
-      if (barEl2) barEl2.style.width = "0%";
+      statusEl.innerHTML = `❌ ngrok unreachable at <code>${WEBHOOK_ORIG}</code><br/><span class="muted">Run <b>GoWebhook</b> and reload.</span>`;
+      barEl.style.width = "0%";
       return;
     }
-    /* =================================================== */
 
+    // POST job
     try {
-      turd("post_job", JSON.stringify({label, from: fromISO, to: toISO}));
+      turd("post_job", JSON.stringify({label, from:fromISO, to:toISO}));
       const res = await fetch(WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label, from: fromISO, to: toISO })
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ label, from:fromISO, to:toISO })
       });
       if (!res.ok) throw new Error(`Webhook HTTP ${res.status}`);
       turd("post_job_ok");
@@ -186,50 +183,34 @@
       turd("post_job_fail", String(e));
     }
 
+    // poll status
     while (true) {
-      const elapsed = Date.now() - jobStart;
-      const total   = timeoutMs + extraTime;
-      const timedOut= elapsed >= total;
+      const elapsed = Date.now()-jobStart, total=timeoutMs+extraTime, timedOut = elapsed>=total;
       updateProgress(timedOut);
-
-      if (timedOut) {
-        statusEl.innerHTML = "⏱️ Still working… might be a larger data window.<br/><span class='muted'>You can keep waiting.</span>";
-        extendBtn.style.display = "inline-block";
-        turd("timeout_window_hit");
-      }
+      if (timedOut) { statusEl.innerHTML="⏱️ Still working… might be a larger data window.<br/><span class='muted'>You can keep waiting.</span>"; extendBtn.style.display="inline-block"; turd("timeout_window_hit"); }
 
       try {
-        let data = null, okUrl = null;
-        for (const u of statusUrls()) {
-          const r = await fetch(u, { cache: "no-store" });
-          if (r.ok) { data = await r.json(); okUrl = u; break; }
-        }
+        let data=null, okUrl=null;
+        for (const u of statusUrls()) { const r=await fetch(u,{cache:"no-store"}); if (r.ok){ data=await r.json(); okUrl=u; break; } }
         if (data) {
-          if ((data.timestamp||0) > lastStamp) { lastStamp = data.timestamp; softExtend(2*60_000, "status timestamp advanced"); }
-          if ((data.note||"") !== lastNote)    { lastNote = data.note||"";   softExtend(60_000, "note changed"); }
-          if ((data.status||"") !== lastStatus){ lastStatus = data.status||""; softExtend(60_000, "status changed"); }
-
-          if (data && data.status && data.html && (data.timestamp||0) >= jobStart) {
+          if ((data.timestamp||0)>lastStamp){ lastStamp=data.timestamp; softExtend(120000,"status timestamp advanced"); }
+          if ((data.note||"")!==lastNote){ lastNote=data.note||""; softExtend(60000,"note changed"); }
+          if ((data.status||"")!==lastStatus){ lastStatus=data.status||""; softExtend(60000,"status changed"); }
+          if (data.status && data.html && (data.timestamp||0) >= jobStart) {
             statusEl.innerHTML = data.status;
             linkEl.href = resolveResultUrl(data.html);
             linkEl.style.display = "inline-block";
-            barEl.style.width = "100%";
-            barEl.classList.remove("timeout");
-            legR.textContent = "Complete";
-            turd("html_ready", (okUrl||"") + " → " + data.html);
+            barEl.style.width = "100%"; barEl.classList.remove("timeout"); legR.textContent = "Complete";
+            turd("html_ready", (okUrl||"")+" → "+data.html);
             break;
           }
-        } else {
-          turd("status_http", "both JSON 404");
-        }
-
+        } else { turd("status_http","both JSON 404"); }
         if (!timedOut) statusEl.innerHTML = `⏳ Generating plots…`;
       } catch (e) {
         if (!timedOut) statusEl.innerHTML = `⏳ Waiting for processing…`;
         turd("status_fetch_fail", String(e));
       }
-
-      await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+      await new Promise(r=>setTimeout(r, POLL_INTERVAL_MS));
     }
   })();
 </script>
