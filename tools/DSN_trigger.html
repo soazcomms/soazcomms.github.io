@@ -48,8 +48,18 @@
   const GH_PAGES_BASE = "https://soazcomms.github.io/";
   const STATUS_DIR    = "status";
 
+  const qs    = new URLSearchParams(location.search);
+  const label = (qs.get("label")||"").trim();
+  const from  = (qs.get("from") || "").trim();
+  const to    = (qs.get("to")   || "").trim();
+  function toISOstr(s){ if(!s) return ""; try { return new Date(s).toISOString(); } catch { return ""; } }
+  const fromISO = toISOstr(from);
+  const toISO   = toISOstr(to);
+
   // **** REQUIRED: ngrok must be up (HTTPS) ****
-  const WEBHOOK_ORIG  = "https://sound-kangaroo-unlikely.ngrok-free.app";
+  // Allow override via ?webhook=https://<host>
+  const DEFAULT_WEBHOOK = "https://sound-kangaroo-unlikely.ngrok-free.app";
+  const WEBHOOK_ORIG  = (qs.get("webhook") || DEFAULT_WEBHOOK).replace(/\/+$/,"");
   const WEBHOOK_URL   = WEBHOOK_ORIG + "/DSN_webhook";
   const TURD_URL      = WEBHOOK_ORIG + "/DSN_turd";
 
@@ -60,21 +70,21 @@
   const DEBUG_TURD = true;
   const RUN_ID     = "run-" + Date.now() + "-" + Math.random().toString(36).slice(2,8);
 
-  // ---- bullet-proof turd: always tries a GET pixel so logs appear even if CORS blocks fetch
+  // ---- bullet-proof turd: always tries a GET pixel and a JSON POST so logs appear even if CORS blocks fetch
   function turd(step, note) {
     if (!DEBUG_TURD) return;
-    const qs = new URLSearchParams({
+    const payload = {
       step: step, note: String(note||""), where:"HTML",
       run_id: RUN_ID, ts: String(Date.now()),
-      label: (typeof label!=="undefined" ? label : ""), from: (typeof fromISO!=="undefined"?fromISO:""), to: (typeof toISO!=="undefined"?toISO:"")
-    });
+      label, from: fromISO, to: toISO, webhook: WEBHOOK_ORIG
+    };
     // Pixel GET (works without CORS)
-    try { (new Image()).src = TURD_URL + "?" + qs.toString(); } catch(_) {}
-    // Best-effort POST (ok if blocked)
+    try { (new Image()).src = TURD_URL + "?" + new URLSearchParams(payload).toString(); } catch(_) {}
+    // Best-effort JSON POST (server handler should accept JSON too)
     try {
       fetch(TURD_URL, { method:"POST", mode:"no-cors",
-        headers:{"Content-Type":"text/plain;charset=UTF-8"},
-        body: JSON.stringify(Object.fromEntries(qs))
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify(payload)
       });
     } catch(_) {}
   }
@@ -83,14 +93,7 @@
   window.addEventListener("error", e => turd("window_error", (e && e.message) || "err"));
   window.addEventListener("unhandledrejection", e => turd("unhandled_rejection", (e && (e.reason && e.reason.message)) || "rej"));
 
-  const qs    = new URLSearchParams(location.search);
-  const label = (qs.get("label")||"").trim();
-  const from  = (qs.get("from") || "").trim();
-  const to    = (qs.get("to")   || "").trim();
-  function toISO(s){ if(!s) return ""; try { return new Date(s).toISOString(); } catch { return ""; } }
-  const fromISO = toISO(from);
-  const toISO   = toISO(to);
-  turd("page_load", location.search);
+  turd("page_load", location.search || "(no query)");
 
   const titleEl  = document.getElementById("title");
   const statusEl = document.getElementById("status");
@@ -142,10 +145,23 @@
     });
   }
   async function preflightNgrok(){
+    // 0) announce which webhook we’ll use
+    turd("preflight_begin", WEBHOOK_ORIG);
+
     // 1) Pixel GET to /DSN_turd — doesn’t care about CORS
     const ok1 = await pingPixel(TURD_URL + "?step=preflight_pixel&where=HTML&run_id="+encodeURIComponent(RUN_ID));
     if (ok1) { turd("preflight_ok_pixel","1x1 ok"); return true; }
-    // 2) Optional /health fetch (may be CORS blocked)
+
+    // 2) Best-effort JSON POST to /DSN_turd
+    try {
+      await fetch(TURD_URL, { method:"POST", mode:"no-cors",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({step:"preflight_post", where:"HTML", run_id:RUN_ID, webhook:WEBHOOK_ORIG})
+      });
+      turd("preflight_post_sent","no-cors");
+    } catch(e){ turd("preflight_post_err", String(e)); }
+
+    // 3) Optional /health fetch (may be CORS blocked)
     try {
       const ctrl = new AbortController(); const t=setTimeout(()=>ctrl.abort(),5000);
       const r = await fetch(WEBHOOK_ORIG + "/health", { method:"GET", cache:"no-store", signal:ctrl.signal });
@@ -164,14 +180,15 @@
     // require ngrok up before posting
     const ok = await preflightNgrok();
     if (!ok) {
-      statusEl.innerHTML = `❌ ngrok unreachable at <code>${WEBHOOK_ORIG}</code><br/><span class="muted">Run <b>GoWebhook</b> and reload.</span>`;
+      statusEl.innerHTML = `❌ ngrok unreachable at <code>${WEBHOOK_ORIG}</code><br/><span class="muted">Run <b>GoWebhook</b> and reload. Or pass ?webhook=https://your-ngrok</span>`;
+      document.title = "❌ DSN Analysis";
       barEl.style.width = "0%";
       return;
     }
 
     // POST job
     try {
-      turd("post_job", JSON.stringify({label, from:fromISO, to:toISO}));
+      turd("post_job", JSON.stringify({label, from:fromISO, to:toISO, webhook:WEBHOOK_ORIG}));
       const res = await fetch(WEBHOOK_URL, {
         method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({ label, from:fromISO, to:toISO })
@@ -182,6 +199,9 @@
       statusEl.textContent = "⏳ Processing… (webhook may be delayed)";
       turd("post_job_fail", String(e));
     }
+
+    const jobStart = Date.now();
+    let timeoutMs  = TIMEOUT_MS_INIT, extraTime=0, lastStamp=0, lastNote="", lastStatus="";
 
     // poll status
     while (true) {
@@ -202,6 +222,7 @@
             linkEl.style.display = "inline-block";
             barEl.style.width = "100%"; barEl.classList.remove("timeout"); legR.textContent = "Complete";
             turd("html_ready", (okUrl||"")+" → "+data.html);
+            document.title = "✅ DSN Analysis";
             break;
           }
         } else { turd("status_http","both JSON 404"); }
