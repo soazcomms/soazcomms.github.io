@@ -29,7 +29,6 @@
     #exit-btn { background:var(--accent); }
     #extend-btn { background:#e0e7ff; }
     .muted { color:#666; font-size:.9rem; }
-    /* Progress bar (unchanged visuals) */
     .progress-wrap { width: min(720px, 90vw); margin: 1rem auto .25rem; text-align: center; }
     .progress { width: 50%; margin: 0 auto; height: 12px; background: var(--barbg); border-radius: 999px; overflow: hidden; box-shadow: inset 0 0 0 1px #e2e8f0; }
     .legend { width: 50%; margin: .35rem auto 0; display: flex; justify-content: space-between; font-size: .85rem; color: #555; }
@@ -42,7 +41,6 @@
   <h2 id="title">🔬 DSN Analysis</h2>
   <div id="status">⏳ Initializing…</div>
 
-  <!-- Progress -->
   <div class="progress-wrap" aria-label="Progress toward timeout window">
     <div class="progress"><div id="bar" class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div></div>
     <div class="legend"><span id="leg-left" class="muted">0:00</span><span id="leg-right" class="muted">Timeout in 7:00</span></div>
@@ -56,27 +54,21 @@
   </div>
 
 <script>
-  // === Config (kept) ===
   const GH_PAGES_BASE    = "https://soazcomms.github.io/";
   const STATUS_DIR       = "status";
-  const WEBHOOK_URL      = "http://127.0.0.1:8050/DSN_webhook";               // << CHANGED
+  const WEBHOOK_URL      = "http://127.0.0.1:8050/DSN_webhook";
   const POLL_INTERVAL_MS = 10_000;
   const TIMEOUT_MS_INIT  = 7 * 60_000;
   const EXTEND_MS        = 7 * 60_000;
 
-  // --- your existing turd config (unchanged constants except base URL) ---
-  const WEBHOOK_ORIG = "http://127.0.0.1:8050";                               // << CHANGED
+  const WEBHOOK_ORIG = "http://127.0.0.1:8050";
   const TURD_URL     = WEBHOOK_ORIG + "/DSN_turd";
   const DEBUG_TURD   = true;
   const RUN_ID       = "run-" + Date.now() + "-" + Math.random().toString(36).slice(2,8);
 
-  // robust turd() that never dies on CORS
   function turd(step, note) {
     if (!DEBUG_TURD) return;
-    const payload = {
-      step, note: String(note||""), where:"HTML",
-      label, from: fromISO, to: toISO, run_id: RUN_ID, ts: Date.now()
-    };
+    const payload = { step, note: String(note||""), where:"HTML", label, from: fromISO, to: toISO, run_id: RUN_ID, ts: Date.now() };
     try {
       if (navigator.sendBeacon) {
         const blob = new Blob([JSON.stringify(payload)], {type:"text/plain;charset=UTF-8"});
@@ -84,39 +76,24 @@
       }
     } catch(_) {}
     try {
-      fetch(TURD_URL, {
-        method: "POST",
-        headers: {"Content-Type":"text/plain;charset=UTF-8"},
-        body: JSON.stringify(payload),
-        keepalive: true,
-        mode: "no-cors"
-      });
+      fetch(TURD_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=UTF-8"}, body:JSON.stringify(payload), keepalive:true, mode:"no-cors" });
       return;
     } catch(_) {}
     try {
-      const q = new URLSearchParams({
-        step: payload.step, note: payload.note, where: payload.where,
-        label: payload.label, from: payload.from, to: payload.to,
-        run_id: payload.run_id, ts: String(payload.ts)
-      });
+      const q = new URLSearchParams({ step:payload.step, note:payload.note, where:payload.where, label:payload.label, from:payload.from, to:payload.to, run_id:payload.run_id, ts:String(payload.ts) });
       (new Image()).src = TURD_URL + "?" + q.toString();
     } catch(_) {}
   }
 
-  // === Query & inputs ===
   const qs    = new URLSearchParams(location.search);
   const label = (qs.get("label")||"").trim();
   const from  = (qs.get("from") || "").trim();
   const to    = (qs.get("to")   || "").trim();
-
   function toISO(s) { if (!s) return ""; try { return new Date(s).toISOString(); } catch { return ""; } }
   const fromISO = toISO(from);
   const toISO   = toISO(to);
-
-  // initial ping so you can tail logs immediately
   turd("page_load", location.search);
 
-  // DOM
   const titleEl = document.getElementById("title");
   const statusEl= document.getElementById("status");
   const linkEl  = document.getElementById("open-link");
@@ -125,7 +102,6 @@
   const legR    = document.getElementById("leg-right");
   const extendBtn = document.getElementById("extend-btn");
   const exitBtn   = document.getElementById("exit-btn");
-
   if (label) titleEl.textContent = `🔬 DSN Analysis — ${label}`;
 
   const jobStart = Date.now();
@@ -148,9 +124,16 @@
   extendBtn.addEventListener("click", ()=>{ extraTime += EXTEND_MS; extendBtn.style.display="none"; statusEl.innerHTML="⏳ Extended… still working."; turd("manual_extend", `+${Math.round(EXTEND_MS/60000)}m`); });
   exitBtn.addEventListener("click", ()=>{ window.close(); });
 
-  function statusUrl(){
-    const safe = (label || "").replace(/[^\w.\-]+/g, "_");
-    return `${GH_PAGES_BASE}${STATUS_DIR}/status-${safe}.json?bust=${Date.now()}`;
+  // --- ROBUST STATUS LOOKUP: try full label JSON then short label JSON ---
+  function statusUrls(){
+    const safeFull  = (label || "").replace(/[^\w.\-]+/g, "_");
+    const shortPart = (label || "").split("_")[0];                      // e.g. "DSN019-S"
+    const safeShort = (shortPart || "").replace(/[^\w.\-]+/g, "_");
+    const bust = `?bust=${Date.now()}`;
+    const u1 = `${GH_PAGES_BASE}${STATUS_DIR}/status-${safeFull}.json${bust}`;
+    const u2 = `${GH_PAGES_BASE}${STATUS_DIR}/status-${safeShort}.json${bust}`;
+    // Prefer full → then short (webhook writes both)
+    return [u1, u2];
   }
   function resolveResultUrl(relOrAbs){ return /^https?:\/\//i.test(relOrAbs) ? relOrAbs : `${GH_PAGES_BASE}${String(relOrAbs).replace(/^\/+/, "")}`; }
 
@@ -186,9 +169,13 @@
       }
 
       try {
-        const res = await fetch(statusUrl(), { cache: "no-store" });
-        if (res.ok) {
-          const data = await res.json();
+        // Try full then short
+        let data = null, okUrl = null;
+        for (const u of statusUrls()) {
+          const r = await fetch(u, { cache: "no-store" });
+          if (r.ok) { data = await r.json(); okUrl = u; break; }
+        }
+        if (data) {
           if ((data.timestamp||0) > lastStamp) { lastStamp = data.timestamp; softExtend(2*60_000, "status timestamp advanced"); }
           if ((data.note||"") !== lastNote)    { lastNote = data.note||"";   softExtend(60_000, "note changed"); }
           if ((data.status||"") !== lastStatus){ lastStatus = data.status||""; softExtend(60_000, "status changed"); }
@@ -200,11 +187,11 @@
             barEl.style.width = "100%";
             barEl.classList.remove("timeout");
             legR.textContent = "Complete";
-            turd("html_ready", data.html);
+            turd("html_ready", (okUrl||"") + " → " + data.html);
             break;
           }
         } else {
-          turd("status_http", "HTTP " + res.status);
+          turd("status_http", "both JSON 404");
         }
 
         if (!timedOut) statusEl.innerHTML = `⏳ Generating plots…`;
