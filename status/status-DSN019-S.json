@@ -1,1 +1,1 @@
-{"phase":"error","status":"❌ Analysis failed for <b>DSN019-S_MtLemmon</b> (rc=1)","note":"See logs/turd.log for the exact error output.","timestamp":1762052006}
+{"phase":"running","status":"⏳ CSV running for DSN019-S_MtLemmon","csv":"DSNdata/DSN019-S_MtLemmon_20250407_20250508.csv","csv_raw":"https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/DSNdata/DSN019-S_MtLemmon_20250407_20250508.csv","log":"logs/turd.log","timestamp":1762070363}
