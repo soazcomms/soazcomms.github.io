@@ -64,11 +64,7 @@
   const TIMEOUT_MS_INIT  = 7 * 60_000;   // initial window (unchanged)
   const EXTEND_MS        = 7 * 60_000;   // manual extend button (unchanged)
 
-<<<<<<< Updated upstream
   // --- small debug/turd hook (no behavioral change if endpoint absent) ---
-=======
-  // --- small debug/turd hook (present in your file; left intact) ---
->>>>>>> Stashed changes
   const WEBHOOK_ORIG = "https://sound-kangaroo-unlikely.ngrok-free.app";
   const TURD_URL     = WEBHOOK_ORIG + "/DSN_turd";
   const DEBUG_TURD   = true;                 // set false to disable client-side debug pings
@@ -112,11 +108,7 @@
   // Progress state
   const jobStart   = Date.now();
   let timeoutMs    = TIMEOUT_MS_INIT;
-<<<<<<< Updated upstream
   let extraTime    = 0;               // <-- Option A uses this to extend automatically
-=======
-  let extraTime    = 0;               // <-- unchanged behavior
->>>>>>> Stashed changes
   let lastStamp    = 0;
   let lastNote     = "";
   let lastStatus   = "";
@@ -139,21 +131,13 @@
     legR.textContent = timedOut ? "Waiting…" : `Timeout in ${mmss(remain)}`;
   }
 
-<<<<<<< Updated upstream
   // --- Option A: soft auto-extend when we see forward progress ---
-=======
-  // unchanged: soft auto-extend on forward progress
->>>>>>> Stashed changes
   function softExtend(ms, why) {
     extraTime += ms;
     turd("auto_extend", `${why} +${Math.round(ms/60000)}m`);
   }
 
-<<<<<<< Updated upstream
   // Manual extend button (unchanged behavior)
-=======
-  // Manual extend button
->>>>>>> Stashed changes
   extendBtn.addEventListener("click", () => {
     extraTime += EXTEND_MS;
     extendBtn.style.display = "none";
@@ -164,18 +148,9 @@
   // Exit button
   exitBtn.addEventListener("click", () => { window.close(); });
 
-<<<<<<< Updated upstream
   // Helpers
   function statusUrl() {
     const safe = (label || "").replace(/[^\w.\-]+/g, "_");
-=======
-  // **Surgical addition**: prefer resolved full label for status polling
-  let statusLabel = label;   // default to short label; updated after webhook returns JSON
-
-  // Helpers
-  function statusUrl() {
-    const safe = (statusLabel || "").replace(/[^\w.\-]+/g, "_");  // CHANGED: use statusLabel
->>>>>>> Stashed changes
     return `${GH_PAGES_BASE}${STATUS_DIR}/status-${safe}.json?bust=${Date.now()}`;
   }
   function resolveResultUrl(relOrAbs) {
@@ -185,10 +160,7 @@
 
   // Kickoff → webhook → then poll
   (async function main(){
-<<<<<<< Updated upstream
     // Show immediate running state
-=======
->>>>>>> Stashed changes
     statusEl.innerHTML = label
       ? `🔄 Running DSN analysis for <b>${label}</b><br/>⏳ Generating plots…`
       : `🔄 Running DSN analysis…<br/>⏳ Generating plots…`;
@@ -197,35 +169,17 @@
       const res = await fetch(WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-<<<<<<< Updated upstream
-        body: JSON.stringify({ label, from: fromISO, to: toISO }) // send hardened ISO only
-      });
-=======
         body: JSON.stringify({ label, from: fromISO, to: toISO }) // hardened ISO
-      });
-
-      // **Surgical addition**: read JSON and adopt full_label if provided
-      try {
-        const j = await res.json().catch(() => null);
-        if (j && j.full_label) {
-          statusLabel = String(j.full_label).trim();
-          turd("label-resolve", `${label} → ${statusLabel}`);
-        }
-      } catch {}
-
->>>>>>> Stashed changes
-      if (!res.ok) throw new Error(`Webhook HTTP ${res.status}`);
+    });
+    
+    if (!res.ok) throw new Error(`Webhook HTTP ${res.status}`);
       turd("post_job_ok");
     } catch (e) {
       statusEl.textContent = "⏳ Processing… (webhook may be delayed)";
       turd("post_job_fail", String(e));
     }
 
-<<<<<<< Updated upstream
     // Poll loop
-=======
-    // Poll loop (unchanged visuals/flow)
->>>>>>> Stashed changes
     while (true) {
       const elapsed = Date.now() - jobStart;
       const total   = timeoutMs + extraTime;
@@ -242,10 +196,7 @@
         const res = await fetch(statusUrl(), { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
-<<<<<<< Updated upstream
           // Option A: detect forward progress and extend gently
-=======
->>>>>>> Stashed changes
           if ((data.timestamp||0) > lastStamp) {
             lastStamp = data.timestamp;
             softExtend(2 * 60_000, "status timestamp advanced");
@@ -259,10 +210,7 @@
             softExtend(60_000, "status changed");
           }
 
-<<<<<<< Updated upstream
           // Success (unchanged)
-=======
->>>>>>> Stashed changes
           if (data && data.status && data.html && (data.timestamp||0) >= jobStart) {
             statusEl.innerHTML = data.status;
             linkEl.href = resolveResultUrl(data.html);
