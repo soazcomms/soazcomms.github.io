@@ -56,26 +56,57 @@
   </div>
 
 <script>
-  // === Config (kept from your current file) ===
+  // === Config (kept) ===
   const GH_PAGES_BASE    = "https://soazcomms.github.io/";
   const STATUS_DIR       = "status";
   const WEBHOOK_URL      = "https://sound-kangaroo-unlikely.ngrok-free.app/DSN_webhook";
   const POLL_INTERVAL_MS = 10_000;
-  const TIMEOUT_MS_INIT  = 7 * 60_000;   // initial window (unchanged)
-  const EXTEND_MS        = 7 * 60_000;   // manual extend button (unchanged)
+  const TIMEOUT_MS_INIT  = 7 * 60_000;
+  const EXTEND_MS        = 7 * 60_000;
 
-  // --- small debug/turd hook (no behavioral change if endpoint absent) ---
+  // --- your existing turd config (unchanged constants) ---
   const WEBHOOK_ORIG = "https://sound-kangaroo-unlikely.ngrok-free.app";
   const TURD_URL     = WEBHOOK_ORIG + "/DSN_turd";
-  const DEBUG_TURD   = true;                 // set false to disable client-side debug pings
+  const DEBUG_TURD   = true;
   const RUN_ID       = "run-" + Date.now() + "-" + Math.random().toString(36).slice(2,8);
-  function postJSON(url, obj) {
-    return fetch(url, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(obj||{}) });
-  }
+
+  // >>> SURGICAL: robust turd() that never dies on CORS
   function turd(step, note) {
     if (!DEBUG_TURD) return;
-    postJSON(TURD_URL, { step, note: String(note||""), where:"HTML", label, from: fromISO, to: toISO, run_id: RUN_ID })
-      .catch(()=>{});
+    const payload = {
+      step, note: String(note||""), where:"HTML",
+      label, from: fromISO, to: toISO, run_id: RUN_ID, ts: Date.now()
+    };
+
+    // 1) Try sendBeacon (POST, text/plain, no preflight)
+    try {
+      if (navigator.sendBeacon) {
+        const blob = new Blob([JSON.stringify(payload)], {type:"text/plain;charset=UTF-8"});
+        if (navigator.sendBeacon(TURD_URL, blob)) return;
+      }
+    } catch(_) {}
+
+    // 2) Try fetch POST text/plain (opaque ok)
+    try {
+      fetch(TURD_URL, {
+        method: "POST",
+        headers: {"Content-Type":"text/plain;charset=UTF-8"},
+        body: JSON.stringify(payload),
+        keepalive: true,
+        mode: "no-cors"    // allow send even without CORS headers
+      });
+      return;
+    } catch(_) {}
+
+    // 3) Last-ditch: image GET beacon (works even with strict CORS)
+    try {
+      const q = new URLSearchParams({
+        step: payload.step, note: payload.note, where: payload.where,
+        label: payload.label, from: payload.from, to: payload.to,
+        run_id: payload.run_id, ts: String(payload.ts)
+      });
+      (new Image()).src = TURD_URL + "?" + q.toString();
+    } catch(_) {}
   }
 
   // === Query & inputs ===
@@ -84,13 +115,12 @@
   const from  = (qs.get("from") || "").trim();
   const to    = (qs.get("to")   || "").trim();
 
-  // Harden incoming times to ISO; also compute short pretty spans
-  function toISO(s) {
-    if (!s) return "";
-    try { return new Date(s).toISOString(); } catch { return ""; }
-  }
+  function toISO(s) { if (!s) return ""; try { return new Date(s).toISOString(); } catch { return ""; } }
   const fromISO = toISO(from);
   const toISO   = toISO(to);
+
+  // initial ping so you can tail logs immediately
+  turd("page_load", location.search);
 
   // DOM
   const titleEl = document.getElementById("title");
@@ -102,84 +132,53 @@
   const extendBtn = document.getElementById("extend-btn");
   const exitBtn   = document.getElementById("exit-btn");
 
-  // Title text
   if (label) titleEl.textContent = `🔬 DSN Analysis — ${label}`;
 
-  // Progress state
-  const jobStart   = Date.now();
-  let timeoutMs    = TIMEOUT_MS_INIT;
-  let extraTime    = 0;               // <-- Option A uses this to extend automatically
-  let lastStamp    = 0;
-  let lastNote     = "";
-  let lastStatus   = "";
+  const jobStart = Date.now();
+  let timeoutMs  = TIMEOUT_MS_INIT;
+  let extraTime  = 0;
+  let lastStamp  = 0;
+  let lastNote   = "";
+  let lastStatus = "";
 
-  function mmss(ms) {
-    const s = Math.max(0, Math.floor(ms/1000));
-    const m = Math.floor(s/60);
-    const r = s % 60;
-    return `${m}:${String(r).padStart(2,"0")}`;
-  }
-
-  function updateProgress(timedOut) {
-    const elapsed = Date.now() - jobStart;
-    const total   = timeoutMs + extraTime;
-    const pct     = Math.max(3, Math.min(100, Math.floor(elapsed / total * 100)));
-    barEl.style.width = pct + "%";
+  function mmss(ms){ const s=Math.max(0,Math.floor(ms/1000)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
+  function updateProgress(timedOut){
+    const elapsed = Date.now()-jobStart, total=timeoutMs+extraTime;
+    const pct = Math.max(3, Math.min(100, Math.floor(elapsed/total*100)));
+    barEl.style.width = pct+"%";
     if (timedOut) barEl.classList.add("timeout"); else barEl.classList.remove("timeout");
     legL.textContent = mmss(elapsed);
-    const remain = Math.max(0, total - elapsed);
-    legR.textContent = timedOut ? "Waiting…" : `Timeout in ${mmss(remain)}`;
+    legR.textContent = timedOut ? "Waiting…" : `Timeout in ${mmss(Math.max(0,total-elapsed))}`;
   }
+  function softExtend(ms, why){ extraTime += ms; turd("auto_extend", `${why} +${Math.round(ms/60000)}m`); }
+  extendBtn.addEventListener("click", ()=>{ extraTime += EXTEND_MS; extendBtn.style.display="none"; statusEl.innerHTML="⏳ Extended… still working."; turd("manual_extend", `+${Math.round(EXTEND_MS/60000)}m`); });
+  exitBtn.addEventListener("click", ()=>{ window.close(); });
 
-  // --- Option A: soft auto-extend when we see forward progress ---
-  function softExtend(ms, why) {
-    extraTime += ms;
-    turd("auto_extend", `${why} +${Math.round(ms/60000)}m`);
-  }
-
-  // Manual extend button (unchanged behavior)
-  extendBtn.addEventListener("click", () => {
-    extraTime += EXTEND_MS;
-    extendBtn.style.display = "none";
-    statusEl.innerHTML = "⏳ Extended… still working.";
-    turd("manual_extend", `+${Math.round(EXTEND_MS/60000)}m`);
-  });
-
-  // Exit button
-  exitBtn.addEventListener("click", () => { window.close(); });
-
-  // Helpers
-  function statusUrl() {
+  function statusUrl(){
     const safe = (label || "").replace(/[^\w.\-]+/g, "_");
     return `${GH_PAGES_BASE}${STATUS_DIR}/status-${safe}.json?bust=${Date.now()}`;
   }
-  function resolveResultUrl(relOrAbs) {
-    return /^https?:\/\//i.test(relOrAbs) ? relOrAbs
-      : `${GH_PAGES_BASE}${String(relOrAbs).replace(/^\/+/, "")}`;
-  }
+  function resolveResultUrl(relOrAbs){ return /^https?:\/\//i.test(relOrAbs) ? relOrAbs : `${GH_PAGES_BASE}${String(relOrAbs).replace(/^\/+/, "")}`; }
 
-  // Kickoff → webhook → then poll
   (async function main(){
-    // Show immediate running state
     statusEl.innerHTML = label
       ? `🔄 Running DSN analysis for <b>${label}</b><br/>⏳ Generating plots…`
       : `🔄 Running DSN analysis…<br/>⏳ Generating plots…`;
 
     try {
+      turd("post_job", JSON.stringify({label, from: fromISO, to: toISO}));
       const res = await fetch(WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label, from: fromISO, to: toISO }) // hardened ISO
-    });
-    
-    if (!res.ok) throw new Error(`Webhook HTTP ${res.status}`);
+        body: JSON.stringify({ label, from: fromISO, to: toISO })
+      });
+      if (!res.ok) throw new Error(`Webhook HTTP ${res.status}`);
       turd("post_job_ok");
     } catch (e) {
       statusEl.textContent = "⏳ Processing… (webhook may be delayed)";
       turd("post_job_fail", String(e));
     }
 
-    // Poll loop
     while (true) {
       const elapsed = Date.now() - jobStart;
       const total   = timeoutMs + extraTime;
@@ -196,21 +195,10 @@
         const res = await fetch(statusUrl(), { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
-          // Option A: detect forward progress and extend gently
-          if ((data.timestamp||0) > lastStamp) {
-            lastStamp = data.timestamp;
-            softExtend(2 * 60_000, "status timestamp advanced");
-          }
-          if ((data.note||"") !== lastNote) {
-            lastNote = data.note||"";
-            softExtend(60_000, "note changed");
-          }
-          if ((data.status||"") !== lastStatus) {
-            lastStatus = data.status||"";
-            softExtend(60_000, "status changed");
-          }
+          if ((data.timestamp||0) > lastStamp) { lastStamp = data.timestamp; softExtend(2*60_000, "status timestamp advanced"); }
+          if ((data.note||"") !== lastNote)    { lastNote = data.note||"";   softExtend(60_000, "note changed"); }
+          if ((data.status||"") !== lastStatus){ lastStatus = data.status||""; softExtend(60_000, "status changed"); }
 
-          // Success (unchanged)
           if (data && data.status && data.html && (data.timestamp||0) >= jobStart) {
             statusEl.innerHTML = data.status;
             linkEl.href = resolveResultUrl(data.html);
@@ -222,7 +210,7 @@
             break;
           }
         } else {
-          turd("status_http", "HTTP "+res.status);
+          turd("status_http", "HTTP " + res.status);
         }
 
         if (!timedOut) statusEl.innerHTML = `⏳ Generating plots…`;
