@@ -145,14 +145,11 @@
     });
   }
   async function preflightNgrok(){
-    // 0) announce which webhook we’ll use
     turd("preflight_begin", WEBHOOK_ORIG);
 
-    // 1) Pixel GET to /DSN_turd — doesn’t care about CORS
     const ok1 = await pingPixel(TURD_URL + "?step=preflight_pixel&where=HTML&run_id="+encodeURIComponent(RUN_ID));
     if (ok1) { turd("preflight_ok_pixel","1x1 ok"); return true; }
 
-    // 2) Best-effort JSON POST to /DSN_turd
     try {
       await fetch(TURD_URL, { method:"POST", mode:"no-cors",
         headers:{"Content-Type":"application/json"},
@@ -161,7 +158,6 @@
       turd("preflight_post_sent","no-cors");
     } catch(e){ turd("preflight_post_err", String(e)); }
 
-    // 3) Optional /health fetch (may be CORS blocked)
     try {
       const ctrl = new AbortController(); const t=setTimeout(()=>ctrl.abort(),5000);
       const r = await fetch(WEBHOOK_ORIG + "/health", { method:"GET", cache:"no-store", signal:ctrl.signal });
@@ -172,12 +168,61 @@
   }
   // ==========================================================================
 
+  // ---- NEW: explicit pollStatus with error abort & logging ----
+  async function pollStatusOnce() {
+    try {
+      let data=null, okUrl=null;
+      for (const u of statusUrls()) {
+        const r = await fetch(u, {cache:"no-store"});
+        if (r.ok) { data = await r.json(); okUrl=u; break; }
+      }
+      if (!data) {
+        turd("status_http","both JSON 404");
+        return {done:false};
+      }
+
+      // Extend on movement
+      if ((data.timestamp||0)>lastStamp){ lastStamp=data.timestamp; softExtend(120000,"status timestamp advanced"); }
+      if ((data.note||"")!==lastNote){ lastNote=data.note||""; softExtend(60000,"note changed"); }
+      if ((data.status||"")!==lastStatus){ lastStatus=data.status||""; softExtend(60000,"status changed"); }
+
+      // Abort path: phase === "error"
+      if ((data.phase||"") === "error") {
+        const msg = (data.status || "❌ Analysis failed.") + (data.note ? `<pre style="text-align:left;white-space:pre-wrap">${data.note}</pre>` : "");
+        statusEl.innerHTML = msg;
+        barEl.classList.add("timeout");
+        legR.textContent = "Error";
+        turd("analysis_fail", (data.note||"no-note") + " via "+ (okUrl||""));
+        document.title = "❌ DSN Analysis";
+        return {done:true}; // stop polling
+      }
+
+      // Success path
+      if (data.status && data.html && (data.timestamp||0) >= jobStart) {
+        statusEl.innerHTML = data.status;
+        linkEl.href = resolveResultUrl(data.html);
+        linkEl.style.display = "inline-block";
+        barEl.style.width = "100%"; barEl.classList.remove("timeout"); legR.textContent = "Complete";
+        turd("html_ready", (okUrl||"")+" → "+data.html);
+        document.title = "✅ DSN Analysis";
+        return {done:true};
+      }
+
+      // Still running
+      statusEl.innerHTML = `⏳ Generating plots…`;
+      return {done:false};
+
+    } catch (e) {
+      turd("status_fetch_fail", String(e));
+      return {done:false};
+    }
+  }
+
   (async function main(){
     statusEl.innerHTML = label
       ? `🔄 Running DSN analysis for <b>${label}</b><br/>⏳ Generating plots…`
       : `🔄 Running DSN analysis…<br/>⏳ Generating plots…`;
 
-    // require ngrok up before posting
     const ok = await preflightNgrok();
     if (!ok) {
       statusEl.innerHTML = `❌ ngrok unreachable at <code>${WEBHOOK_ORIG}</code><br/><span class="muted">Run <b>GoWebhook</b> and reload. Or pass ?webhook=https://your-ngrok</span>`;
@@ -200,38 +245,15 @@
       turd("post_job_fail", String(e));
     }
 
-    const jobStart = Date.now();
-    let timeoutMs  = TIMEOUT_MS_INIT, extraTime=0, lastStamp=0, lastNote="", lastStatus="";
-
-    // poll status
-    while (true) {
+    // Poll with explicit loop + progress updates
+    let done=false;
+    while (!done) {
       const elapsed = Date.now()-jobStart, total=timeoutMs+extraTime, timedOut = elapsed>=total;
       updateProgress(timedOut);
       if (timedOut) { statusEl.innerHTML="⏱️ Still working… might be a larger data window.<br/><span class='muted'>You can keep waiting.</span>"; extendBtn.style.display="inline-block"; turd("timeout_window_hit"); }
-
-      try {
-        let data=null, okUrl=null;
-        for (const u of statusUrls()) { const r=await fetch(u,{cache:"no-store"}); if (r.ok){ data=await r.json(); okUrl=u; break; } }
-        if (data) {
-          if ((data.timestamp||0)>lastStamp){ lastStamp=data.timestamp; softExtend(120000,"status timestamp advanced"); }
-          if ((data.note||"")!==lastNote){ lastNote=data.note||""; softExtend(60000,"note changed"); }
-          if ((data.status||"")!==lastStatus){ lastStatus=data.status||""; softExtend(60000,"status changed"); }
-          if (data.status && data.html && (data.timestamp||0) >= jobStart) {
-            statusEl.innerHTML = data.status;
-            linkEl.href = resolveResultUrl(data.html);
-            linkEl.style.display = "inline-block";
-            barEl.style.width = "100%"; barEl.classList.remove("timeout"); legR.textContent = "Complete";
-            turd("html_ready", (okUrl||"")+" → "+data.html);
-            document.title = "✅ DSN Analysis";
-            break;
-          }
-        } else { turd("status_http","both JSON 404"); }
-        if (!timedOut) statusEl.innerHTML = `⏳ Generating plots…`;
-      } catch (e) {
-        if (!timedOut) statusEl.innerHTML = `⏳ Waiting for processing…`;
-        turd("status_fetch_fail", String(e));
-      }
-      await new Promise(r=>setTimeout(r, POLL_INTERVAL_MS));
+      const r = await pollStatusOnce();
+      done = !!r.done;
+      if (!done) { await new Promise(r=>setTimeout(r, POLL_INTERVAL_MS)); }
     }
   })();
 </script>
