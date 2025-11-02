@@ -1,1 +1,1 @@
-{"phase":"running","status":"⏳ Running analysis for <b>DSN019-S_MtLemmon</b>…","timestamp":1762052004}
+{"phase":"error","status":"❌ Analysis failed for <b>DSN019-S_MtLemmon</b> (rc=1)","note":"See logs/turd.log for the exact error output.","timestamp":1762052006}
