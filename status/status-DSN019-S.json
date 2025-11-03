@@ -1,1 +1,14 @@
-{"phase": "done", "timestamp": 1762156725, "status": "✅ Analysis complete for <b>DSN019-S_MtLemmon</b>", "note": "done", "html": "analysis/DSN019-S/index.html", "csv": "analysis/DSN019-S/DSN019-S_MtLemmon_20250401_20251201.csv", "csv_raw": "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/analysis/DSN019-S/DSN019-S_MtLemmon_20250401_20251201.csv"}
+{
+  "phase": "done",
+  "label8": "DSN019-S",
+  "label": "DSN019-S_MtLemmon",
+  "ok": false,
+  "error": "Analysis exited rc=1",
+  "done": true,
+  "artifacts": [
+    "/Users/soazdsn/DSN/soazcomms.github.io/analysis/DSN019-S/DSN019-S_MtLemmon_20250401_20251201.csv"
+  ],
+  "timestamp": 1762191895,
+  "status": "\u274c Analysis failed",
+  "html": null
+}
