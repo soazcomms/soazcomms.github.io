@@ -234,8 +234,13 @@
     // POST job
     try {
       turd("post_job", JSON.stringify({label, from:fromISO, to:toISO, webhook:WEBHOOK_ORIG}));
-      const res = await fetch(WEBHOOK_URL, {
-        method:"POST", headers:{"Content-Type":"application/json"},
+      // ✅ Ensure correct target for webhook
+      const base   = (WEBHOOK_ORIG || "").trim();
+      const jobUrl = base.replace(/\/+$/,'') + "/webhook";
+
+      const res = await fetch(jobUrl, {
+        method:"POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ label, from:fromISO, to:toISO })
       });
       if (!res.ok) throw new Error(`Webhook HTTP ${res.status}`);
