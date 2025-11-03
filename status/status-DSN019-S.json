@@ -1,14 +1,13 @@
 {
-  "phase": "done",
+  "phase": "start",
   "label8": "DSN019-S",
   "label": "DSN019-S_MtLemmon",
-  "ok": false,
-  "error": "Analysis exited rc=1",
-  "done": true,
-  "artifacts": [
-    "/Users/soazdsn/DSN/soazcomms.github.io/analysis/DSN019-S/DSN019-S_MtLemmon_20250401_20251201.csv"
-  ],
-  "timestamp": 1762194890,
-  "status": "\u274c Analysis failed",
-  "html": null
+  "ok": true,
+  "error": null,
+  "done": false,
+  "artifacts": [],
+  "timestamp": 1762199019,
+  "status": "\ud83d\udd27 Starting",
+  "from": "2025-04-01T00:00:00.000Z",
+  "to": "2025-12-01T00:00:00.000Z"
 }
