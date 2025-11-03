@@ -56,8 +56,7 @@
   const fromISO = toISOstr(from);
   const toISO   = toISOstr(to);
 
-  // **** REQUIRED: ngrok must be up (HTTPS) ****
-  // Allow override via ?webhook=https://<host>
+  // ngrok webhook base (allow override via ?webhook=)
   const DEFAULT_WEBHOOK = "https://sound-kangaroo-unlikely.ngrok-free.app";
   const WEBHOOK_ORIG  = (qs.get("webhook") || DEFAULT_WEBHOOK).replace(/\/+$/,"");
   const WEBHOOK_URL   = WEBHOOK_ORIG + "/DSN_webhook";
@@ -70,7 +69,6 @@
   const DEBUG_TURD = true;
   const RUN_ID     = "run-" + Date.now() + "-" + Math.random().toString(36).slice(2,8);
 
-  // ---- bullet-proof turd: always tries a GET pixel and a JSON POST so logs appear even if CORS blocks fetch
   function turd(step, note) {
     if (!DEBUG_TURD) return;
     const payload = {
@@ -78,9 +76,7 @@
       run_id: RUN_ID, ts: String(Date.now()),
       label, from: fromISO, to: toISO, webhook: WEBHOOK_ORIG
     };
-    // Pixel GET (works without CORS)
     try { (new Image()).src = TURD_URL + "?" + new URLSearchParams(payload).toString(); } catch(_) {}
-    // Best-effort JSON POST (server handler should accept JSON too)
     try {
       fetch(TURD_URL, { method:"POST", mode:"no-cors",
         headers:{"Content-Type":"application/json"},
@@ -88,8 +84,6 @@
       });
     } catch(_) {}
   }
-
-  // Global traps -> always logged
   window.addEventListener("error", e => turd("window_error", (e && e.message) || "err"));
   window.addEventListener("unhandledrejection", e => turd("unhandled_rejection", (e && (e.reason && e.reason.message)) || "rej"));
 
@@ -132,8 +126,13 @@
     ];
   }
   function resolveResultUrl(relOrAbs){ return /^https?:\/\//i.test(relOrAbs) ? relOrAbs : `${GH_PAGES_BASE}${String(relOrAbs).replace(/^\/+/,"")}`; }
+  function fallbackHtmlUrl(lbl){
+    const short=(lbl||"").split("_")[0];
+    if(!short) return null;
+    return `${GH_PAGES_BASE}analysis/${short}/${short}.analysis.html`;
+  }
 
-  // ===== PRE-FLIGHT: prove ngrok reachable even if fetch/CORS is blocked =====
+  // lightweight pixel ping
   function pingPixel(url, timeoutMs=4000){
     return new Promise(res=>{
       let done=false; const img=new Image();
@@ -146,10 +145,8 @@
   }
   async function preflightNgrok(){
     turd("preflight_begin", WEBHOOK_ORIG);
-
     const ok1 = await pingPixel(TURD_URL + "?step=preflight_pixel&where=HTML&run_id="+encodeURIComponent(RUN_ID));
     if (ok1) { turd("preflight_ok_pixel","1x1 ok"); return true; }
-
     try {
       await fetch(TURD_URL, { method:"POST", mode:"no-cors",
         headers:{"Content-Type":"application/json"},
@@ -157,53 +154,49 @@
       });
       turd("preflight_post_sent","no-cors");
     } catch(e){ turd("preflight_post_err", String(e)); }
-
     try {
       const ctrl = new AbortController(); const t=setTimeout(()=>ctrl.abort(),5000);
       const r = await fetch(WEBHOOK_ORIG + "/health", { method:"GET", cache:"no-store", signal:ctrl.signal });
       clearTimeout(t);
       if (r.ok) { turd("preflight_ok_health","HTTP "+r.status); return true; }
       turd("preflight_fail_health","HTTP "+r.status); return false;
-    } catch(e){ turd("preflight_fail_health",(e&&e.message)||"health_err"); return false; }
+    } catch(e){ turd("preflight_fail_health",(e&&e.message)||"health_err"); return false;
+    }
   }
-  // ==========================================================================
 
-  // ---- NEW: explicit pollStatus with error abort & logging ----
   async function pollStatusOnce() {
     try {
-      let data=null, okUrl=null;
+      let data=null;
       for (const u of statusUrls()) {
         const r = await fetch(u, {cache:"no-store"});
-        if (r.ok) { data = await r.json(); okUrl=u; break; }
+        if (r.ok) { data = await r.json(); break; }
       }
-      if (!data) {
-        turd("status_http","both JSON 404");
-        return {done:false};
-      }
+      if (!data) { turd("status_http","both JSON 404"); return {done:false}; }
 
       // Extend on movement
       if ((data.timestamp||0)>lastStamp){ lastStamp=data.timestamp; softExtend(120000,"status timestamp advanced"); }
       if ((data.note||"")!==lastNote){ lastNote=data.note||""; softExtend(60000,"note changed"); }
       if ((data.status||"")!==lastStatus){ lastStatus=data.status||""; softExtend(60000,"status changed"); }
 
-      // Abort path: phase === "error"
+      // Abort on error
       if ((data.phase||"") === "error") {
         const msg = (data.status || "❌ Analysis failed.") + (data.note ? `<pre style="text-align:left;white-space:pre-wrap">${data.note}</pre>` : "");
-        statusEl.innerHTML = msg;
-        barEl.classList.add("timeout");
-        legR.textContent = "Error";
-        turd("analysis_fail", (data.note||"no-note") + " via "+ (okUrl||""));
-        document.title = "❌ DSN Analysis";
-        return {done:true}; // stop polling
+        statusEl.innerHTML = msg; barEl.classList.add("timeout"); legR.textContent = "Error";
+        turd("analysis_fail", data.note||"no-note"); document.title = "❌ DSN Analysis";
+        return {done:true};
       }
 
-      // Success path
-      if (data.status && data.html && (data.timestamp||0) >= jobStart) {
-        statusEl.innerHTML = data.status;
-        linkEl.href = resolveResultUrl(data.html);
+      // ✅ Success path — accept either explicit html OR done:true + fallback URL
+      const explicitHtml = data.html && String(data.html).trim();
+      const fallbackHtml = (!explicitHtml && data.done===true) ? fallbackHtmlUrl(label) : null;
+      const finalHtml    = explicitHtml ? resolveResultUrl(explicitHtml) : fallbackHtml;
+
+      if (finalHtml) {
+        statusEl.innerHTML = data.status || "✅ Analysis complete.";
+        linkEl.href = finalHtml;
         linkEl.style.display = "inline-block";
         barEl.style.width = "100%"; barEl.classList.remove("timeout"); legR.textContent = "Complete";
-        turd("html_ready", (okUrl||"")+" → "+data.html);
+        turd("html_ready", finalHtml);
         document.title = "✅ DSN Analysis";
         return {done:true};
       }
@@ -234,10 +227,7 @@
     // POST job
     try {
       turd("post_job", JSON.stringify({label, from:fromISO, to:toISO, webhook:WEBHOOK_ORIG}));
-      // ✅ Ensure correct target for webhook
-      const base   = (WEBHOOK_ORIG || "").trim();
-      const jobUrl = base.replace(/\/+$/,'') + "/webhook";
-
+      const jobUrl = WEBHOOK_ORIG.replace(/\/+$/,'') + "/webhook";
       const res = await fetch(jobUrl, {
         method:"POST",
         headers: { "Content-Type": "application/json" },
