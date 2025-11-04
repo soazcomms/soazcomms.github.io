@@ -275,7 +275,20 @@
     function(){ turdLite("post_job_ok"); },
     function(code, body){ turdLite("post_job_fail", "code="+code); }
   );
-
+  // kick the job — CSV only (and optional force)
+  postJSON(
+      WEBHOOK_URL,
+      {
+	  label: label,
+	  from:  yFrom,           // YYYY-MM-DD already
+	  to:    yTo,             // YYYY-MM-DD already
+	  csv_only: true,         // <— run CSV job only
+	  // force: true          // <— uncomment to force rebuild even if CSV exists
+      },
+      function(){ turdLite("post_job_ok"); },
+      function(code, body){ turdLite("post_job_fail", "code="+code); }
+  );
+    
   // poll for CSV + animate progress bar
   var MAX_MS = 180000;
   var loop = setInterval(function(){
