@@ -44,6 +44,11 @@
     <button id="exit-btn"   type="button">🔙 Exit</button>
   </div>
 
+<script src="https://sound-kangaroo-unlikely.ngrok-free.app/env.js"></script>
+<script>
+  console.log("DEBUG_TURD =", window.DEBUG_TURD);
+</script>
+
 <script>
   const GH_PAGES_BASE = "https://soazcomms.github.io/";
   const STATUS_DIR    = "status";
@@ -66,7 +71,6 @@
   const TIMEOUT_MS_INIT  = 7 * 60_000;
   const EXTEND_MS        = 7 * 60_000;
 
-  const DEBUG_TURD = true;
   const RUN_ID     = "run-" + Date.now() + "-" + Math.random().toString(36).slice(2,8);
 
   function turd(step, note) {
