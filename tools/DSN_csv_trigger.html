@@ -44,6 +44,11 @@
   <div class="row hint"   id="hint" style="display:none;"></div>
 </div>
 
+<script src="https://sound-kangaroo-unlikely.ngrok-free.app/env.js"></script>
+<script>
+  console.log("DEBUG_TURD =", window.DEBUG_TURD);
+</script>
+
 <script>
 (function(){
   // ===== constants (as in your file) =====
@@ -53,8 +58,7 @@
   var WEBHOOK_URL   = WEBHOOK_ORIG + "/DSN_csv";
   var CLEANUP_URL   = WEBHOOK_ORIG + "/DSN_cleanup";
   var TURD_URL      = WEBHOOK_ORIG + "/DSN_turd";
-  var DEBUG_TURD = false;   // your toggle stays
-
+#  var DEBUG_TURD = false;   // your toggle stays
   // ===== DOM =====
   var wrapEl  = document.getElementById("wrap");
   var statusEl= document.getElementById("status");
