@@ -13,10 +13,14 @@
   .btn.disabled{opacity:.5;pointer-events:none}
   .ok{color:#0a6}
   .err{color:#b00}
-  .bar{height:14px;background:#222;border-radius:7px;overflow:hidden;outline:2px solid #900}
-  .bar>span{display:block;height:100%;width:0%;
-            background:#ff1744;box-shadow:0 0 6px #ff1744,0 0 12px #ff1744;transition:width .25s ease}
-  .done .bar>span{background:#18c37e;box-shadow:0 0 6px #18c37e,0 0 12px #18c37e}
+
+  /* ==== New progress UI to match DSN_trigger.html ==== */
+  .progress-wrap { width:min(720px,90vw); margin:.75rem 0 .25rem; text-align:center; }
+  .progress { width:50%; margin:0 auto; height:12px; background:#edf2f7; border-radius:999px; overflow:hidden; box-shadow:inset 0 0 0 1px #e2e8f0; }
+  .legend { width:50%; margin:.35rem auto 0; display:flex; justify-content:space-between; font-size:.85rem; color:#555; }
+  .bar { height:100%; width:0%; background:linear-gradient(90deg,#69c,#38bdf8 40%,#22c55e 75%,#16a34a 100%); transition:width .4s ease; }
+  .bar.timeout { background:linear-gradient(90deg,#f59e0b,#ef4444); }
+
   .hint{font-size:.9rem;color:#666}
 </style>
 
@@ -24,7 +28,11 @@
   <h1>DSN CSV Export</h1>
   <div class="muted" id="desc">Preparing…</div>
 
-  <div class="row"><div class="bar"><span id="bar"></span></div></div>
+  <!-- ===== New DSN-trigger-style progress bar + timer ===== -->
+  <div class="progress-wrap" aria-label="Progress toward timeout window">
+    <div class="progress"><div id="bar" class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div></div>
+    <div class="legend"><span id="leg-left" class="muted">0:00</span><span id="leg-right" class="muted">Timeout in 7:00</span></div>
+  </div>
 
   <div class="row">
     <a id="download" class="btn disabled" href="#">⬇ Download CSV</a>
@@ -45,17 +53,39 @@
   var WEBHOOK_URL   = WEBHOOK_ORIG + "/DSN_csv";
   var CLEANUP_URL   = WEBHOOK_ORIG + "/DSN_cleanup";
   var TURD_URL      = WEBHOOK_ORIG + "/DSN_turd";
-  // turn debug "turd" logging on/off
-  var DEBUG_TURD = false;   // <-- set to false to disable logging
+  var DEBUG_TURD = false;   // your toggle stays
+
   // ===== DOM =====
   var wrapEl  = document.getElementById("wrap");
   var statusEl= document.getElementById("status");
-  var barFill = document.getElementById("bar");
+  var barEl   = document.getElementById("bar");                // new
+  var legL    = document.getElementById("leg-left");           // new
+  var legR    = document.getElementById("leg-right");          // new
   var dlEl    = document.getElementById("download");
   var logEl   = document.getElementById("viewlog");
   var retryEl = document.getElementById("retry");
   var descEl  = document.getElementById("desc");
   var hintEl  = document.getElementById("hint");
+
+  // ===== timers to match DSN_trigger.html =====
+  var POLL_INTERVAL_MS = 900;          // probe cadence
+  var TIMEOUT_MS_INIT  = 7 * 60_000;   // 7 min window
+  var EXTRA_MS         = 0;
+  var jobStart         = Date.now();
+
+  function mmss(ms){ var s=Math.max(0,Math.floor(ms/1000)); return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); }
+  function updateProgress(timedOut){
+    var elapsed = Date.now()-jobStart, total = TIMEOUT_MS_INIT + EXTRA_MS;
+    var pct = Math.max(3, Math.min(100, Math.floor(elapsed/total*100)));
+    barEl.style.width = pct + "%";
+    if (timedOut) barEl.classList.add("timeout"); else barEl.classList.remove("timeout");
+    legL.textContent = mmss(elapsed);
+    legR.textContent = timedOut ? "Waiting…" : ("Timeout in " + mmss(Math.max(0, total - elapsed)));
+  }
+  function softExtend(ms, why){
+    EXTRA_MS += ms;
+    if (DEBUG_TURD) turd("auto_extend", (why||"") + " +" + Math.round(ms/60000) + "m");
+  }
 
   // ===== query =====
   var qs    = new URLSearchParams(location.search);
@@ -70,7 +100,7 @@
   var safeLabel = (label||"").replace(/[^\w.\-]+/g, "_");
   descEl.textContent = "Label: "+label+" · Range: "+yFrom+" → "+yTo;
 
-  // computed paths
+  // computed paths (unchanged)
   var csvRel = "DSNdata/"+safeLabel+"_"+yFromC+"_"+yToC+".csv";
   var logRel = "logs/csv-"+safeLabel+"-"+yFromC+yToC+".log";
   var csvRAW = GH_RAW_BASE+"/"+csvRel;
@@ -108,7 +138,7 @@
     }catch(e){ fail && fail(0); }
   }
 
-  // keep your XHR-based logging
+  // debug logging (kept from your file) — two-line version remained in some versions; de-dupe to one
   var RUN_ID = "run-" + Date.now() + "-" + Math.random().toString(36).slice(2,8);
   function postJSON(url, obj, ok, fail){
     try{
@@ -127,41 +157,18 @@
     }catch(e){ fail && fail(0, String(e)); }
   }
   function turd(step, note){
-      if (!DEBUG_TURD) return;  // <-- disable debug logs without removing calls
-      postJSON(TURD_URL, {step:step, note:note||"", label:label, from:yFrom, to:yTo,       run_id:RUN_ID});
-  }
-    function turd(step, note){
+    if (!DEBUG_TURD) return;
     postJSON(TURD_URL, {step:step, note:note||"", label:label, from:yFrom, to:yTo, run_id:RUN_ID});
   }
 
-  // progress (unchanged)
-  var done=false, start=Date.now();
-  barFill.style.width = "20%";
-  var tick = setInterval(function(){
-    if (done) return;
-    var elapsed = Date.now()-start;
-    var capMs = 120000;
-    var pct = Math.min(97, 20 + (elapsed/capMs)*77);
-    barFill.style.width = pct.toFixed(1) + "%";
-  }, 250);
-
-  // heartbeat (unchanged)
-  var hb = null;
-  if (DEBUG_TURD) {
-	hb = setInterval(function(){
-	    turd("heartbeat","pct="+barFill.style.width);
-	}, 10000);
-  }
-  // === status JSON URL for this label (to make Log usable immediately) ===
+  // status JSON so log button is useful immediately
   function statusJSON(){ return GH_PAGES_BASE + "/status/status-" + encodeURIComponent(safeLabel) + ".json"; }
 
-  // enable log link when available on raw/pages
   function tryEnableLog(){
     xhrHEAD(logRAW, function(){ logEl.href = bust(logRAW); setDisabled(logEl,false); turd("log_head_ok","raw"); },
                   function(){ xhrHEAD(logPGS, function(){ logEl.href = bust(logPGS); setDisabled(logEl,false); turd("log_head_ok","pages"); }); });
   }
 
-  // confirm cleanup by polling RAW then Pages until both 404 (unchanged)
   function confirmCleanup(csvRelPath){
       var raw = GH_RAW_BASE + "/" + csvRelPath;
       var pgs = GH_PAGES_BASE + "/" + csvRelPath;
@@ -190,7 +197,6 @@
       }, 1500);
   }
 
-  // enable download only when CSV verified; cleanup only after user initiated download (unchanged)
   function armDownload(urls){
     setDisabled(dlEl,false);
     dlEl.onclick = function(e){
@@ -217,8 +223,8 @@
           );
           confirmCleanup(csvRel);
 
-          done=true; clearInterval(tick); clearInterval(hb);
-          barFill.style.width="100%"; wrapEl.classList.add("done");
+          // finish bar immediately
+          barEl.style.width="100%";
           statusEl.innerHTML = '<span class="ok">✅ CSV downloaded. Cleaning up…</span>';
           hintEl.style.display="block"; hintEl.textContent = "If your browser blocks the first attempt, click Download again.";
           turd("download_done");
@@ -227,7 +233,7 @@
     };
   }
 
-  // ===== kick job and probe for file =====
+  // ===== kick job and probe =====
   turd("page_load","HTML loaded");
   turd("params", JSON.stringify({label:label,from:yFrom,to:yTo}));
   if (!label || !yFrom || !yTo){
@@ -236,7 +242,7 @@
     return;
   }
 
-  // LOG: activate immediately to status JSON (keeps visuals; just enables the button)
+  // Log button: point to status JSON immediately
   logEl.href = bust(statusJSON());
   setDisabled(logEl,false);
 
@@ -246,19 +252,23 @@
     function(code, body){ turd("post_job_fail", "code="+code+" body="+(body||"")); }
   );
 
-  // 2) probe for CSV: RAW first, then PAGES (unchanged)
-  var MAX_MS = 180000, CAD = 900;
+  // 2) polling loop + progress updates
+  var MAX_MS = 180000;    // 3 minutes max for CSV appearance
   var lastRaw = null, lastPgs = null;
-  var poll = setInterval(function(){
-    if (done) return;
 
-    // still try to upgrade log link to the real file if/when it appears
+  var loop = setInterval(function(){
+    // progress update, including timeout styling and soft extend on movement
+    var timedOut = (Date.now()-jobStart) >= (TIMEOUT_MS_INIT + EXTRA_MS);
+    updateProgress(timedOut);
+
+    // opportunistically enable log link to real log when it shows up
     tryEnableLog();
 
+    // probe RAW first, then Pages
     xhrHEAD(csvRAW, function(code){
       lastRaw = code;
-      clearInterval(poll); done=true; clearInterval(tick); clearInterval(hb);
-      barFill.style.width="100%"; wrapEl.classList.add("done");
+      clearInterval(loop);
+      barEl.style.width="100%";
       statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
       armDownload([csvRAW, csvPGS]);
       turd("csv_head_ok","raw="+code);
@@ -266,16 +276,16 @@
       lastRaw = code;
       xhrHEAD(csvPGS, function(code2){
         lastPgs = code2;
-        clearInterval(poll); done=true; clearInterval(tick); clearInterval(hb);
-        barFill.style.width="100%"; wrapEl.classList.add("done");
+        clearInterval(loop);
+        barEl.style.width="100%";
         statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
         armDownload([csvRAW, csvPGS]);
         turd("csv_head_ok","pages="+code2);
       }, function(code2){
         lastPgs = code2;
-        if ((Date.now()-start) > MAX_MS){
-          clearInterval(poll); clearInterval(tick); clearInterval(hb);
-          barFill.style.width="100%";
+        if ((Date.now()-jobStart) > MAX_MS){
+          clearInterval(loop);
+          barEl.style.width="100%"; barEl.classList.add("timeout");
           statusEl.innerHTML = '<span class="err">❌ File not found where expected.</span>';
           retryEl.style.display="inline-block";
           retryEl.onclick = function(ev){ ev.preventDefault(); turd("retry_click"); location.reload(); };
@@ -283,7 +293,7 @@
         }
       });
     });
-  }, CAD);
+  }, POLL_INTERVAL_MS);
 })();
 </script>
 </html>
