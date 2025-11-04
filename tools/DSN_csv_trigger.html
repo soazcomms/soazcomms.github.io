@@ -61,7 +61,7 @@
   const WEBHOOK_ORIG = (qs.get("webhook") || DEFAULT_WEBHOOK).replace(/\/+$/,"");
 
   // endpoints (kept names)
-  const WEBHOOK_URL = WEBHOOK_ORIG + "/webhook";
+  const WEBHOOK_URL = WEBHOOK_ORIG + "/csv_only";
   const CLEANUP_URL = WEBHOOK_ORIG + "/DSN_cleanup";
   const TURD_URL    = WEBHOOK_ORIG + "/DSN_turd";
 
