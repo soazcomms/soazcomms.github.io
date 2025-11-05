@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8" />
+<title>DSN CSV Export</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:20px;line-height:1.45}
+  .wrap{max-width:780px}
+  h1{margin:0 0 .5rem 0}
+  .muted{color:#666}
+  .row{margin:1rem 0}
+  .btn{display:inline-block;padding:.6rem 1rem;border:1px solid #ddd;border-radius:8px;text-decoration:none;cursor:pointer}
+  .btn.disabled{opacity:.5;pointer-events:none}
+  .ok{color:#0a6}
+  .err{color:#b00}
+
+  /* ==== keep DSN_trigger-style progress UI ==== */
+  .progress-wrap { width:min(720px,90vw); margin:.75rem 0 .25rem; text-align:center; }
+  .progress { width:50%; margin:0 auto; height:12px; background:#edf2f7; border-radius:999px; overflow:hidden; box-shadow:inset 0 0 0 1px #e2e8f0; }
+  .legend { width:50%; margin:.35rem auto 0; display:flex; justify-content:space-between; font-size:.85rem; color:#555; }
+  .bar { height:100%; width:0%; background:linear-gradient(90deg,#69c,#38bdf8 40%,#22c55e 75%,#16a34a 100%); transition:width .4s ease; }
+  .bar.timeout { background:linear-gradient(90deg,#f59e0b,#ef4444); }
+
+  .hint{font-size:.9rem;color:#666}
+</style>
+
+<div class="wrap" id="wrap">
+  <h1>DSN CSV Export</h1>
+  <div id="headerText" class="muted">Preparing…</div>
+
+  <!-- Progress bar + timer -->
+  <div class="progress-wrap" aria-label="Progress toward timeout window">
+    <div class="progress"><div id="bar" class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div></div>
+    <div class="legend"><span id="leg-left" class="muted">0:00</span><span id="leg-right" class="muted">Timeout in 7:00</span></div>
+  </div>
+
+  <div class="row">
+    <a id="download" class="btn disabled" href="#">⬇ Download CSV</a>
+    <a id="viewlog" class="btn disabled" target="_blank" rel="noopener" href="#">🪵 View log</a>
+    <a id="retry"   class="btn" href="#" style="display:none;">↻ Retry</a>
+  </div>
+
+  <div class="row muted" id="status">⚙️ Working…</div>
+  <div class="row hint"   id="hint" style="display:none;"></div>
+</div>
+
+<!-- Optional env.js that may set window.DEBUG_TURD -->
+<script src="https://sound-kangaroo-unlikely.ngrok-free.app/env.js"></script>
+<script>
+  // default DEBUG_TURD true while wiring; your env.js can override
+  if (typeof window.DEBUG_TURD === "undefined") window.DEBUG_TURD = true;
+</script>
+
+<script>
+(function(){
+  /* ===== constants: update only if your base URLs change ===== */
+  const GH_PAGES_BASE = "https://soazcomms.github.io";
+  const GH_RAW_BASE   = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main";
+  const WEBHOOK_BASE  = "https://sound-kangaroo-unlikely.ngrok-free.app";
+  const WEBHOOK_URL   = WEBHOOK_BASE + "/csv_only";
+  const CLEANUP_URL   = WEBHOOK_BASE + "/DSN_cleanup";
+  const TURD_URL      = WEBHOOK_BASE + "/DSN_turd";
+
+  /* ===== DOM ===== */
+  const headerEl = document.getElementById("headerText");
+  const statusEl = document.getElementById("status");
+  const barEl    = document.getElementById("bar");
+  const legL     = document.getElementById("leg-left");
+  const legR     = document.getElementById("leg-right");
+  const dlEl     = document.getElementById("download");
+  const logEl    = document.getElementById("viewlog");
+  const retryEl  = document.getElementById("retry");
+  const hintEl   = document.getElementById("hint");
+
+  /* ===== time + progress ===== */
+  const POLL_INTERVAL_MS = 900;
+  const TIMEOUT_MS_INIT  = 7 * 60_000; // 7 minutes
+  let   EXTRA_MS         = 0;
+  const jobStart         = Date.now();
+  function mmss(ms){ const s=Math.max(0,Math.floor(ms/1000)); return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); }
+  function updateProgress(timedOut){
+    const elapsed = Date.now()-jobStart, total = TIMEOUT_MS_INIT + EXTRA_MS;
+    const pct = Math.max(3, Math.min(100, Math.floor(elapsed/total*100)));
+    barEl.style.width = pct + "%";
+    if (timedOut) barEl.classList.add("timeout"); else barEl.classList.remove("timeout");
+    legL.textContent = mmss(elapsed);
+    legR.textContent = timedOut ? "Waiting…" : ("Timeout in " + mmss(Math.max(0, total - elapsed)));
+  }
+
+  /* ===== inputs ===== */
+  const qs    = new URLSearchParams(location.search);
+  const label = (qs.get("label")||"").trim();
+  const fromQ = (qs.get("from") ||"").trim();
+  const toQ   = (qs.get("to")   ||"").trim();
+  function toYMD(s){ return String(s).slice(0,10).replace(/\//g,"-"); }
+  const yFrom = toYMD(fromQ);
+  const yTo   = toYMD(toQ);
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+  if (!label || label === "…" || !DATE_RE.test(yFrom) || !DATE_RE.test(yTo)){
+    headerEl.textContent = "Label: … · Range: … → …";
+    statusEl.innerHTML = '<span class="err">❌ Missing/invalid label/from/to (need YYYY-MM-DD).</span>';
+    disable(dlEl); disable(logEl);
+    return;
+  }
+
+  const yFromC    = yFrom.replace(/-/g,"");
+  const yToC      = yTo.replace(/-/g,"");
+  const safeLabel = label.replace(/[^\w.\-]+/g, "_");
+  headerEl.textContent = `Label: ${label} · Range: ${yFrom} → ${yTo}`;
+
+  /* ===== paths ===== */
+  const csvRel = `analysis/${safeLabel}_${yFromC}_${yToC}.csv`;
+  const logRel = `logs/csv-${safeLabel}-${yFromC}${yToC}.log`;
+  const csvRAW = `${GH_RAW_BASE}/${csvRel}`;
+  const csvPGS = `${GH_PAGES_BASE}/${csvRel}`;
+  const logRAW = `${GH_RAW_BASE}/${logRel}`;
+  const logPGS = `${GH_PAGES_BASE}/${logRel}`;
+
+  /* ===== helpers ===== */
+  const RUN_ID = "run-" + Date.now() + "-" + Math.random().toString(36).slice(2,8);
+  function bust(u){ return u + (u.includes("?")?"&":"?") + "bust=" + Date.now(); }
+  function disable(a){ a.classList.add("disabled"); a.setAttribute("aria-disabled","true"); }
+  function enable(a){ a.classList.remove("disabled"); a.removeAttribute("aria-disabled"); }
+  function head(url){ return fetch(bust(url), {method:"HEAD", cache:"no-store"}); }
+  async function getBlob(url){
+    const res = await fetch(bust(url), {method:"GET", cache:"no-store"});
+    if (!res.ok) throw new Error(String(res.status));
+    return await res.blob();
+  }
+  async function postJSON(url, body){
+    const ac = new AbortController();
+    const t  = setTimeout(()=>ac.abort(), 15000);
+    try{
+      const res = await fetch(url, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        mode:"cors", credentials:"omit", cache:"no-store",
+        body: JSON.stringify(body), signal: ac.signal
+      });
+      clearTimeout(t);
+      if (!res.ok){
+        const txt = await res.text().catch(()=>"(empty)");
+        throw new Error(`HTTP ${res.status}: ${txt.slice(0,200)}`);
+      }
+      return await res.json().catch(()=>({}));
+    }catch(e){
+      clearTimeout(t);
+      throw e;
+    }
+  }
+  function turdLite(step, note){
+    if (!window.DEBUG_TURD) return;
+    try{
+      const payload = {step, note:note||"", label, from:yFrom, to:yTo, run_id:RUN_ID, t:new Date().toISOString(), lite:true};
+      if (navigator.sendBeacon){
+        const blob = new Blob([JSON.stringify(payload)], {type:"application/json"});
+        navigator.sendBeacon(TURD_URL, blob);
+      } else {
+        const img = new Image(1,1);
+        const q   = new URLSearchParams({ s:step, n:(payload.note||"").slice(0,120), l:label, f:yFrom, t:yTo, r:RUN_ID, z:Date.now() });
+        img.src   = `${TURD_URL}?${q.toString()}`;
+      }
+    }catch(_e){}
+  }
+
+  /* ===== log button points at status JSON immediately ===== */
+  function statusJSON(){ return `${GH_PAGES_BASE}/status/status-${encodeURIComponent(safeLabel)}.json`; }
+  async function tryEnableLog(){
+    try {
+      const r = await head(logRAW);
+      if (r.ok){ logEl.href=bust(logRAW); enable(logEl); turdLite("log_head_ok","raw"); return; }
+    } catch(_){}
+    try {
+      const r2 = await head(logPGS);
+      if (r2.ok){ logEl.href=bust(logPGS); enable(logEl); turdLite("log_head_ok","pages"); return; }
+    } catch(_){}
+  }
+
+  /* ===== download wiring ===== */
+  function armDownload(urls){
+    enable(dlEl);
+    dlEl.onclick = async function(ev){
+      ev.preventDefault();
+      statusEl.textContent = "Preparing download…";
+      turdLite("download_click","start");
+      const pretty = `${safeLabel}_${yFrom}_${yTo}.csv`;
+      for (let i=0;i<urls.length;i++){
+        const u = urls[i];
+        try{
+          turdLite("download_try", u);
+          const blob = await getBlob(u);
+          const obj  = URL.createObjectURL(blob);
+          const a    = document.createElement("a");
+          a.href = obj; a.download = pretty; document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(()=>URL.revokeObjectURL(obj), 1500);
+
+          // ask server to clean up after user download
+          turdLite("cleanup_request", csvRel);
+          postJSON(CLEANUP_URL, {csv: csvRel}).then(()=>turdLite("cleanup_sent_ok")).catch(()=>turdLite("cleanup_sent_fail"));
+
+          // finish UI
+          barEl.style.width="100%";
+          statusEl.innerHTML = '<span class="ok">✅ CSV downloaded. Cleaning up…</span>';
+          hintEl.style.display="block";
+          hintEl.textContent = "If your browser blocks the first attempt, click Download again.";
+          turdLite("download_done");
+          return;
+        }catch(_e){ /* try next */ }
+      }
+      statusEl.innerHTML = '<span class="err">⚠️ Download failed: HTTP 404</span>';
+      turdLite("download_fail");
+    };
+  }
+
+  /* ===== boot ===== */
+  turdLite("page_load","csv_trigger");
+  // enable log button to the status JSON immediately (even before job starts)
+  logEl.href = bust(statusJSON());
+  enable(logEl);
+
+  // kick exactly ONE CSV job
+  (async function startJob(){
+    try{
+      await postJSON(WEBHOOK_URL, {label, from:yFrom, to:yTo, csv_only:true});
+      turdLite("post_job_ok");
+    }catch(e){
+      turdLite("post_job_fail", String(e));
+      statusEl.innerHTML = `<span class="err">❌ CSV job failed to start (${String(e).replace(/[<>&]/g,"")}).</span>`;
+      disable(dlEl);
+      return;
+    }
+
+    // poll for CSV; animate progress bar
+    const MAX_MS = 3 * 60_000; // 3 minutes cap for polling
+    const timer = setInterval(async function(){
+      const timedOut = (Date.now()-jobStart) >= (TIMEOUT_MS_INIT + EXTRA_MS);
+      updateProgress(timedOut);
+      tryEnableLog();
+
+      try{
+        const raw = await head(csvRAW);
+        if (raw.ok){
+          clearInterval(timer);
+          barEl.style.width="100%";
+          statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
+          armDownload([csvRAW, csvPGS]);
+          turdLite("csv_head_ok","raw");
+          return;
+        }
+      }catch(_){}
+
+      try{
+        const pgs = await head(csvPGS);
+        if (pgs.ok){
+          clearInterval(timer);
+          barEl.style.width="100%";
+          statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
+          armDownload([csvRAW, csvPGS]);
+          turdLite("csv_head_ok","pages");
+          return;
+        }
+      }catch(_){}
+
+      if ((Date.now()-jobStart) > MAX_MS){
+        clearInterval(timer);
+        barEl.style.width="100%"; barEl.classList.add("timeout");
+        statusEl.innerHTML = '<span class="err">❌ File not found where expected.</span>';
+        retryEl.style.display="inline-block";
+        retryEl.onclick = function(ev){ ev.preventDefault(); turdLite("retry_click"); location.reload(); };
+        turdLite("timeout_no_csv", "rel="+csvRel);
+      }
+    }, POLL_INTERVAL_MS);
+  })();
+
+})();
+</script>
+</html>
