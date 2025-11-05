@@ -175,7 +175,6 @@
   }
 
   /* ===== log button points at status JSON immediately ===== */
-  function statusJSON(){ return `${GH_PAGES_BASE}/status/status-${encodeURIComponent(safeLabel)}.json`; }
   async function tryEnableLog(){
     try {
       const r = await head(logRAW);
