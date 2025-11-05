@@ -743,3 +743,12 @@ Deleted temp files.
 Tue Oct 21 22:38:53 UTC 2025 Created analysis plots.
 Wed Oct 22 19:19:15 UTC 2025 Created analysis plots.
 Thu Oct 23 19:29:53 UTC 2025 Created analysis plots.
+2025-11-05 08:21:03 Start DSN-process_data.
+2025-11-05 08:22:58 Uploaded DSN014S_Tubac_S_25_028.csv DSN014S_Tubac_S_25_029.csv DSN014T_Tubac_T_25_004.csv DSN024S_Winer_S_2025-041.csv DSN024S_Winer_S_2025-042.csv DSN029T_JB_T_25_008.csv to influx
+ Uploaded DSN014-S_25_028.csv
+DSN014-S_25_029.csv
+DSN014-T_25_004.csv
+DSN024-S_2025-041.csv
+DSN024-S_2025-042.csv
+DSN029-T_25_008.csv to Box
+Deleted temp files.
