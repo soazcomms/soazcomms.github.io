@@ -57,7 +57,7 @@
   var GH_PAGES_BASE = "https://soazcomms.github.io";
   var GH_RAW_BASE   = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main";
   const qs = new URLSearchParams(location.search);
-  const WEBHOOK_ORIG = (qs.get("webhook") || "https://sound-kangaroo-unlikely.ngrok-free.app").replace(/\/+$/,"");
+  const WEBHOOK_ORIG = "https://sound-kangaroo-unlikely.ngrok-free.app/csv_only";
   const WEBHOOK_URL = WEBHOOK_ORIG + "/csv_only";
   const CLEANUP_URL = WEBHOOK_ORIG + "/DSN_cleanup";
   const TURD_URL    = WEBHOOK_ORIG + "/DSN_turd";
@@ -142,22 +142,40 @@
 
   // ===== logging =====
   const RUN_ID = "run-" + Date.now() + "-" + Math.random().toString(36).slice(2,8);
-  function postJSON(url, obj, ok, fail){
-    try{
-      var x = new XMLHttpRequest();
-      x.open("POST", url, true);
-      x.setRequestHeader("content-type","application/json");
-      x.onreadystatechange = function(){
-        if (x.readyState === 4){
-          if (x.status>=200 && x.status<400) ok && ok(x.responseText);
-          else fail && fail(x.status, x.responseText);
-        }
-      };
-      x.onerror = function(){ fail && fail(0, "network error"); };
-      var payload = Object.assign({run_id: RUN_ID, t: new Date().toISOString()}, obj||{});
-      x.send(JSON.stringify(payload));
-    }catch(e){ fail && fail(0, String(e)); }
+
+  async function postJSON(url, body, onOK, onFail) {
+      try {
+	  const ac = new AbortController();
+	  const t = setTimeout(() => ac.abort(), 15000); // 15s network timeout
+	  
+	  const res = await fetch(url, {
+	      method: "POST",
+	      mode: "cors",
+	      credentials: "omit",
+	      headers: {
+		  "Content-Type": "application/json"
+	      },
+	      redirect: "follow",
+	      cache: "no-store",
+	      body: JSON.stringify(body),
+	      signal: ac.signal
+	  });
+	  clearTimeout(t);
+
+	  if (!res.ok) {
+	      const txt = await res.text().catch(()=>"");
+	      onFail?.(res.status, txt || "(empty)");
+	      return;
+	  }
+	  const json = await res.json().catch(()=>({}));
+	  onOK?.(json);
+      } catch (e) {
+	  // This is where “HTTP 0” usually came from; now see the real reason.
+	  const msg = (e && e.name === "AbortError") ? "timeout" : (e.message || String(e));
+	  onFail?.(0, msg);
+      }
   }
+
   function turdLite(step, note){
     if (!window.DEBUG_TURD) return;
     try{
@@ -273,12 +291,14 @@
 
   // kick ONE CSV job
   postJSON(
-    WEBHOOK_URL,
-    {label: label, from: yFrom, to: yTo, csv_only: true},
-    function(){ turdLite("post_job_ok"); },
-    function(code){ statusEl.innerHTML = '<span class="err">❌ CSV job failed to start (HTTP '+code+').</span>'; }
+      WEBHOOK_URL,
+      { label: label, from: yFrom, to: yTo, csv_only: true },
+      function() { turdLite("post_job_ok"); },
+      function(code, body) {
+	  turdLite("post_job_fail", "code="+code+" body="+body);
+	  statusEl.innerHTML = "❌ CSV job failed to start (HTTP " + code + ").";
+      }
   );
-
   // poll for CSV + animate progress bar
   var MAX_MS = 180000;
   var loop = setInterval(function(){
