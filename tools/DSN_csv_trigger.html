@@ -110,7 +110,7 @@
   headerEl.textContent = `Label: ${label} · Range: ${yFrom} → ${yTo}`;
 
   /* ===== paths ===== */
-  const csvRel = `analysis/${safeLabel}_${yFromC}_${yToC}.csv`;
+  const csvRel = `analysis/${label8}/${safeLabel}_${yFromC}_${yToC}.csv`;
   const logRel = `logs/csv-${safeLabel}-${yFromC}${yToC}.log`;
   const csvRAW = `${GH_RAW_BASE}/${csvRel}`;
   const csvPGS = `${GH_PAGES_BASE}/${csvRel}`;
@@ -132,12 +132,6 @@
   }
   function statusJSON(){
       return `${GH_PAGES_BASE}/status/status-${encodeURIComponent(label8)}.json`;
-  }
-  async function fetchStatusJSON(){
-      const url = `${GH_PAGES_BASE}/status/status-${encodeURIComponent(safeLabel)}.json?bust=${Date.now()}`;
-      const res = await fetch(url, {cache:"no-store"});
-      if (!res.ok) throw new Error("status "+res.status);
-      return res.json();
   }
 
   async function getBlob(url){
