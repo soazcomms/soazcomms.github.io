@@ -123,6 +123,14 @@
   function disable(a){ a.classList.add("disabled"); a.setAttribute("aria-disabled","true"); }
   function enable(a){ a.classList.remove("disabled"); a.removeAttribute("aria-disabled"); }
   function head(url){ return fetch(bust(url), {method:"HEAD", cache:"no-store"}); }
+
+  async function fetchStatusJSON(){
+      const url = `${GH_PAGES_BASE}/status/status-${encodeURIComponent(safeLabel)}.json?bust=${Date.now()}`;
+      const res = await fetch(url, {cache:"no-store"});
+      if (!res.ok) throw new Error("status "+res.status);
+      return res.json();
+  }
+
   async function getBlob(url){
     const res = await fetch(bust(url), {method:"GET", cache:"no-store"});
     if (!res.ok) throw new Error(String(res.status));
@@ -231,11 +239,28 @@
     }
 
     // poll for CSV; animate progress bar
-    const MAX_MS = 3 * 60_000; // 3 minutes cap for polling
+    const MAX_MS = 5 * 60_000; // 5 minutes cap for polling
     const timer = setInterval(async function(){
       const timedOut = (Date.now()-jobStart) >= (TIMEOUT_MS_INIT + EXTRA_MS);
       updateProgress(timedOut);
       tryEnableLog();
+
+      try {
+	  const st = await fetchStatusJSON();
+	  if (st.phase === "done" && (st.csv_raw || st.csv_pages)) {
+	      clearInterval(timer);
+	      barEl.style.width = "100%";
+	      statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
+	      const urls = [];
+	      if (st.csv_raw)  urls.push(st.csv_raw);
+	      if (st.csv_pages) urls.push(st.csv_pages);
+	      armDownload(urls);
+	      turdLite("csv_ready_via_status");
+	      return;
+	  }
+      } catch (_e) {
+	  /* ignore status read errors and fall through to HEAD checks */
+      }
 
       try{
         const raw = await head(csvRAW);
