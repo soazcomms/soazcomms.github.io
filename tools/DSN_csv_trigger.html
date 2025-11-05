@@ -58,8 +58,7 @@
   var GH_RAW_BASE   = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main";
   const DEFAULT_WEBHOOK = "https://sound-kangaroo-unlikely.ngrok-free.app";
   const qs = new URLSearchParams(location.search);
-  const WEBHOOK_ORIG = (qs.get("webhook") || DEFAULT_WEBHOOK).replace(/\/+$/,"");
-
+  const WEBHOOK_ORIG = (qs.get("webhook") || "https://sound-kangaroo-unlikely.ngrok-free.app").replace(/\/+$/,"");
   // endpoints (kept names)
   const WEBHOOK_URL = WEBHOOK_ORIG + "/csv_only";
   const CLEANUP_URL = WEBHOOK_ORIG + "/DSN_cleanup";
@@ -167,6 +166,31 @@
     postJSON(TURD_URL, {step:step, note:note||"", label:label, from:yFrom, to:yTo, run_id:RUN_ID});
   }
 
+<!-- pixel logger (GET) — fire even if CORS/beacon are blocked -->
+<script>
+  function turdPixel(step, note) {
+    try {
+      const params = new URLSearchParams({
+        step: step || "",
+        note: note || "",
+        label: (window.label || ""),
+        from:  (window.yFrom || ""),
+        to:    (window.yTo   || ""),
+        t: Date.now().toString()
+      }).toString();
+      const img = new Image(1,1);
+      img.src = TURD_URL + "?" + params;
+    } catch(e) {}
+  }
+</script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    turdPixel("dom_ready", "csv_trigger opened");
+  });
+  window.addEventListener("load", function () {
+    turdPixel("win_load", "window load");
+  });
+</script>
   /* ===== NEW: ultra-lightweight logger (“pixel” style) =====
      Uses sendBeacon when available; falls back to GETing a 1×1 image.
      Does not block UI; safe to sprinkle anywhere.
