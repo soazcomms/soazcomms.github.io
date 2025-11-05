@@ -1,1 +1,1 @@
-{"timestamp": 1762369205, "phase": "running", "status": "⏳ CSV running for <b>DSN019-S_MtLemmon</b>"}
+{"timestamp": 1762369207, "phase": "done", "status": "✅ CSV complete for <b>DSN019-S_MtLemmon</b>", "csv": "analysis/DSN019-S/DSN019-S_MtLemmon_20250331_20251130.csv", "csv_raw": "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/analysis/DSN019-S/DSN019-S_MtLemmon_20250331_20251130.csv", "csv_pages": "https://soazcomms.github.io/analysis/DSN019-S/DSN019-S_MtLemmon_20250331_20251130.csv"}
