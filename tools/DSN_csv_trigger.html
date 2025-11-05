@@ -14,7 +14,7 @@
   .ok{color:#0a6}
   .err{color:#b00}
 
-  /* ==== DSN_trigger-style progress UI (kept as-is) ==== */
+  /* ==== keep DSN_trigger-style progress UI ==== */
   .progress-wrap { width:min(720px,90vw); margin:.75rem 0 .25rem; text-align:center; }
   .progress { width:50%; margin:0 auto; height:12px; background:#edf2f7; border-radius:999px; overflow:hidden; box-shadow:inset 0 0 0 1px #e2e8f0; }
   .legend { width:50%; margin:.35rem auto 0; display:flex; justify-content:space-between; font-size:.85rem; color:#555; }
@@ -26,7 +26,7 @@
 
 <div class="wrap" id="wrap">
   <h1>DSN CSV Export</h1>
-  <div class="muted" id="desc">Preparing…</div>
+  <div id="headerText" class="muted">Preparing…</div>
 
   <!-- Progress bar + timer -->
   <div class="progress-wrap" aria-label="Progress toward timeout window">
@@ -44,226 +44,159 @@
   <div class="row hint"   id="hint" style="display:none;"></div>
 </div>
 
-<!-- pulls DEBUG_TURD=true/false if your env.js defines it -->
+<!-- Optional env.js that may set window.DEBUG_TURD -->
 <script src="https://sound-kangaroo-unlikely.ngrok-free.app/env.js"></script>
 <script>
-  // If env.js didn’t set it, default true so we see pings while wiring
+  // default DEBUG_TURD true while wiring; your env.js can override
   if (typeof window.DEBUG_TURD === "undefined") window.DEBUG_TURD = true;
 </script>
 
 <script>
 (function(){
-  // ===== constants =====
-  var GH_PAGES_BASE = "https://soazcomms.github.io";
-  var GH_RAW_BASE   = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main";
-  const qs = new URLSearchParams(location.search);
-  const WEBHOOK_ORIG = "https://sound-kangaroo-unlikely.ngrok-free.app/csv_only";
-  const WEBHOOK_URL = WEBHOOK_ORIG + "/csv_only";
-  const CLEANUP_URL = WEBHOOK_ORIG + "/DSN_cleanup";
-  const TURD_URL    = WEBHOOK_ORIG + "/DSN_turd";
+  /* ===== constants: update only if your base URLs change ===== */
+  const GH_PAGES_BASE = "https://soazcomms.github.io";
+  const GH_RAW_BASE   = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main";
+  const WEBHOOK_BASE  = "https://sound-kangaroo-unlikely.ngrok-free.app";
+  const WEBHOOK_URL   = WEBHOOK_BASE + "/csv_only";
+  const CLEANUP_URL   = WEBHOOK_BASE + "/DSN_cleanup";
+  const TURD_URL      = WEBHOOK_BASE + "/DSN_turd";
 
-  // ===== DOM =====
-  var statusEl= document.getElementById("status");
-  var barEl   = document.getElementById("bar");
-  var legL    = document.getElementById("leg-left");
-  var legR    = document.getElementById("leg-right");
-  var dlEl    = document.getElementById("download");
-  var logEl   = document.getElementById("viewlog");
-  var retryEl = document.getElementById("retry");
-  var descEl  = document.getElementById("desc");
-  var hintEl  = document.getElementById("hint");
+  /* ===== DOM ===== */
+  const headerEl = document.getElementById("headerText");
+  const statusEl = document.getElementById("status");
+  const barEl    = document.getElementById("bar");
+  const legL     = document.getElementById("leg-left");
+  const legR     = document.getElementById("leg-right");
+  const dlEl     = document.getElementById("download");
+  const logEl    = document.getElementById("viewlog");
+  const retryEl  = document.getElementById("retry");
+  const hintEl   = document.getElementById("hint");
 
-  // ===== timers =====
-  var POLL_INTERVAL_MS = 900;
-  var TIMEOUT_MS_INIT  = 7 * 60_000;
-  var EXTRA_MS         = 0;
-  var jobStart         = Date.now();
-  function mmss(ms){ var s=Math.max(0,Math.floor(ms/1000)); return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); }
+  /* ===== time + progress ===== */
+  const POLL_INTERVAL_MS = 900;
+  const TIMEOUT_MS_INIT  = 7 * 60_000; // 7 minutes
+  let   EXTRA_MS         = 0;
+  const jobStart         = Date.now();
+  function mmss(ms){ const s=Math.max(0,Math.floor(ms/1000)); return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); }
   function updateProgress(timedOut){
-    var elapsed = Date.now()-jobStart, total = TIMEOUT_MS_INIT + EXTRA_MS;
-    var pct = Math.max(3, Math.min(100, Math.floor(elapsed/total*100)));
+    const elapsed = Date.now()-jobStart, total = TIMEOUT_MS_INIT + EXTRA_MS;
+    const pct = Math.max(3, Math.min(100, Math.floor(elapsed/total*100)));
     barEl.style.width = pct + "%";
     if (timedOut) barEl.classList.add("timeout"); else barEl.classList.remove("timeout");
     legL.textContent = mmss(elapsed);
     legR.textContent = timedOut ? "Waiting…" : ("Timeout in " + mmss(Math.max(0, total - elapsed)));
   }
-  function softExtend(ms, why){
-    EXTRA_MS += ms;
-    turdLite("auto_extend", why ? (why+" +" + Math.round(ms/60000) + "m") : ("+" + Math.round(ms/60000) + "m"));
-  }
 
-  // ===== inputs =====
-  var label = (qs.get("label")||"").trim();
-  var fromQ = (qs.get("from")  ||"").trim();
-  var toQ   = (qs.get("to")    ||"").trim();
+  /* ===== inputs ===== */
+  const qs    = new URLSearchParams(location.search);
+  const label = (qs.get("label")||"").trim();
+  const fromQ = (qs.get("from") ||"").trim();
+  const toQ   = (qs.get("to")   ||"").trim();
   function toYMD(s){ return String(s).slice(0,10).replace(/\//g,"-"); }
-  var yFrom = toYMD(fromQ), yTo = toYMD(toQ);
-  var yFromC = yFrom.replace(/-/g,""); var yToC = yTo.replace(/-/g,"");
-  var safeLabel = (label||"").replace(/[^\w.\-]+/g, "_");
-  descEl.textContent = "Label: "+label+" · Range: "+yFrom+" → "+yTo;
+  const yFrom = toYMD(fromQ);
+  const yTo   = toYMD(toQ);
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-  // ===== paths =====
-  var csvRel = "analysis/"+safeLabel+"_"+yFromC+"_"+yToC+".csv";
-  var logRel = "logs/csv-"+safeLabel+"-"+yFromC+yToC+".log";
-  var csvRAW = GH_RAW_BASE+"/"+csvRel;
-  var csvPGS = GH_PAGES_BASE+"/"+csvRel;
-  var logRAW = GH_RAW_BASE+"/"+logRel;
-  var logPGS = GH_PAGES_BASE+"/"+logRel;
-
-  // ===== helpers =====
-  function bust(u){ return u + (u.indexOf("?")>-1 ? "&" : "?") + "bust=" + Date.now(); }
-  function setDisabled(a, dis){ if(dis){ a.classList.add("disabled"); a.setAttribute("aria-disabled","true"); } else { a.classList.remove("disabled"); a.removeAttribute("aria-disabled"); } }
-  function xhrHEAD(url, ok, fail){
-    try{
-      var x = new XMLHttpRequest();
-      x.open("HEAD", bust(url), true);
-      x.onreadystatechange = function(){
-        if (x.readyState === 4){
-          if (x.status>=200 && x.status<400) ok(x.status); else fail && fail(x.status);
-        }
-      };
-      x.send(null);
-    }catch(e){ fail && fail(0); }
-  }
-  function xhrGETBlob(url, ok, fail){
-    try{
-      var x = new XMLHttpRequest();
-      x.open("GET", bust(url), true);
-      x.responseType = "blob";
-      x.onreadystatechange = function(){
-        if (x.readyState === 4){
-          if (x.status>=200 && x.status<400) ok(x.response);
-          else fail && fail(x.status);
-        }
-      };
-      x.send(null);
-    }catch(e){ fail && fail(0); }
+  if (!label || label === "…" || !DATE_RE.test(yFrom) || !DATE_RE.test(yTo)){
+    headerEl.textContent = "Label: … · Range: … → …";
+    statusEl.innerHTML = '<span class="err">❌ Missing/invalid label/from/to (need YYYY-MM-DD).</span>';
+    disable(dlEl); disable(logEl);
+    return;
   }
 
-  // ===== logging =====
+  const yFromC    = yFrom.replace(/-/g,"");
+  const yToC      = yTo.replace(/-/g,"");
+  const safeLabel = label.replace(/[^\w.\-]+/g, "_");
+  headerEl.textContent = `Label: ${label} · Range: ${yFrom} → ${yTo}`;
+
+  /* ===== paths ===== */
+  const csvRel = `analysis/${safeLabel}_${yFromC}_${yToC}.csv`;
+  const logRel = `logs/csv-${safeLabel}-${yFromC}${yToC}.log`;
+  const csvRAW = `${GH_RAW_BASE}/${csvRel}`;
+  const csvPGS = `${GH_PAGES_BASE}/${csvRel}`;
+  const logRAW = `${GH_RAW_BASE}/${logRel}`;
+  const logPGS = `${GH_PAGES_BASE}/${logRel}`;
+
+  /* ===== helpers ===== */
   const RUN_ID = "run-" + Date.now() + "-" + Math.random().toString(36).slice(2,8);
-
-  async function postJSON(url, body, onOK, onFail) {
-      try {
-	  const ac = new AbortController();
-	  const t = setTimeout(() => ac.abort(), 15000); // 15s network timeout
-	  
-	  const res = await fetch(url, {
-	      method: "POST",
-	      mode: "cors",
-	      credentials: "omit",
-	      headers: {
-		  "Content-Type": "application/json"
-	      },
-	      redirect: "follow",
-	      cache: "no-store",
-	      body: JSON.stringify(body),
-	      signal: ac.signal
-	  });
-	  clearTimeout(t);
-
-	  if (!res.ok) {
-	      const txt = await res.text().catch(()=>"");
-	      onFail?.(res.status, txt || "(empty)");
-	      return;
-	  }
-	  const json = await res.json().catch(()=>({}));
-	  onOK?.(json);
-      } catch (e) {
-	  // This is where “HTTP 0” usually came from; now see the real reason.
-	  const msg = (e && e.name === "AbortError") ? "timeout" : (e.message || String(e));
-	  onFail?.(0, msg);
-      }
+  function bust(u){ return u + (u.includes("?")?"&":"?") + "bust=" + Date.now(); }
+  function disable(a){ a.classList.add("disabled"); a.setAttribute("aria-disabled","true"); }
+  function enable(a){ a.classList.remove("disabled"); a.removeAttribute("aria-disabled"); }
+  function head(url){ return fetch(bust(url), {method:"HEAD", cache:"no-store"}); }
+  async function getBlob(url){
+    const res = await fetch(bust(url), {method:"GET", cache:"no-store"});
+    if (!res.ok) throw new Error(String(res.status));
+    return await res.blob();
   }
-
+  async function postJSON(url, body){
+    const ac = new AbortController();
+    const t  = setTimeout(()=>ac.abort(), 15000);
+    try{
+      const res = await fetch(url, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        mode:"cors", credentials:"omit", cache:"no-store",
+        body: JSON.stringify(body), signal: ac.signal
+      });
+      clearTimeout(t);
+      if (!res.ok){
+        const txt = await res.text().catch(()=>"(empty)");
+        throw new Error(`HTTP ${res.status}: ${txt.slice(0,200)}`);
+      }
+      return await res.json().catch(()=>({}));
+    }catch(e){
+      clearTimeout(t);
+      throw e;
+    }
+  }
   function turdLite(step, note){
     if (!window.DEBUG_TURD) return;
     try{
-      var payload = {step:step, note:note||"", label:label, from:yFrom, to:yTo, run_id:RUN_ID, t:new Date().toISOString(), lite:true};
+      const payload = {step, note:note||"", label, from:yFrom, to:yTo, run_id:RUN_ID, t:new Date().toISOString(), lite:true};
       if (navigator.sendBeacon){
-        var blob = new Blob([JSON.stringify(payload)], {type: "application/json"});
+        const blob = new Blob([JSON.stringify(payload)], {type:"application/json"});
         navigator.sendBeacon(TURD_URL, blob);
       } else {
-        var img = new Image(1,1);
-        var q = new URLSearchParams({ s: step, n: (note||"").slice(0,120), l: label, f: yFrom, t: yTo, r: RUN_ID, z: Date.now() });
-        img.src = TURD_URL + "?" + q.toString();
+        const img = new Image(1,1);
+        const q   = new URLSearchParams({ s:step, n:(payload.note||"").slice(0,120), l:label, f:yFrom, t:yTo, r:RUN_ID, z:Date.now() });
+        img.src   = `${TURD_URL}?${q.toString()}`;
       }
     }catch(_e){}
   }
-  function turdPixel(step, note){
+
+  /* ===== log button points at status JSON immediately ===== */
+  function statusJSON(){ return `${GH_PAGES_BASE}/status/status-${encodeURIComponent(safeLabel)}.json`; }
+  async function tryEnableLog(){
     try {
-      const params = new URLSearchParams({
-        step: step || "",
-        note: note || "",
-        label: (window.label || ""),
-        from:  (window.yFrom || ""),
-        to:    (window.yTo   || ""),
-        t: Date.now().toString()
-      }).toString();
-      const img = new Image(1,1);
-      img.src = TURD_URL + "?" + params;
-    } catch(e) {}
-  }
-  document.addEventListener("DOMContentLoaded", function () { turdPixel("dom_ready","csv_trigger opened"); });
-  window.addEventListener("load", function () { turdPixel("win_load","window load"); });
-
-  // point log button at status JSON immediately
-  function statusJSON(){ return GH_PAGES_BASE + "/status/status-" + encodeURIComponent(safeLabel) + ".json"; }
-  function tryEnableLog(){
-    xhrHEAD(logRAW, function(){ logEl.href = bust(logRAW); setDisabled(logEl,false); turdLite("log_head_ok","raw"); },
-                  function(){ xhrHEAD(logPGS, function(){ logEl.href = bust(logPGS); setDisabled(logEl,false); turdLite("log_head_ok","pages"); }); });
+      const r = await head(logRAW);
+      if (r.ok){ logEl.href=bust(logRAW); enable(logEl); turdLite("log_head_ok","raw"); return; }
+    } catch(_){}
+    try {
+      const r2 = await head(logPGS);
+      if (r2.ok){ logEl.href=bust(logPGS); enable(logEl); turdLite("log_head_ok","pages"); return; }
+    } catch(_){}
   }
 
-  function confirmCleanup(csvRelPath){
-    var raw = GH_RAW_BASE + "/" + csvRelPath;
-    var pgs = GH_PAGES_BASE + "/" + csvRelPath;
-    var attempts = 0, maxTry = 120;
-    var iv = setInterval(function(){
-      attempts++; turdLite("cleanup_check","try "+attempts);
-      xhrHEAD(raw, function(){ /* still there */ }, function(){
-        clearInterval(iv);
-        turdLite("cleanup_confirmed_raw","gone");
-        hintEl.style.display="block";
-        hintEl.textContent = "🧹 Cleanup confirmed.";
-        setTimeout(function(){
-          xhrHEAD(pgs, function(){ turdLite("cleanup_pages_cached"); },
-                       function(){ turdLite("cleanup_pages_gone"); });
-        }, 0);
-      });
-      if (attempts >= maxTry){
-        clearInterval(iv);
-        turdLite("cleanup_timeout","raw/pages cache linger");
-        hintEl.style.display="block";
-        hintEl.textContent = "🧹 Cleanup requested. Pages may cache briefly.";
-      }
-    }, 1500);
-  }
-
+  /* ===== download wiring ===== */
   function armDownload(urls){
-    setDisabled(dlEl,false);
-    dlEl.onclick = function(e){
-      e.preventDefault();
+    enable(dlEl);
+    dlEl.onclick = async function(ev){
+      ev.preventDefault();
       statusEl.textContent = "Preparing download…";
       turdLite("download_click","start");
-      var pretty = safeLabel+"_"+yFrom+"_"+yTo+".csv";
-      (function tryNext(i){
-        if (i>=urls.length){ statusEl.innerHTML = "⚠️ Download failed: HTTP 404"; turdLite("download_fail"); return; }
-        var u = urls[i];
-        turdLite("download_try", u);
-        xhrGETBlob(u, function(blob){
-          var obj = URL.createObjectURL(blob);
-          var a = document.createElement("a");
-          a.href = obj; a.download = pretty;
-          document.body.appendChild(a); a.click(); a.remove();
-          setTimeout(function(){ URL.revokeObjectURL(obj); }, 1500);
+      const pretty = `${safeLabel}_${yFrom}_${yTo}.csv`;
+      for (let i=0;i<urls.length;i++){
+        const u = urls[i];
+        try{
+          turdLite("download_try", u);
+          const blob = await getBlob(u);
+          const obj  = URL.createObjectURL(blob);
+          const a    = document.createElement("a");
+          a.href = obj; a.download = pretty; document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(()=>URL.revokeObjectURL(obj), 1500);
 
-          // request cleanup after user download
+          // ask server to clean up after user download
           turdLite("cleanup_request", csvRel);
-          postJSON(CLEANUP_URL, {csv: csvRel},
-            function(){ turdLite("cleanup_sent_ok"); },
-            function(){ turdLite("cleanup_sent_fail"); }
-          );
-          confirmCleanup(csvRel);
+          postJSON(CLEANUP_URL, {csv: csvRel}).then(()=>turdLite("cleanup_sent_ok")).catch(()=>turdLite("cleanup_sent_fail"));
 
           // finish UI
           barEl.style.width="100%";
@@ -271,66 +204,74 @@
           hintEl.style.display="block";
           hintEl.textContent = "If your browser blocks the first attempt, click Download again.";
           turdLite("download_done");
-        }, function(){ tryNext(i+1); });
-      })(0);
+          return;
+        }catch(_e){ /* try next */ }
+      }
+      statusEl.innerHTML = '<span class="err">⚠️ Download failed: HTTP 404</span>';
+      turdLite("download_fail");
     };
   }
 
-  // === boot ===
-  turdLite("page_load","HTML");
-  turdLite("params", JSON.stringify({label:label,from:yFrom,to:yTo}));
-  if (!label || !yFrom || !yTo){
-    statusEl.innerHTML = '<span class="err">❌ Missing label/from/to.</span>';
-    setDisabled(dlEl,true); setDisabled(logEl,true); turdLite("param_error");
-    return;
-  }
-
-  // enable log early (status JSON)
+  /* ===== boot ===== */
+  turdLite("page_load","csv_trigger");
+  // enable log button to the status JSON immediately (even before job starts)
   logEl.href = bust(statusJSON());
-  setDisabled(logEl,false);
+  enable(logEl);
 
-  // kick ONE CSV job
-  postJSON(
-      WEBHOOK_URL,
-      { label: label, from: yFrom, to: yTo, csv_only: true },
-      function() { turdLite("post_job_ok"); },
-      function(code, body) {
-	  turdLite("post_job_fail", "code="+code+" body="+body);
-	  statusEl.innerHTML = "❌ CSV job failed to start (HTTP " + code + ").";
-      }
-  );
-  // poll for CSV + animate progress bar
-  var MAX_MS = 180000;
-  var loop = setInterval(function(){
-    var timedOut = (Date.now()-jobStart) >= (TIMEOUT_MS_INIT + EXTRA_MS);
-    updateProgress(timedOut);
-    tryEnableLog();
+  // kick exactly ONE CSV job
+  (async function startJob(){
+    try{
+      await postJSON(WEBHOOK_URL, {label, from:yFrom, to:yTo, csv_only:true});
+      turdLite("post_job_ok");
+    }catch(e){
+      turdLite("post_job_fail", String(e));
+      statusEl.innerHTML = `<span class="err">❌ CSV job failed to start (${String(e).replace(/[<>&]/g,"")}).</span>`;
+      disable(dlEl);
+      return;
+    }
 
-    xhrHEAD(csvRAW, function(code){
-      clearInterval(loop);
-      barEl.style.width="100%";
-      statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
-      armDownload([csvRAW, csvPGS]);
-      turdLite("csv_head_ok","raw="+code);
-    }, function(){
-      xhrHEAD(csvPGS, function(code2){
-        clearInterval(loop);
-        barEl.style.width="100%";
-        statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
-        armDownload([csvRAW, csvPGS]);
-        turdLite("csv_head_ok","pages="+code2);
-      }, function(){
-        if ((Date.now()-jobStart) > MAX_MS){
-          clearInterval(loop);
-          barEl.style.width="100%"; barEl.classList.add("timeout");
-          statusEl.innerHTML = '<span class="err">❌ File not found where expected.</span>';
-          retryEl.style.display="inline-block";
-          retryEl.onclick = function(ev){ ev.preventDefault(); turdLite("retry_click"); location.reload(); };
-          turdLite("timeout_no_csv", "rel="+csvRel);
+    // poll for CSV; animate progress bar
+    const MAX_MS = 3 * 60_000; // 3 minutes cap for polling
+    const timer = setInterval(async function(){
+      const timedOut = (Date.now()-jobStart) >= (TIMEOUT_MS_INIT + EXTRA_MS);
+      updateProgress(timedOut);
+      tryEnableLog();
+
+      try{
+        const raw = await head(csvRAW);
+        if (raw.ok){
+          clearInterval(timer);
+          barEl.style.width="100%";
+          statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
+          armDownload([csvRAW, csvPGS]);
+          turdLite("csv_head_ok","raw");
+          return;
         }
-      });
-    });
-  }, POLL_INTERVAL_MS);
+      }catch(_){}
+
+      try{
+        const pgs = await head(csvPGS);
+        if (pgs.ok){
+          clearInterval(timer);
+          barEl.style.width="100%";
+          statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
+          armDownload([csvRAW, csvPGS]);
+          turdLite("csv_head_ok","pages");
+          return;
+        }
+      }catch(_){}
+
+      if ((Date.now()-jobStart) > MAX_MS){
+        clearInterval(timer);
+        barEl.style.width="100%"; barEl.classList.add("timeout");
+        statusEl.innerHTML = '<span class="err">❌ File not found where expected.</span>';
+        retryEl.style.display="inline-block";
+        retryEl.onclick = function(ev){ ev.preventDefault(); turdLite("retry_click"); location.reload(); };
+        turdLite("timeout_no_csv", "rel="+csvRel);
+      }
+    }, POLL_INTERVAL_MS);
+  })();
+
 })();
 </script>
 </html>
