@@ -14,7 +14,7 @@
   .ok{color:#0a6}
   .err{color:#b00}
 
-  /* ==== keep DSN_trigger-style progress UI ==== */
+  /* keep DSN_trigger-style progress UI */
   .progress-wrap { width:min(720px,90vw); margin:.75rem 0 .25rem; text-align:center; }
   .progress { width:50%; margin:0 auto; height:12px; background:#edf2f7; border-radius:999px; overflow:hidden; box-shadow:inset 0 0 0 1px #e2e8f0; }
   .legend { width:50%; margin:.35rem auto 0; display:flex; justify-content:space-between; font-size:.85rem; color:#555; }
@@ -47,13 +47,13 @@
 <!-- Optional env.js that may set window.DEBUG_TURD -->
 <script src="https://sound-kangaroo-unlikely.ngrok-free.app/env.js"></script>
 <script>
-  // default DEBUG_TURD true while wiring; your env.js can override
   if (typeof window.DEBUG_TURD === "undefined") window.DEBUG_TURD = true;
 </script>
 
 <script>
-(function(){
-  /* ===== constants: update only if your base URLs change ===== */
+(async function(){  /* ←←← made async so awaits work */
+
+  /* ===== constants ===== */
   const GH_PAGES_BASE = "https://soazcomms.github.io";
   const GH_RAW_BASE   = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main";
   const WEBHOOK_BASE  = "https://sound-kangaroo-unlikely.ngrok-free.app";
@@ -130,9 +130,7 @@
       if (!res.ok) throw new Error("status "+res.status);
       return res.json();
   }
-  function statusJSON(){
-      return `${GH_PAGES_BASE}/status/status-${encodeURIComponent(label8)}.json`;
-  }
+  function statusJSON(){ return `${GH_PAGES_BASE}/status/status-${encodeURIComponent(label8)}.json`; }
 
   async function getBlob(url){
     const res = await fetch(bust(url), {method:"GET", cache:"no-store"});
@@ -174,7 +172,6 @@
     }catch(_e){}
   }
 
-  /* ===== log button points at status JSON immediately ===== */
   async function tryEnableLog(){
     try {
       const r = await head(logRAW);
@@ -186,7 +183,6 @@
     } catch(_){}
   }
 
-  /* ===== download wiring ===== */
   function armDownload(urls){
     enable(dlEl);
     dlEl.onclick = async function(ev){
@@ -204,11 +200,10 @@
           a.href = obj; a.download = pretty; document.body.appendChild(a); a.click(); a.remove();
           setTimeout(()=>URL.revokeObjectURL(obj), 1500);
 
-          // ask server to clean up after user download
+          // request server cleanup after user download
           turdLite("cleanup_request", csvRel);
           postJSON(CLEANUP_URL, {csv: csvRel}).then(()=>turdLite("cleanup_sent_ok")).catch(()=>turdLite("cleanup_sent_fail"));
 
-          // finish UI
           barEl.style.width="100%";
           statusEl.innerHTML = '<span class="ok">✅ CSV downloaded. Cleaning up…</span>';
           hintEl.style.display="block";
@@ -224,104 +219,98 @@
 
   /* ===== boot ===== */
   turdLite("page_load","csv_trigger");
-  // enable log button to the status JSON immediately (even before job starts)
   logEl.href = bust(statusJSON());
   enable(logEl);
 
-  // --- PRE-FLIGHT: if CSV is already present, finish immediately ---
+  // PRE-FLIGHT: if CSV already present, finish immediately
   try {
-      const rRaw = await head(csvRAW);
-      if (rRaw.ok) {
-	  barEl.style.width = "100%";
-	  statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
-	  armDownload([csvRAW, csvPGS]);
-	  turdLite("csv_ready_preflight","raw");
-	  return;
-      }
-  } catch(_) {}
-
-  try {
-      const rPgs = await head(csvPGS);
-      if (rPgs.ok) {
-	  barEl.style.width = "100%";
-	  statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
-	  armDownload([csvRAW, csvPGS]);
-	  turdLite("csv_ready_preflight","pages");
-	  return;
-      }
-  } catch(_) {}
-  // --- end PRE-FLIGHT ---
-  // kick exactly ONE CSV job
-  (async function startJob(){
-    try{
-      await postJSON(WEBHOOK_URL, {label, from:yFrom, to:yTo, csv_only:true});
-      turdLite("post_job_ok");
-    }catch(e){
-      turdLite("post_job_fail", String(e));
-      statusEl.innerHTML = `<span class="err">❌ CSV job failed to start (${String(e).replace(/[<>&]/g,"")}).</span>`;
-      disable(dlEl);
+    const rRaw = await head(csvRAW);
+    if (rRaw.ok) {
+      barEl.style.width = "100%";
+      statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
+      armDownload([csvRAW, csvPGS]);
+      turdLite("csv_ready_preflight","raw");
       return;
     }
+  } catch(_) {}
+  try {
+    const rPgs = await head(csvPGS);
+    if (rPgs.ok) {
+      barEl.style.width = "100%";
+      statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
+      armDownload([csvRAW, csvPGS]);
+      turdLite("csv_ready_preflight","pages");
+      return;
+    }
+  } catch(_) {}
 
-    // poll for CSV; animate progress bar
-    const MAX_MS = 5 * 60_000; // 5 minutes cap for polling
-    const timer = setInterval(async function(){
-      const timedOut = (Date.now()-jobStart) >= (TIMEOUT_MS_INIT + EXTRA_MS);
-      updateProgress(timedOut);
-      tryEnableLog();
+  // kick exactly ONE CSV job
+  try{
+    await postJSON(WEBHOOK_URL, {label, from:yFrom, to:yTo, csv_only:true});
+    turdLite("post_job_ok");
+  }catch(e){
+    turdLite("post_job_fail", String(e));
+    statusEl.innerHTML = `<span class="err">❌ CSV job failed to start (${String(e).replace(/[<>&]/g,"")}).</span>`;
+    disable(dlEl);
+    return;
+  }
 
-      try {
-	  const st = await fetchStatusJSON();
-	  if (st.phase === "done" && (st.csv_raw || st.csv_pages)) {
-	      clearInterval(timer);
-	      barEl.style.width = "100%";
-	      statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
-	      const urls = [];
-	      if (st.csv_raw)  urls.push(st.csv_raw);
-	      if (st.csv_pages) urls.push(st.csv_pages);
-	      armDownload(urls);
-	      turdLite("csv_ready_via_status");
-	      return;
-	  }
-      } catch (_e) {
-	  /* ignore status read errors and fall through to HEAD checks */
-      }
+  // poll for CSV + animate progress bar
+  const MAX_MS = 5 * 60_000;
+  const timer = setInterval(async function(){
+    const timedOut = (Date.now()-jobStart) >= (TIMEOUT_MS_INIT + EXTRA_MS);
+    updateProgress(timedOut);
+    tryEnableLog();
 
-      try{
-        const raw = await head(csvRAW);
-        if (raw.ok){
-          clearInterval(timer);
-          barEl.style.width="100%";
-          statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
-          armDownload([csvRAW, csvPGS]);
-          turdLite("csv_head_ok","raw");
-          return;
-        }
-      }catch(_){}
-
-      try{
-        const pgs = await head(csvPGS);
-        if (pgs.ok){
-          clearInterval(timer);
-          barEl.style.width="100%";
-          statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
-          armDownload([csvRAW, csvPGS]);
-          turdLite("csv_head_ok","pages");
-          return;
-        }
-      }catch(_){}
-
-      if ((Date.now()-jobStart) > MAX_MS){
+    try {
+      const st = await fetchStatusJSON();
+      if (st.phase === "done" && (st.csv_raw || st.csv_pages)) {
         clearInterval(timer);
-        barEl.style.width="100%"; barEl.classList.add("timeout");
-        statusEl.innerHTML = '<span class="err">❌ File not found where expected.</span>';
-        retryEl.style.display="inline-block";
-        retryEl.onclick = function(ev){ ev.preventDefault(); turdLite("retry_click"); location.reload(); };
-        turdLite("timeout_no_csv", "rel="+csvRel);
+        barEl.style.width = "100%";
+        statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
+        const urls = [];
+        if (st.csv_raw)  urls.push(st.csv_raw);
+        if (st.csv_pages) urls.push(st.csv_pages);
+        armDownload(urls);
+        turdLite("csv_ready_via_status");
+        return;
       }
-    }, POLL_INTERVAL_MS);
-  })();
+    } catch (_e) {}
 
-})();
+    try{
+      const raw = await head(csvRAW);
+      if (raw.ok){
+        clearInterval(timer);
+        barEl.style.width="100%";
+        statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
+        armDownload([csvRAW, csvPGS]);
+        turdLite("csv_head_ok","raw");
+        return;
+      }
+    }catch(_){}
+
+    try{
+      const pgs = await head(csvPGS);
+      if (pgs.ok){
+        clearInterval(timer);
+        barEl.style.width="100%";
+        statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
+        armDownload([csvRAW, csvPGS]);
+        turdLite("csv_head_ok","pages");
+        return;
+      }
+    }catch(_){}
+
+    if ((Date.now()-jobStart) > MAX_MS){
+      clearInterval(timer);
+      barEl.style.width="100%"; barEl.classList.add("timeout");
+      statusEl.innerHTML = '<span class="err">❌ File not found where expected.</span>';
+      retryEl.style.display="inline-block";
+      retryEl.onclick = function(ev){ ev.preventDefault(); turdLite("retry_click"); location.reload(); };
+      turdLite("timeout_no_csv", "rel="+csvRel);
+    }
+  }, POLL_INTERVAL_MS);
+
+})();  /* end async IIFE */
 </script>
 </html>
