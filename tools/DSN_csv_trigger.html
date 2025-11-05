@@ -53,18 +53,16 @@
 
 <script>
 (function(){
-  // ===== constants (kept) =====
+  // ===== constants =====
   var GH_PAGES_BASE = "https://soazcomms.github.io";
   var GH_RAW_BASE   = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main";
-  const DEFAULT_WEBHOOK = "https://sound-kangaroo-unlikely.ngrok-free.app";
   const qs = new URLSearchParams(location.search);
   const WEBHOOK_ORIG = (qs.get("webhook") || "https://sound-kangaroo-unlikely.ngrok-free.app").replace(/\/+$/,"");
-  // endpoints (kept names)
   const WEBHOOK_URL = WEBHOOK_ORIG + "/csv_only";
   const CLEANUP_URL = WEBHOOK_ORIG + "/DSN_cleanup";
   const TURD_URL    = WEBHOOK_ORIG + "/DSN_turd";
 
-  // ===== DOM (kept) =====
+  // ===== DOM =====
   var statusEl= document.getElementById("status");
   var barEl   = document.getElementById("bar");
   var legL    = document.getElementById("leg-left");
@@ -75,12 +73,11 @@
   var descEl  = document.getElementById("desc");
   var hintEl  = document.getElementById("hint");
 
-  // ===== timers (kept) =====
+  // ===== timers =====
   var POLL_INTERVAL_MS = 900;
   var TIMEOUT_MS_INIT  = 7 * 60_000;
   var EXTRA_MS         = 0;
   var jobStart         = Date.now();
-
   function mmss(ms){ var s=Math.max(0,Math.floor(ms/1000)); return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); }
   function updateProgress(timedOut){
     var elapsed = Date.now()-jobStart, total = TIMEOUT_MS_INIT + EXTRA_MS;
@@ -95,7 +92,7 @@
     turdLite("auto_extend", why ? (why+" +" + Math.round(ms/60000) + "m") : ("+" + Math.round(ms/60000) + "m"));
   }
 
-  // ===== inputs (kept) =====
+  // ===== inputs =====
   var label = (qs.get("label")||"").trim();
   var fromQ = (qs.get("from")  ||"").trim();
   var toQ   = (qs.get("to")    ||"").trim();
@@ -105,7 +102,7 @@
   var safeLabel = (label||"").replace(/[^\w.\-]+/g, "_");
   descEl.textContent = "Label: "+label+" · Range: "+yFrom+" → "+yTo;
 
-  // paths (kept)
+  // ===== paths =====
   var csvRel = "analysis/"+safeLabel+"_"+yFromC+"_"+yToC+".csv";
   var logRel = "logs/csv-"+safeLabel+"-"+yFromC+yToC+".log";
   var csvRAW = GH_RAW_BASE+"/"+csvRel;
@@ -113,7 +110,7 @@
   var logRAW = GH_RAW_BASE+"/"+logRel;
   var logPGS = GH_PAGES_BASE+"/"+logRel;
 
-  // ===== helpers (kept) =====
+  // ===== helpers =====
   function bust(u){ return u + (u.indexOf("?")>-1 ? "&" : "?") + "bust=" + Date.now(); }
   function setDisabled(a, dis){ if(dis){ a.classList.add("disabled"); a.setAttribute("aria-disabled","true"); } else { a.classList.remove("disabled"); a.removeAttribute("aria-disabled"); } }
   function xhrHEAD(url, ok, fail){
@@ -143,7 +140,7 @@
     }catch(e){ fail && fail(0); }
   }
 
-  // ===== logging: existing JSON POST logger (kept) =====
+  // ===== logging =====
   const RUN_ID = "run-" + Date.now() + "-" + Math.random().toString(36).slice(2,8);
   function postJSON(url, obj, ok, fail){
     try{
@@ -157,18 +154,25 @@
         }
       };
       x.onerror = function(){ fail && fail(0, "network error"); };
-	var payload = Object.assign({run_id: RUN_ID, t: new Date().toISOString()}, obj||{});
+      var payload = Object.assign({run_id: RUN_ID, t: new Date().toISOString()}, obj||{});
       x.send(JSON.stringify(payload));
     }catch(e){ fail && fail(0, String(e)); }
   }
-  function turd(step, note){
+  function turdLite(step, note){
     if (!window.DEBUG_TURD) return;
-    postJSON(TURD_URL, {step:step, note:note||"", label:label, from:yFrom, to:yTo, run_id:RUN_ID});
+    try{
+      var payload = {step:step, note:note||"", label:label, from:yFrom, to:yTo, run_id:RUN_ID, t:new Date().toISOString(), lite:true};
+      if (navigator.sendBeacon){
+        var blob = new Blob([JSON.stringify(payload)], {type: "application/json"});
+        navigator.sendBeacon(TURD_URL, blob);
+      } else {
+        var img = new Image(1,1);
+        var q = new URLSearchParams({ s: step, n: (note||"").slice(0,120), l: label, f: yFrom, t: yTo, r: RUN_ID, z: Date.now() });
+        img.src = TURD_URL + "?" + q.toString();
+      }
+    }catch(_e){}
   }
-
-<!-- pixel logger (GET) — fire even if CORS/beacon are blocked -->
-<script>
-  function turdPixel(step, note) {
+  function turdPixel(step, note){
     try {
       const params = new URLSearchParams({
         step: step || "",
@@ -182,37 +186,8 @@
       img.src = TURD_URL + "?" + params;
     } catch(e) {}
   }
-</script>
-<script>
-  document.addEventListener("DOMContentLoaded", function () {
-    turdPixel("dom_ready", "csv_trigger opened");
-  });
-  window.addEventListener("load", function () {
-    turdPixel("win_load", "window load");
-  });
-</script>
-  /* ===== NEW: ultra-lightweight logger (“pixel” style) =====
-     Uses sendBeacon when available; falls back to GETing a 1×1 image.
-     Does not block UI; safe to sprinkle anywhere.
-  */
-  function turdLite(step, note){
-    if (!window.DEBUG_TURD) return;
-    try{
-      var payload = {step:step, note:note||"", label:label, from:yFrom, to:yTo, run_id:RUN_ID, t:new Date().toISOString(), lite:true};
-      if (navigator.sendBeacon){
-        var blob = new Blob([JSON.stringify(payload)], {type: "application/json"});
-        navigator.sendBeacon(TURD_URL, blob);
-      } else {
-        // fall back to a GET pixel; params compact to avoid long URLs
-        var img = new Image(1,1);
-        var q = new URLSearchParams({
-          s: step, n: (note||"").slice(0,120),
-          l: label, f: yFrom, t: yTo, r: RUN_ID, z: Date.now()
-        });
-        img.src = TURD_URL + "?" + q.toString();
-      }
-    }catch(_e){}
-  }
+  document.addEventListener("DOMContentLoaded", function () { turdPixel("dom_ready","csv_trigger opened"); });
+  window.addEventListener("load", function () { turdPixel("win_load","window load"); });
 
   // point log button at status JSON immediately
   function statusJSON(){ return GH_PAGES_BASE + "/status/status-" + encodeURIComponent(safeLabel) + ".json"; }
@@ -259,7 +234,8 @@
         turdLite("download_try", u);
         xhrGETBlob(u, function(blob){
           var obj = URL.createObjectURL(blob);
-          var a = document.createElement("a"); a.href = obj; a.download = pretty;
+          var a = document.createElement("a");
+          a.href = obj; a.download = pretty;
           document.body.appendChild(a); a.click(); a.remove();
           setTimeout(function(){ URL.revokeObjectURL(obj); }, 1500);
 
@@ -274,7 +250,8 @@
           // finish UI
           barEl.style.width="100%";
           statusEl.innerHTML = '<span class="ok">✅ CSV downloaded. Cleaning up…</span>';
-          hintEl.style.display="block"; hintEl.textContent = "If your browser blocks the first attempt, click Download again.";
+          hintEl.style.display="block";
+          hintEl.textContent = "If your browser blocks the first attempt, click Download again.";
           turdLite("download_done");
         }, function(){ tryNext(i+1); });
       })(0);
@@ -294,47 +271,33 @@
   logEl.href = bust(statusJSON());
   setDisabled(logEl,false);
 
-  // kick the job
-    postJSON(
-	WEBHOOK_URL,
-	{label:label, from:yFrom, to:yTo, csv_only: true },
-	function(){ turdLite("post_job_ok"); },
-	function(code, body){ turdLite("post_job_fail", "code="+code); }
-    );
-  // kick the job — CSV only (and optional force)
+  // kick ONE CSV job
   postJSON(
-      WEBHOOK_URL,
-      {
-	  label: label,
-	  from:  yFrom,           // YYYY-MM-DD already
-	  to:    yTo,             // YYYY-MM-DD already
-	  csv_only: true,         // <— run CSV job only
-	  // force: true          // <— uncomment to force rebuild even if CSV exists
-      },
-      function(){ turdLite("post_job_ok"); },
-      function(code, body){ turdLite("post_job_fail", "code="+code); }
+    WEBHOOK_URL,
+    {label: label, from: yFrom, to: yTo, csv_only: true},
+    function(){ turdLite("post_job_ok"); },
+    function(code){ statusEl.innerHTML = '<span class="err">❌ CSV job failed to start (HTTP '+code+').</span>'; }
   );
-    
+
   // poll for CSV + animate progress bar
   var MAX_MS = 180000;
   var loop = setInterval(function(){
     var timedOut = (Date.now()-jobStart) >= (TIMEOUT_MS_INIT + EXTRA_MS);
     updateProgress(timedOut);
-
     tryEnableLog();
 
-    xhrHEAD(GH_RAW_BASE+"/"+csvRel, function(code){
+    xhrHEAD(csvRAW, function(code){
       clearInterval(loop);
       barEl.style.width="100%";
       statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
-      armDownload([GH_RAW_BASE+"/"+csvRel, GH_PAGES_BASE+"/"+csvRel]);
+      armDownload([csvRAW, csvPGS]);
       turdLite("csv_head_ok","raw="+code);
     }, function(){
-      xhrHEAD(GH_PAGES_BASE+"/"+csvRel, function(code2){
+      xhrHEAD(csvPGS, function(code2){
         clearInterval(loop);
         barEl.style.width="100%";
         statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
-        armDownload([GH_RAW_BASE+"/"+csvRel, GH_PAGES_BASE+"/"+csvRel]);
+        armDownload([csvRAW, csvPGS]);
         turdLite("csv_head_ok","pages="+code2);
       }, function(){
         if ((Date.now()-jobStart) > MAX_MS){
