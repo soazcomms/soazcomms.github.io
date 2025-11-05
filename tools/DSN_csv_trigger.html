@@ -96,7 +96,7 @@
   const yFrom = toYMD(fromQ);
   const yTo   = toYMD(toQ);
   const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-
+  const label8 = label.slice(0, 8);  // e.g. "DSN019-S"
   if (!label || label === "…" || !DATE_RE.test(yFrom) || !DATE_RE.test(yTo)){
     headerEl.textContent = "Label: … · Range: … → …";
     statusEl.innerHTML = '<span class="err">❌ Missing/invalid label/from/to (need YYYY-MM-DD).</span>';
@@ -124,6 +124,15 @@
   function enable(a){ a.classList.remove("disabled"); a.removeAttribute("aria-disabled"); }
   function head(url){ return fetch(bust(url), {method:"HEAD", cache:"no-store"}); }
 
+  async function fetchStatusJSON(){
+      const url = `${GH_PAGES_BASE}/status/status-${encodeURIComponent(label8)}.json?bust=${Date.now()}`;
+      const res = await fetch(url, {cache:"no-store"});
+      if (!res.ok) throw new Error("status "+res.status);
+      return res.json();
+  }
+  function statusJSON(){
+      return `${GH_PAGES_BASE}/status/status-${encodeURIComponent(label8)}.json`;
+  }
   async function fetchStatusJSON(){
       const url = `${GH_PAGES_BASE}/status/status-${encodeURIComponent(safeLabel)}.json?bust=${Date.now()}`;
       const res = await fetch(url, {cache:"no-store"});
@@ -226,6 +235,29 @@
   logEl.href = bust(statusJSON());
   enable(logEl);
 
+  // --- PRE-FLIGHT: if CSV is already present, finish immediately ---
+  try {
+      const rRaw = await head(csvRAW);
+      if (rRaw.ok) {
+	  barEl.style.width = "100%";
+	  statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
+	  armDownload([csvRAW, csvPGS]);
+	  turdLite("csv_ready_preflight","raw");
+	  return;
+      }
+  } catch(_) {}
+
+  try {
+      const rPgs = await head(csvPGS);
+      if (rPgs.ok) {
+	  barEl.style.width = "100%";
+	  statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
+	  armDownload([csvRAW, csvPGS]);
+	  turdLite("csv_ready_preflight","pages");
+	  return;
+      }
+  } catch(_) {}
+  // --- end PRE-FLIGHT ---
   // kick exactly ONE CSV job
   (async function startJob(){
     try{
