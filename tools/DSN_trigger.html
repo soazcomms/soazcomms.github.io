@@ -1,9 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-0PQTHF10EQ"></script>
-  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config','G-0PQTHF10EQ');</script>
   <meta charset="UTF-8" />
   <title>🔬 DSN Analysis</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -44,55 +41,30 @@
     <button id="exit-btn"   type="button">🔙 Exit</button>
   </div>
 
-<script src="https://sound-kangaroo-unlikely.ngrok-free.app/env.js"></script>
-<script>
-  console.log("DEBUG_TURD =", window.DEBUG_TURD);
-</script>
+  <!-- Your env.js should set window.DEBUG_TURD if you want lightweight logging -->
+  <script src="https://sound-kangaroo-unlikely.ngrok-free.app/env.js"></script>
 
 <script>
+(() => {
+  // ========= Constants & params =========
   const GH_PAGES_BASE = "https://soazcomms.github.io/";
   const STATUS_DIR    = "status";
 
   const qs    = new URLSearchParams(location.search);
   const label = (qs.get("label")||"").trim();
-  const from  = (qs.get("from") || "").trim();
-  const to    = (qs.get("to")   || "").trim();
-  function toISOstr(s){ if(!s) return ""; try { return new Date(s).toISOString(); } catch { return ""; } }
-  const fromISO = toISOstr(from);
-  const toISO   = toISOstr(to);
+  const fromQ = (qs.get("from") || "").trim();
+  const toQ   = (qs.get("to")   || "").trim();
 
-  // ngrok webhook base (allow override via ?webhook=)
+  // Accept YYYY-MM-DD or ISO; pass through unchanged to the webhook
+  const fromISO = fromQ;
+  const toISO   = toQ;
+
   const DEFAULT_WEBHOOK = "https://sound-kangaroo-unlikely.ngrok-free.app";
-  const WEBHOOK_ORIG  = (qs.get("webhook") || DEFAULT_WEBHOOK).replace(/\/+$/,"");
-  const WEBHOOK_URL   = WEBHOOK_ORIG + "/DSN_webhook";
-  const TURD_URL      = WEBHOOK_ORIG + "/DSN_turd";
+  const WEBHOOK_ORIG = (qs.get("webhook") || DEFAULT_WEBHOOK).replace(/\/+$/,"");
+  const WEBHOOK_URL  = WEBHOOK_ORIG + "/webhook";     // analysis endpoint
+  const TURD_URL     = WEBHOOK_ORIG + "/DSN_turd";    // debug pixel
 
-  const POLL_INTERVAL_MS = 10_000;
-  const TIMEOUT_MS_INIT  = 7 * 60_000;
-  const EXTEND_MS        = 7 * 60_000;
-
-  const RUN_ID     = "run-" + Date.now() + "-" + Math.random().toString(36).slice(2,8);
-
-  function turd(step, note) {
-    if (!DEBUG_TURD) return;
-    const payload = {
-      step: step, note: String(note||""), where:"HTML",
-      run_id: RUN_ID, ts: String(Date.now()),
-      label, from: fromISO, to: toISO, webhook: WEBHOOK_ORIG
-    };
-    try { (new Image()).src = TURD_URL + "?" + new URLSearchParams(payload).toString(); } catch(_) {}
-    try {
-      fetch(TURD_URL, { method:"POST", mode:"no-cors",
-        headers:{"Content-Type":"application/json"},
-        body: JSON.stringify(payload)
-      });
-    } catch(_) {}
-  }
-  window.addEventListener("error", e => turd("window_error", (e && e.message) || "err"));
-  window.addEventListener("unhandledrejection", e => turd("unhandled_rejection", (e && (e.reason && e.reason.message)) || "rej"));
-
-  turd("page_load", location.search || "(no query)");
-
+  // ========= UI handles =========
   const titleEl  = document.getElementById("title");
   const statusEl = document.getElementById("status");
   const linkEl   = document.getElementById("open-link");
@@ -101,44 +73,75 @@
   const legR     = document.getElementById("leg-right");
   const extendBtn= document.getElementById("extend-btn");
   const exitBtn  = document.getElementById("exit-btn");
+
   if (label) titleEl.textContent = `🔬 DSN Analysis — ${label}`;
 
-  const jobStart = Date.now();
-  let timeoutMs  = TIMEOUT_MS_INIT, extraTime=0, lastStamp=0, lastNote="", lastStatus="";
+  // ========= Progress / timing =========
+  const POLL_MS       = 5000;
+  const TIMEOUT_INIT  = 7 * 60_000;
+  const EXTEND_MS     = 5 * 60_000;
+  const RUN_ID        = "run-" + Date.now().toString(36);
+
+  let extraTime = 0;
+  const start   = Date.now();
 
   function mmss(ms){ const s=Math.max(0,Math.floor(ms/1000)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
   function updateProgress(timedOut){
-    const elapsed = Date.now()-jobStart, total=timeoutMs+extraTime;
-    const pct = Math.max(3, Math.min(100, Math.floor(elapsed/total*100)));
-    barEl.style.width = pct+"%";
-    if (timedOut) barEl.classList.add("timeout"); else barEl.classList.remove("timeout");
+    const elapsed = Date.now()-start;
+    const total   = TIMEOUT_INIT + extraTime;
+    const pct     = Math.max(3, Math.min(100, Math.floor(elapsed/total*100)));
+    barEl.style.width = pct + "%";
+    barEl.classList.toggle("timeout", !!timedOut);
     legL.textContent = mmss(elapsed);
     legR.textContent = timedOut ? "Waiting…" : `Timeout in ${mmss(Math.max(0,total-elapsed))}`;
   }
-  function softExtend(ms, why){ extraTime += ms; turd("auto_extend", `${why} +${Math.round(ms/60000)}m`); }
-  extendBtn.addEventListener("click", ()=>{ extraTime+=EXTEND_MS; extendBtn.style.display="none"; statusEl.innerHTML="⏳ Extended… still working."; turd("manual_extend", `+${Math.round(EXTEND_MS/60000)}m`); });
-  exitBtn.addEventListener("click", ()=>{ window.close(); });
+
+  extendBtn.addEventListener("click", () => {
+    extraTime += EXTEND_MS;
+    extendBtn.style.display = "none";
+    statusEl.innerHTML = "⏳ Extended… still working.";
+    turd("manual_extend", `+${Math.round(EXTEND_MS/60000)}m`);
+  });
+
+  exitBtn.addEventListener("click", () => window.close());
+
+  // ========= ultra-light “pixel” logger =========
+  const DEBUG = !!window.DEBUG_TURD;
+  function turd(step, note) {
+    if (!DEBUG) return;
+    try {
+      const payload = {step, note: String(note||""), label, from: fromISO, to: toISO, run_id: RUN_ID, t: Date.now()};
+      if (navigator.sendBeacon) {
+        const blob = new Blob([JSON.stringify(payload)], {type:"application/json"});
+        navigator.sendBeacon(TURD_URL, blob);
+      } else {
+        const img = new Image(1,1);
+        img.src = TURD_URL + "?" + new URLSearchParams(payload).toString();
+      }
+    } catch(_) {}
+  }
+
+  // ========= Helpers =========
+  function safeShort(lbl){ return (lbl||"").split("_")[0].replace(/[^\w.\-]/g,"_"); }
+  function safeFull(lbl){  return (lbl||"").replace(/[^\w.\-]/g,"_"); }
+  function bust(u){ return u + (u.includes("?")?"&":"?") + "bust=" + Date.now(); }
 
   function statusUrls(){
-    const safeFull  = (label||"").replace(/[^\w.\-]+/g,"_");
-    const shortPart = (label||"").split("_")[0];
-    const safeShort = (shortPart||"").replace(/[^\w.\-]+/g,"_");
-    const bust = `?bust=${Date.now()}`;
+    const sFull  = safeFull(label);
+    const sShort = safeShort(label);
     return [
-      `${GH_PAGES_BASE}${STATUS_DIR}/status-${safeFull}.json${bust}`,
-      `${GH_PAGES_BASE}${STATUS_DIR}/status-${safeShort}.json${bust}`
-    ];
-  }
-  function resolveResultUrl(relOrAbs){ return /^https?:\/\//i.test(relOrAbs) ? relOrAbs : `${GH_PAGES_BASE}${String(relOrAbs).replace(/^\/+/,"")}`; }
-  function fallbackHtmlUrl(lbl){
-    const short=(lbl||"").split("_")[0];
-    if(!short) return null;
-    return `${GH_PAGES_BASE}analysis/${short}/${short}.analysis.html`;
+      `${GH_PAGES_BASE}${STATUS_DIR}/status-${sFull}.json`,
+      `${GH_PAGES_BASE}${STATUS_DIR}/status-${sShort}.json`,
+    ].map(bust);
   }
 
-  // lightweight pixel ping
-  function pingPixel(url, timeoutMs=4000){
-    return new Promise(res=>{
+  function resolveUrl(relOrAbs){
+    return /^https?:\/\//i.test(relOrAbs) ? relOrAbs : (GH_PAGES_BASE + String(relOrAbs).replace(/^\/+/, ""));
+  }
+
+  // Minimal ngrok preflight (pixel GET, then /health GET)
+  function pingPixel(url, timeoutMs=3000){
+    return new Promise(res => {
       let done=false; const img=new Image();
       const to=setTimeout(()=>{ if(!done){ done=true; img.src=""; res(false); } }, timeoutMs);
       img.onload=()=>{ if(!done){ done=true; clearTimeout(to); res(true); } };
@@ -149,112 +152,109 @@
   }
   async function preflightNgrok(){
     turd("preflight_begin", WEBHOOK_ORIG);
-    const ok1 = await pingPixel(TURD_URL + "?step=preflight_pixel&where=HTML&run_id="+encodeURIComponent(RUN_ID));
-    if (ok1) { turd("preflight_ok_pixel","1x1 ok"); return true; }
+    const ok1 = await pingPixel(TURD_URL);
+    if (ok1) return true;
     try {
-      await fetch(TURD_URL, { method:"POST", mode:"no-cors",
-        headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({step:"preflight_post", where:"HTML", run_id:RUN_ID, webhook:WEBHOOK_ORIG})
-      });
-      turd("preflight_post_sent","no-cors");
-    } catch(e){ turd("preflight_post_err", String(e)); }
-    try {
-      const ctrl = new AbortController(); const t=setTimeout(()=>ctrl.abort(),5000);
-      const r = await fetch(WEBHOOK_ORIG + "/health", { method:"GET", cache:"no-store", signal:ctrl.signal });
+      const ctrl = new AbortController(); const t=setTimeout(()=>ctrl.abort(),4000);
+      const r = await fetch(WEBHOOK_ORIG + "/health", {signal:ctrl.signal, cache:"no-store"});
       clearTimeout(t);
-      if (r.ok) { turd("preflight_ok_health","HTTP "+r.status); return true; }
-      turd("preflight_fail_health","HTTP "+r.status); return false;
-    } catch(e){ turd("preflight_fail_health",(e&&e.message)||"health_err"); return false;
-    }
+      return r.ok;
+    } catch { return false; }
   }
 
-  async function pollStatusOnce() {
+  // ========= Kick job & poll =========
+  async function postJob(){
+    const body = { label, from: fromISO, to: toISO };
+    turd("post_job", JSON.stringify(body));
+    const r = await fetch(WEBHOOK_URL, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) throw new Error("Webhook HTTP "+r.status);
+    turd("post_job_ok");
+  }
+
+  async function pollOnce(){
     try {
-      let data=null;
-      for (const u of statusUrls()) {
+      for (const u of statusUrls()){
         const r = await fetch(u, {cache:"no-store"});
-        if (r.ok) { data = await r.json(); break; }
+        if (!r.ok) continue;
+        const data = await r.json();
+
+        // error from server
+        if (data.phase === "error"){
+          statusEl.innerHTML = (data.status || "❌ Analysis failed.") +
+            (data.note ? `<pre style="text-align:left;white-space:pre-wrap">${data.note}</pre>` : "");
+          turd("server_error", data.status||"");
+          document.title = "❌ DSN Analysis";
+          return {done:true};
+        }
+
+        // success path — explicit html OR done:true (with server-provided rel path)
+        const htmlRel = (data.html && String(data.html).trim()) || "";
+        if (htmlRel){
+          const url = resolveUrl(htmlRel);
+          linkEl.href = url;
+          linkEl.style.display = "inline-block";
+          statusEl.innerHTML = data.status || "✅ Analysis complete.";
+          document.title = "✅ DSN Analysis";
+          barEl.style.width = "100%";
+          turd("html_ready", url);
+          return {done:true};
+        }
+
+        // otherwise keep waiting
+        statusEl.innerHTML = data.status || "⏳ Generating plots…";
+        return {done:false};
       }
-      if (!data) { turd("status_http","both JSON 404"); return {done:false}; }
-
-      // Extend on movement
-      if ((data.timestamp||0)>lastStamp){ lastStamp=data.timestamp; softExtend(120000,"status timestamp advanced"); }
-      if ((data.note||"")!==lastNote){ lastNote=data.note||""; softExtend(60000,"note changed"); }
-      if ((data.status||"")!==lastStatus){ lastStatus=data.status||""; softExtend(60000,"status changed"); }
-
-      // Abort on error
-      if ((data.phase||"") === "error") {
-        const msg = (data.status || "❌ Analysis failed.") + (data.note ? `<pre style="text-align:left;white-space:pre-wrap">${data.note}</pre>` : "");
-        statusEl.innerHTML = msg; barEl.classList.add("timeout"); legR.textContent = "Error";
-        turd("analysis_fail", data.note||"no-note"); document.title = "❌ DSN Analysis";
-        return {done:true};
-      }
-
-      // ✅ Success path — accept either explicit html OR done:true + fallback URL
-      const explicitHtml = data.html && String(data.html).trim();
-      const fallbackHtml = (!explicitHtml && data.done===true) ? fallbackHtmlUrl(label) : null;
-      const finalHtml    = explicitHtml ? resolveResultUrl(explicitHtml) : fallbackHtml;
-
-      if (finalHtml) {
-        statusEl.innerHTML = data.status || "✅ Analysis complete.";
-        linkEl.href = finalHtml;
-        linkEl.style.display = "inline-block";
-        barEl.style.width = "100%"; barEl.classList.remove("timeout"); legR.textContent = "Complete";
-        turd("html_ready", finalHtml);
-        document.title = "✅ DSN Analysis";
-        return {done:true};
-      }
-
-      // Still running
-      statusEl.innerHTML = `⏳ Generating plots…`;
+      // both 404 -> not ready
       return {done:false};
-
-    } catch (e) {
-      turd("status_fetch_fail", String(e));
+    } catch (e){
+      turd("poll_exception", String(e));
       return {done:false};
     }
   }
 
+  // ========= Main =========
   (async function main(){
-    statusEl.innerHTML = label
-      ? `🔄 Running DSN analysis for <b>${label}</b><br/>⏳ Generating plots…`
-      : `🔄 Running DSN analysis…<br/>⏳ Generating plots…`;
-
-    const ok = await preflightNgrok();
-    if (!ok) {
-      statusEl.innerHTML = `❌ ngrok unreachable at <code>${WEBHOOK_ORIG}</code><br/><span class="muted">Run <b>GoWebhook</b> and reload. Or pass ?webhook=https://your-ngrok</span>`;
-      document.title = "❌ DSN Analysis";
-      barEl.style.width = "0%";
+    if (!label || !fromISO || !toISO){
+      statusEl.innerHTML = "❌ Missing/invalid label/from/to (need YYYY-MM-DD).";
       return;
     }
 
-    // POST job
-    try {
-      turd("post_job", JSON.stringify({label, from:fromISO, to:toISO, webhook:WEBHOOK_ORIG}));
-      const jobUrl = WEBHOOK_ORIG.replace(/\/+$/,'') + "/webhook";
-      const res = await fetch(jobUrl, {
-        method:"POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label, from:fromISO, to:toISO })
-      });
-      if (!res.ok) throw new Error(`Webhook HTTP ${res.status}`);
-      turd("post_job_ok");
-    } catch (e) {
+    statusEl.innerHTML = `🔄 Running analysis for <b>${label}</b>…<br/>⏳ Generating plots…`;
+
+    const ok = await preflightNgrok();
+    if (!ok){
+      statusEl.innerHTML = `❌ ngrok unreachable at <code>${WEBHOOK_ORIG}</code><br/><span class="muted">Run your tunnel and reload.</span>`;
+      barEl.style.width = "0%";
+      document.title = "❌ DSN Analysis";
+      return;
+    }
+
+    // start job (fire and poll)
+    try { await postJob(); }
+    catch(e){
       statusEl.textContent = "⏳ Processing… (webhook may be delayed)";
       turd("post_job_fail", String(e));
     }
 
-    // Poll with explicit loop + progress updates
     let done=false;
-    while (!done) {
-      const elapsed = Date.now()-jobStart, total=timeoutMs+extraTime, timedOut = elapsed>=total;
+    while (!done){
+      const elapsed = Date.now()-start;
+      const timedOut = elapsed >= (TIMEOUT_INIT + extraTime);
       updateProgress(timedOut);
-      if (timedOut) { statusEl.innerHTML="⏱️ Still working… might be a larger data window.<br/><span class='muted'>You can keep waiting.</span>"; extendBtn.style.display="inline-block"; turd("timeout_window_hit"); }
-      const r = await pollStatusOnce();
+      if (timedOut){
+        statusEl.innerHTML = "⏱️ Still working… might be a larger data window.";
+        extendBtn.style.display = "inline-block";
+      }
+      const r = await pollOnce();
       done = !!r.done;
-      if (!done) { await new Promise(r=>setTimeout(r, POLL_INTERVAL_MS)); }
+      if (!done) await new Promise(r => setTimeout(r, POLL_MS));
     }
   })();
+})();
 </script>
 </body>
 </html>
