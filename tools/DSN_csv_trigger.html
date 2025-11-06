@@ -51,8 +51,8 @@
   const WEBHOOK_BASE  = "https://sound-kangaroo-unlikely.ngrok-free.app";  // your ngrok
   const WEBHOOK_URL   = WEBHOOK_BASE + "/csv_only";
   const CLEANUP_URL   = WEBHOOK_BASE + "/DSN_cleanup";
-  const TURD_URL      = WEBHOOK_BASE + "/DSN_turd";
-  if (typeof window.DEBUG_TURD === "undefined") window.DEBUG_TURD = true;   // keeps your lite logging
+  const DEBUG_URL      = WEBHOOK_BASE + "/DSN_debug";
+  if (typeof window.DEBUG_FLAG === "undefined") window.DEBUG_FLAG = true;   // keeps your lite logging
 
   /* ===== DOM ===== */
   const headerEl = document.getElementById("headerText");
@@ -116,18 +116,34 @@
   /* ===== helpers ===== */
   function bust(u){ return u + (u.includes("?")?"&":"?") + "bust=" + Date.now(); }
   function disable(a){ a.classList.add("disabled"); a.setAttribute("aria-disabled","true"); }
-  function enable(a){ a.classList.remove("disabled"); a.removeAttribute("aria-disabled"); }
-  function turdLite(step, note){
-    if (!window.DEBUG_TURD) return;
+    function enable(a){ a.classList.remove("disabled"); a.removeAttribute("aria-disabled"); }
+    // --- ultra-lightweight pixel logger ---
+  function debugPixel(step, note) {
+    try {
+      const params = new URLSearchParams({
+        s: step,
+        n: (note || "").slice(0, 120),
+        l: label,
+        f: yFrom,
+        t: yTo,
+        z: Date.now()
+      });
+      const img = new Image(1,1);
+      img.src = `${WEBHOOK_BASE}/DSN_debug?${params.toString()}`;
+    } catch(e) { console.warn("debugPixel error", e); }
+  }
+  //
+  function debugLite(step, note){
+    if (!window.DEBUG_FLAG) return;
     try{
       const payload = {step, note:note||"", label, from:yFrom, to:yTo, t:new Date().toISOString(), lite:true};
       if (navigator.sendBeacon){
         const blob = new Blob([JSON.stringify(payload)], {type:"application/json"});
-        navigator.sendBeacon(TURD_URL, blob);
+        navigator.sendBeacon(DEBUG_URL, blob);
       } else {
         const img = new Image(1,1);
         const q   = new URLSearchParams({ s:step, n:(payload.note||"").slice(0,120), l:label, f:yFrom, t:yTo, z:Date.now() });
-        img.src   = `${TURD_URL}?${q.toString()}`;
+        img.src   = `${DEBUG_URL}?${q.toString()}`;
       }
     }catch(_e){}
   }
@@ -175,7 +191,8 @@
   }
 
   /* ===== boot ===== */
-  turdLite("page_load","csv_trigger");
+  debugLite("page_load","csv_trigger");
+  debugPixel("page_load","csv_trigger");  
   // show log link as soon as it appears
   enableLogWhenReady();
 
