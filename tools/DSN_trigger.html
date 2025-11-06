@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>🔬 DSN Analysis</title>
+  <title>🔬 DSN Analysis 1</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="Cache-Control" content="no-store, max-age=0" />
   <meta http-equiv="Pragma" content="no-cache" />
@@ -11,12 +11,13 @@
     :root { --primary:#007bff; --accent:#87CEFA; --ok:#2e7d32; --warn:#c62828; --barbg:#edf2f7; }
     body { font-family: system-ui,-apple-system,Segoe UI,Roboto,sans-serif; text-align:center; margin:2rem; }
     h2 { margin-bottom:.25rem; }
+    #headerText { margin:.25rem 0 .5rem; color:#444; }
     #status { margin:.5rem 0 .5rem; font-size:1.05rem; min-height:2.4em; }
     a.button { display:none; margin-top:.75rem; padding:.6rem 1.2rem; font-size:1rem; background:var(--primary); color:#fff; text-decoration:none; border-radius:8px; }
     .actions { margin-top:.75rem; display:flex; gap:.5rem; justify-content:center; flex-wrap:wrap; }
     button { padding:.55rem .95rem; font-size:.95rem; border:0; border-radius:8px; cursor:pointer; }
     #exit-btn { background:var(--accent); }
-    #extend-btn { background:#e0e7ff; }
+    #extend-btn { background:#e0e7ff; display:none; }
     .muted { color:#666; font-size:.9rem; }
     .progress-wrap { width:min(720px,90vw); margin:1rem auto .25rem; text-align:center; }
     .progress { width:50%; margin:0 auto; height:12px; background:var(--barbg); border-radius:999px; overflow:hidden; box-shadow:inset 0 0 0 1px #e2e8f0; }
@@ -27,6 +28,7 @@
 </head>
 <body>
   <h2 id="title">🔬 DSN Analysis</h2>
+  <div id="headerText" class="muted"></div>
   <div id="status">⏳ Initializing…</div>
 
   <div class="progress-wrap" aria-label="Progress toward timeout window">
@@ -37,11 +39,11 @@
   <a id="open-link" class="button" target="_blank" rel="noopener">📄 View Analysis Result</a>
 
   <div class="actions">
-    <button id="extend-btn" type="button" style="display:none;">⏱️ Keep waiting 5 more min</button>
+    <button id="extend-btn" type="button">⏱️ Keep waiting 5 more min</button>
     <button id="exit-btn"   type="button">🔙 Exit</button>
   </div>
 
-  <!-- Your env.js should set window.DEBUG_FLAG if you want lightweight logging -->
+  <!-- Optional: sets window.DEBUG_FLAG for lightweight logging if you want -->
   <script src="https://sound-kangaroo-unlikely.ngrok-free.app/env.js"></script>
 
 <script>
@@ -55,17 +57,19 @@
   const fromQ = (qs.get("from") || "").trim();
   const toQ   = (qs.get("to")   || "").trim();
 
-  // Accept YYYY-MM-DD or ISO; pass through unchanged to the webhook
+  // We accept YYYY-MM-DD or ISO and pass through unchanged
   const fromISO = fromQ;
   const toISO   = toQ;
 
   const DEFAULT_WEBHOOK = "https://sound-kangaroo-unlikely.ngrok-free.app";
   const WEBHOOK_ORIG = (qs.get("webhook") || DEFAULT_WEBHOOK).replace(/\/+$/,"");
-  const WEBHOOK_URL  = WEBHOOK_ORIG + "/webhook";     // analysis endpoint
-  const DEBUG_URL     = WEBHOOK_ORIG + "/DSN_debug";    // debug pixel
+  const WEBHOOK_MAIN = WEBHOOK_ORIG + "/webhook";      // preferred analysis endpoint
+  const WEBHOOK_FALL = WEBHOOK_ORIG + "/DSN_trigger";  // legacy fallback
+  const DEBUG_URL    = WEBHOOK_ORIG + "/DSN_debug";    // ultra-light pixel logger
 
   // ========= UI handles =========
   const titleEl  = document.getElementById("title");
+  const headerEl = document.getElementById("headerText");
   const statusEl = document.getElementById("status");
   const linkEl   = document.getElementById("open-link");
   const barEl    = document.getElementById("bar");
@@ -75,6 +79,7 @@
   const exitBtn  = document.getElementById("exit-btn");
 
   if (label) titleEl.textContent = `🔬 DSN Analysis — ${label}`;
+  if (label && fromISO && toISO) headerEl.textContent = `Label: ${label} · Range: ${fromISO} → ${toISO}`;
 
   // ========= Progress / timing =========
   const POLL_MS       = 5000;
@@ -122,7 +127,7 @@
   }
 
   // ========= Helpers =========
-  function safeShort(lbl){ return (lbl||"").split("_")[0].replace(/[^\w.\-]/g,"_"); }
+  function safeShort(lbl){ return (lbl||"").split("_")[0].replace(/[^\w.\-]/g,"_"); } // DSN019-S_MtLemmon -> DSN019-S
   function safeFull(lbl){  return (lbl||"").replace(/[^\w.\-]/g,"_"); }
   function bust(u){ return u + (u.includes("?")?"&":"?") + "bust=" + Date.now(); }
 
@@ -166,13 +171,27 @@
   async function postJob(){
     const body = { label, from: fromISO, to: toISO };
     debug("post_job", JSON.stringify(body));
-    const r = await fetch(WEBHOOK_URL, {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify(body)
-    });
-    if (!r.ok) throw new Error("Webhook HTTP "+r.status);
-    debug("post_job_ok");
+    // Try /webhook first, then /DSN_trigger
+    let lastErr = null;
+    for (const url of [WEBHOOK_MAIN, WEBHOOK_FALL]){
+      try {
+        const r = await fetch(url, {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify(body)
+        });
+        if (r.ok) { debug("post_job_ok", url); return; }
+        lastErr = new Error("HTTP "+r.status+" @ "+url);
+      } catch(e){ lastErr = e; }
+    }
+    throw lastErr || new Error("post failed");
+  }
+
+  // If server forgets to include html, infer a likely URL
+  function inferHtmlUrl(){
+    const label8 = safeShort(label); // DSN019-S
+    const rel = `analysis/${label8}/index.html`;
+    return resolveUrl(rel);
   }
 
   async function pollOnce(){
@@ -182,7 +201,7 @@
         if (!r.ok) continue;
         const data = await r.json();
 
-        // error from server
+        // server says error
         if (data.phase === "error"){
           statusEl.innerHTML = (data.status || "❌ Analysis failed.") +
             (data.note ? `<pre style="text-align:left;white-space:pre-wrap">${data.note}</pre>` : "");
@@ -191,24 +210,39 @@
           return {done:true};
         }
 
-        // success path — explicit html OR done:true (with server-provided rel path)
+        // success path — explicit html OR inferred index.html
         const htmlRel = (data.html && String(data.html).trim()) || "";
+        const finalUrl = resolveUrl(htmlRel || `analysis/${safeShort(label)}/index.html`);
         if (htmlRel){
-          const url = resolveUrl(htmlRel);
-          linkEl.href = url;
+          // explicit from server
+          linkEl.href = finalUrl;
           linkEl.style.display = "inline-block";
           statusEl.innerHTML = data.status || "✅ Analysis complete.";
           document.title = "✅ DSN Analysis";
           barEl.style.width = "100%";
-          debug("html_ready", url);
+          debug("html_ready", finalUrl);
           return {done:true};
         }
+
+        // no html from server: probe inferred index.html; if 200 -> done
+        try {
+          const head = await fetch(finalUrl, {method:"HEAD", cache:"no-store"});
+          if (head.ok){
+            linkEl.href = finalUrl;
+            linkEl.style.display = "inline-block";
+            statusEl.innerHTML = data.status || "✅ Analysis complete.";
+            document.title = "✅ DSN Analysis";
+            barEl.style.width = "100%";
+            debug("html_ready_inferred", finalUrl);
+            return {done:true};
+          }
+        } catch(_) {}
 
         // otherwise keep waiting
         statusEl.innerHTML = data.status || "⏳ Generating plots…";
         return {done:false};
       }
-      // both 404 -> not ready
+      // both status JSONs 404 -> not ready
       return {done:false};
     } catch (e){
       debug("poll_exception", String(e));
