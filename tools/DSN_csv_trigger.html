@@ -190,13 +190,23 @@
   }
 
   async function enableLogWhenReady(){
-    if (await head(LOG_RAW)) { logEl.href = bust(LOG_RAW); enable(logEl); return; }
-    if (await head(LOG_PGS)) { logEl.href = bust(LOG_PGS); enable(logEl); return; }
+      // check raw first, then pages mirror
+      if (await head(LOG_RAW)) {
+	  logEl.href = bust(LOG_RAW);
+	  enable(logEl);
+	  logEl.onclick = (ev)=>{ ev.preventDefault(); window.open(bust(LOG_RAW), "_blank", "noopener"); };
+	  return true;
+      }
+      if (await head(LOG_PGS)) {
+	  logEl.href = bust(LOG_PGS);
+	  enable(logEl);
+	  logEl.onclick = (ev)=>{ ev.preventDefault(); window.open(bust(LOG_PGS), "_blank", "noopener"); };
+	  return true;
+      }
+      return false;
   }
-
   /* ===== boot ===== */
   debugLite("page_load","csv_trigger");
-  enableLogWhenReady();
 
   // preflight: if CSV already exists, finish immediately
   if (await head(CSV_RAW) || await head(CSV_PGS)){
@@ -205,6 +215,8 @@
     armDownload([CSV_RAW, CSV_PGS]);
     return;
   }
+
+  enableLogWhenReady();
 
   // kick exactly one CSV job on the server
   try{
@@ -251,6 +263,7 @@
       clearInterval(poll);
       barEl.style.width="100%";
       statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
+      await enableLogWhenReady();   // ✅ ensure log button active now
       armDownload([CSV_RAW, CSV_PGS]);
       return;
     }
