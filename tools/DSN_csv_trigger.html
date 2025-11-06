@@ -45,10 +45,10 @@
 <script>
 (async function(){
 
-  /* ===== config (edit only bases if needed) ===== */
+  /* ===== config ===== */
   const GH_PAGES_BASE = "https://soazcomms.github.io";
   const GH_RAW_BASE   = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main";
-  const WEBHOOK_BASE  = "https://sound-kangaroo-unlikely.ngrok-free.app";  // your ngrok
+  const WEBHOOK_BASE  = "https://sound-kangaroo-unlikely.ngrok-free.app";  // ngrok
   const WEBHOOK_URL   = WEBHOOK_BASE + "/csv_only";
   const CLEANUP_URL   = WEBHOOK_BASE + "/DSN_cleanup";
   const DEBUG_URL     = WEBHOOK_BASE + "/DSN_debug";
@@ -91,8 +91,8 @@
   const yTo   = String(toQ).slice(0,10).replace(/\//g,"-");
   const yFromC = yFrom.replace(/-/g,"");
   const yToC   = yTo.replace(/-/g,"");
-  const label8 = label.slice(0,8);                 // DSN019-S
-  const safe   = label.replace(/[^\w.\-]+/g,"_");  // DSN019-S_MtLemmon
+  const label8 = label.slice(0,8);                 // e.g., DSN019-S
+  const safe   = label.replace(/[^\w.\-]+/g,"_");  // e.g., DSN019-S_MtLemmon
 
   // validate & show header
   if (!label || !DATE_RE.test(yFrom) || !DATE_RE.test(yTo)){
@@ -103,7 +103,7 @@
   }
   headerEl.textContent = `Label: ${label} · Range: ${yFrom} → ${yTo}`;
 
-  // canonical relative CSV + LOG (what webhook should create)
+  // canonical relative CSV + LOG (exact names the webhook writes)
   const csvRel = `analysis/${label8}/${safe}_${yFromC}_${yToC}.csv`;
   const logRel = `logs/csv-${safe}-${yFromC}${yToC}.log`;
 
@@ -117,7 +117,6 @@
   function bust(u){ return u + (u.includes("?")?"&":"?") + "bust=" + Date.now(); }
   function disable(a){ a.classList.add("disabled"); a.setAttribute("aria-disabled","true"); }
   function enable(a){ a.classList.remove("disabled"); a.removeAttribute("aria-disabled"); }
-  // ultra-lightweight debug “pixel”
   function debugLite(step, note){
     if (!window.DEBUG_FLAG) return;
     try{
@@ -137,7 +136,6 @@
     catch(_){ return false; }
   }
   async function getStatus(){
-    // authoritative: status-<label8>.json
     const u = `${GH_PAGES_BASE}/status/status-${encodeURIComponent(label8)}.json`;
     try{
       const r = await fetch(bust(u), {cache:"no-store"});
@@ -145,6 +143,16 @@
       return await r.json();
     }catch(_){ return null; }
   }
+
+  // client-side guard: cleanup must point to a single .csv under analysis/<label8>/
+  function isSafeCsv(rel){
+    if (!rel) return false;
+    if (!rel.endsWith(".csv")) return false;
+    if (rel.includes("..")) return false;
+    if (!rel.startsWith(`analysis/${label8}/`)) return false;
+    return true;
+  }
+
   function armDownload(urls){
     enable(dlEl);
     dlEl.onclick = async (ev)=>{
@@ -159,16 +167,28 @@
           const obj  = URL.createObjectURL(blob);
           const a    = document.createElement("a");
           a.href = obj; a.download = pretty; document.body.appendChild(a); a.click(); a.remove();
-          setTimeout(()=>URL.revokeObjectURL(obj), 800);
-          // request cleanup after user download
-          fetch(CLEANUP_URL, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({csv: csvRel})}).catch(()=>{});
-          statusEl.innerHTML = '<span class="ok">✅ CSV downloaded. Cleaning up…</span>';
-          return;
+          setTimeout(()=>URL.revokeObjectURL(obj), 300);
+	  // ✅  mark success and finish
+	  barEl.style.width = "100%";
+	  statusEl.innerHTML = '<span class="ok">✅ CSV downloaded.</span>';
+	  hintEl.style.display = "block";
+	  hintEl.textContent = "You can close this tab or return to Grafana.";
+
+	  // stop polling loop if still active
+	  try { clearInterval(poll); } catch (_) {}
+
+	  // Optional: auto-close tab when ?close=1
+	  if (new URLSearchParams(location.search).get("close") === "1") {
+	      setTimeout(() => window.close(), 1200);
+	  }
+
+	  return;
         }catch(_){}
       }
       statusEl.innerHTML = '<span class="err">⚠️ Download failed: HTTP 404</span>';
     };
   }
+
   async function enableLogWhenReady(){
     if (await head(LOG_RAW)) { logEl.href = bust(LOG_RAW); enable(logEl); return; }
     if (await head(LOG_PGS)) { logEl.href = bust(LOG_PGS); enable(logEl); return; }
@@ -178,7 +198,7 @@
   debugLite("page_load","csv_trigger");
   enableLogWhenReady();
 
-  // PRE-FLIGHT: if CSV already exists, finish immediately
+  // preflight: if CSV already exists, finish immediately
   if (await head(CSV_RAW) || await head(CSV_PGS)){
     barEl.style.width="100%";
     statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
@@ -203,24 +223,19 @@
     return;
   }
 
-  // poll: status first (trust webhook), then HEADs as fallback
+  // poll: status first, then HEADs
   const MAX_MS = 5 * 60_000;
   const poll = setInterval(async ()=>{
     const timedOut = (Date.now()-startedAt) >= (TIMEOUT_MS_INIT + EXTRA_MS);
     tick(timedOut);
     enableLogWhenReady();
 
-    // 1) trust status json if present
     const st = await getStatus();
     if (st && st.phase === "done"){
-      // ✅ FIX: accept webhook's 'csv' and/or 'csv_raw'
       const urls = [];
       if (st.csv_raw) urls.push(st.csv_raw + (st.csv_raw.includes("?") ? "&" : "?") + "bust=" + Date.now());
       if (st.csv)     urls.push(st.csv     + (st.csv.includes("?")     ? "&" : "?") + "bust=" + Date.now());
-      // fallback to canonical if none provided
       if (urls.length === 0) urls.push(CSV_RAW, CSV_PGS);
-
-      // confirm at least one is live before claiming success
       for (const u of urls){
         if (await head(u)){
           clearInterval(poll);
@@ -232,7 +247,6 @@
       }
     }
 
-    // 2) fallback direct HEADs to canonical file
     if (await head(CSV_RAW) || await head(CSV_PGS)){
       clearInterval(poll);
       barEl.style.width="100%";
@@ -241,7 +255,6 @@
       return;
     }
 
-    // timeout UI
     if ((Date.now()-startedAt) > MAX_MS){
       clearInterval(poll);
       barEl.style.width="100%"; barEl.classList.add("timeout");
