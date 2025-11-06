@@ -78,7 +78,7 @@
   const extendBtn= document.getElementById("extend-btn");
   const exitBtn  = document.getElementById("exit-btn");
 
-  if (label) titleEl.textContent = `🔬 DSN Analysis v1 — ${label}`;
+  if (label) titleEl.textContent = `🔬 DSN Analysis v2 — ${label}`;
   if (label && fromISO && toISO) headerEl.textContent = `Label: ${label} · Range: ${fromISO} → ${toISO}`;
 
   // ========= Progress / timing =========
@@ -167,82 +167,69 @@
     } catch { return false; }
   }
 
-  // ========= Kick job & poll =========
-  async function postJob(){
-    const body = { label, from: fromISO, to: toISO };
-    debug("post_job", JSON.stringify(body));
-    // Try /webhook first, then /DSN_trigger
-    let lastErr = null;
-    for (const url of [WEBHOOK_MAIN, WEBHOOK_FALL]){
+  // ========= NEW: fetch both statuses and choose the newest =========
+  async function fetchStatuses() {
+    const urls = statusUrls();
+    const results = [];
+    await Promise.all(urls.map(async (u) => {
       try {
-        const r = await fetch(url, {
-          method: "POST",
-          headers: {"Content-Type":"application/json"},
-          body: JSON.stringify(body)
-        });
-        if (r.ok) { debug("post_job_ok", url); return; }
-        lastErr = new Error("HTTP "+r.status+" @ "+url);
-      } catch(e){ lastErr = e; }
-    }
-    throw lastErr || new Error("post failed");
+        const r = await fetch(u, {cache:"no-store"});
+        if (!r.ok) return;
+        const j = await r.json();
+        results.push({url:u, data:j, ts: Number(j.timestamp)||0});
+      } catch(_) {}
+    }));
+    if (!results.length) return null;
+    results.sort((a,b) => b.ts - a.ts);
+    return results[0]; // newest by timestamp
   }
 
-  // If server forgets to include html, infer a likely URL
-  function inferHtmlUrl(){
-    const label8 = safeShort(label); // DSN019-S
-    const rel = `analysis/${label8}/index.html`;
-    return resolveUrl(rel);
-  }
-
+  // ========= Poll using newest status only =========
   async function pollOnce(){
     try {
-      for (const u of statusUrls()){
-        const r = await fetch(u, {cache:"no-store"});
-        if (!r.ok) continue;
-        const data = await r.json();
+      const newest = await fetchStatuses();
+      if (!newest) return {done:false};
 
-        // server says error
-        if (data.phase === "error"){
-          statusEl.innerHTML = (data.status || "❌ Analysis failed.") +
-            (data.note ? `<pre style="text-align:left;white-space:pre-wrap">${data.note}</pre>` : "");
-          debug("server_error", data.status||"");
-          document.title = "❌ DSN Analysis";
-          return {done:true};
-        }
+      const data = newest.data;
 
-        // success path — explicit html OR inferred index.html
-        const htmlRel = (data.html && String(data.html).trim()) || "";
-        const finalUrl = resolveUrl(htmlRel || `analysis/${safeShort(label)}/index.html`);
-        if (htmlRel){
-          // explicit from server
+      if (data.phase === "error"){
+        statusEl.innerHTML = (data.status || "❌ Analysis failed.") +
+          (data.note ? `<pre style="text-align:left;white-space:pre-wrap">${data.note}</pre>` : "");
+        debug("server_error_latest", newest.url);
+        document.title = "❌ DSN Analysis";
+        return {done:true};
+      }
+
+      // success path — explicit html OR inferred index.html
+      const htmlRel = (data.html && String(data.html).trim()) || "";
+      const finalUrl = resolveUrl(htmlRel || `analysis/${safeShort(label)}/index.html`);
+
+      if (htmlRel) {
+        linkEl.href = finalUrl;
+        linkEl.style.display = "inline-block";
+        statusEl.innerHTML = data.status || "✅ Analysis complete.";
+        document.title = "✅ DSN Analysis";
+        barEl.style.width = "100%";
+        debug("html_ready", finalUrl);
+        return {done:true};
+      }
+
+      // no html in JSON: probe inferred index.html
+      try {
+        const head = await fetch(finalUrl, {method:"HEAD", cache:"no-store"});
+        if (head.ok){
           linkEl.href = finalUrl;
           linkEl.style.display = "inline-block";
           statusEl.innerHTML = data.status || "✅ Analysis complete.";
           document.title = "✅ DSN Analysis";
           barEl.style.width = "100%";
-          debug("html_ready", finalUrl);
+          debug("html_ready_inferred", finalUrl);
           return {done:true};
         }
+      } catch(_) {}
 
-        // no html from server: probe inferred index.html; if 200 -> done
-        try {
-          const head = await fetch(finalUrl, {method:"HEAD", cache:"no-store"});
-          if (head.ok){
-            linkEl.href = finalUrl;
-            linkEl.style.display = "inline-block";
-            statusEl.innerHTML = data.status || "✅ Analysis complete.";
-            document.title = "✅ DSN Analysis";
-            barEl.style.width = "100%";
-            debug("html_ready_inferred", finalUrl);
-            return {done:true};
-          }
-        } catch(_) {}
-
-        // otherwise keep waiting
-        statusEl.innerHTML = data.status || "⏳ Generating plots…";
-        return {done:false};
-      }
-      // both status JSONs 404 -> not ready
+      // keep waiting
+      statusEl.innerHTML = data.status || "⏳ Generating plots…";
       return {done:false};
     } catch (e){
       debug("poll_exception", String(e));
@@ -268,8 +255,18 @@
     }
 
     // start job (fire and poll)
-    try { await postJob(); }
-    catch(e){
+    try {
+      const body = { label, from: fromISO, to: toISO };
+      let lastErr = null;
+      for (const url of [WEBHOOK_MAIN, WEBHOOK_FALL]){
+        try {
+          const r = await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
+          if (r.ok) break;
+          lastErr = new Error("HTTP "+r.status+" @ "+url);
+        } catch(e){ lastErr = e; }
+      }
+      if (lastErr) debug("post_job_warn", String(lastErr));
+    } catch(e){
       statusEl.textContent = "⏳ Processing… (webhook may be delayed)";
       debug("post_job_fail", String(e));
     }
