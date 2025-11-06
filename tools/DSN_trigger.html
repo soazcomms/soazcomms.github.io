@@ -78,9 +78,10 @@
   const extendBtn= document.getElementById("extend-btn");
   const exitBtn  = document.getElementById("exit-btn");
 
-  if (label) titleEl.textContent = `🔬 DSN Analysis v3 — ${label}`;
-  if (label && fromISO && toISO) headerEl.textContent = `Label: ${label} · Range: ${fromISO} → ${toISO}`;
-
+  function onlyDate(s){ return (s||"").split("T")[0]; }
+  if (label) titleEl.textContent = `🔬 DSN Analysis v4 — ${label}`;
+  if (label && fromISO && toISO) headerEl.textContent =
+  `Label: ${label} · Range: ${onlyDate(fromISO)} → ${onlyDate(toISO)}`;
   // ========= Progress / timing =========
   const POLL_MS       = 5000;
   const TIMEOUT_INIT  = 7 * 60_000;
@@ -176,14 +177,21 @@
         const r = await fetch(u, {cache:"no-store"});
         if (!r.ok) return;
         const j = await r.json();
-        results.push({url:u, data:j, ts: Number(j.timestamp)||0});
+        const ts = Number(j.timestamp)||0;
+        const hasHtml = !!(j.html && String(j.html).trim());
+        const isCsvOnly = !!(j.csv) && !hasHtml;
+        results.push({url:u, data:j, ts, hasHtml, isCsvOnly});
       } catch(_) {}
     }));
     if (!results.length) return null;
-    results.sort((a,b) => b.ts - a.ts);
-    return results[0]; // newest by timestamp
-  }
 
+  /  / Sort newest first, but prefer results with HTML over csv-only at same/close timestamp
+    results.sort((a,b) => {
+      if (a.hasHtml !== b.hasHtml) return b.hasHtml - a.hasHtml; // html first
+      return b.ts - a.ts; // newest first
+    });
+    return results[0];
+  }
   // ========= Poll using newest status only =========
   async function pollOnce(){
     try {
@@ -229,7 +237,7 @@
       } catch(_) {}
 
       // keep waiting
-      statusEl.innerHTML = data.status || "⏳ Generating plots…";
+      statusEl.innerHTML = "⏳ Generating plots…";
       return {done:false};
     } catch (e){
       debug("poll_exception", String(e));
