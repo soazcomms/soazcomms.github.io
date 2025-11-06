@@ -34,7 +34,7 @@
 
   <div class="row">
     <a id="download" class="btn disabled" href="#">⬇ Download CSV</a>
-    <a id="viewlog" class="btn disabled" target="_blank" rel="noopener" href="#">🪵 View LOG</a>
+    <a id="viewlog" class="btn disabled" target="_blank" rel="noopener" href="#">🪵 View LOG LOG</a>
     <a id="retry"   class="btn" href="#" style="display:none;">↻ Retry</a>
   </div>
 
@@ -143,6 +143,7 @@
       return await r.json();
     }catch(_){ return null; }
   }
+  function statusJSON(){ return `${GH_PAGES_BASE}/status/status-${encodeURIComponent(label8)}.json`; }
 
   // client-side guard: cleanup must point to a single .csv under analysis/<label8>/
   function isSafeCsv(rel){
@@ -168,21 +169,18 @@
           const a    = document.createElement("a");
           a.href = obj; a.download = pretty; document.body.appendChild(a); a.click(); a.remove();
           setTimeout(()=>URL.revokeObjectURL(obj), 300);
-	  // ✅  mark success and finish
-	  barEl.style.width = "100%";
-	  statusEl.innerHTML = '<span class="ok">✅ CSV downloaded.</span>';
-	  hintEl.style.display = "block";
-	  hintEl.textContent = "You can close this tab or return to Grafana.";
 
-	  // stop polling loop if still active
-	  try { clearInterval(poll); } catch (_) {}
+          // finish UI
+          barEl.style.width = "100%";
+          statusEl.innerHTML = '<span class="ok">✅ CSV downloaded.</span>';
+          hintEl.style.display = "block";
+          hintEl.textContent = "You can close this tab or return to Grafana.";
+          try { clearInterval(poll); } catch (_) {}
 
-	  // Optional: auto-close tab when ?close=1
-	  if (new URLSearchParams(location.search).get("close") === "1") {
-	      setTimeout(() => window.close(), 1200);
-	  }
-
-	  return;
+          if (new URLSearchParams(location.search).get("close") === "1") {
+            setTimeout(() => window.close(), 1200);
+          }
+          return;
         }catch(_){}
       }
       statusEl.innerHTML = '<span class="err">⚠️ Download failed: HTTP 404</span>';
@@ -190,32 +188,44 @@
   }
 
   async function enableLogWhenReady(){
-      // check raw first, then pages mirror
-      if (await head(LOG_RAW)) {
-	  logEl.href = bust(LOG_RAW);
-	  enable(logEl);
-	  logEl.onclick = (ev)=>{ ev.preventDefault(); window.open(bust(LOG_RAW), "_blank", "noopener"); };
-	  return true;
-      }
-      if (await head(LOG_PGS)) {
-	  logEl.href = bust(LOG_PGS);
-	  enable(logEl);
-	  logEl.onclick = (ev)=>{ ev.preventDefault(); window.open(bust(LOG_PGS), "_blank", "noopener"); };
-	  return true;
-      }
-      return false;
+    // raw first
+    if (await head(LOG_RAW)) {
+      logEl.href = bust(LOG_RAW);
+      enable(logEl);
+      logEl.onclick = (ev)=>{ ev.preventDefault(); window.open(bust(LOG_RAW), "_blank", "noopener"); };
+      return true;
+    }
+    // then pages mirror
+    if (await head(LOG_PGS)) {
+      logEl.href = bust(LOG_PGS);
+      enable(logEl);
+      logEl.onclick = (ev)=>{ ev.preventDefault(); window.open(bust(LOG_PGS), "_blank", "noopener"); };
+      return true;
+    }
+    return false;
   }
+
   /* ===== boot ===== */
   debugLite("page_load","csv_trigger");
 
-  // preflight: if CSV already exists, finish immediately
+  // make View LOG do something immediately (fallback to status JSON)
+  logEl.href = bust(statusJSON());
+  enable(logEl);
+  logEl.onclick = (ev)=>{ ev.preventDefault(); window.open(bust(statusJSON()), "_blank", "noopener"); };
+
+  // preflight: if CSV already exists, finish immediately (and log it)
   if (await head(CSV_RAW) || await head(CSV_PGS)){
+    debugLite("preflight_csv_exists", csvRel);
+    // if a real log exists, upgrade the View LOG target
+    await enableLogWhenReady();
+
     barEl.style.width="100%";
     statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
     armDownload([CSV_RAW, CSV_PGS]);
     return;
   }
 
+  // try to upgrade View LOG to real logfile during run
   enableLogWhenReady();
 
   // kick exactly one CSV job on the server
@@ -236,7 +246,6 @@
   }
 
   // poll: status first, then HEADs
-  const MAX_MS = 5 * 60_000;
   const poll = setInterval(async ()=>{
     const timedOut = (Date.now()-startedAt) >= (TIMEOUT_MS_INIT + EXTRA_MS);
     tick(timedOut);
@@ -263,11 +272,13 @@
       clearInterval(poll);
       barEl.style.width="100%";
       statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
-      await enableLogWhenReady();   // ✅ ensure log button active now
+      await enableLogWhenReady();   // ensure log button active now
       armDownload([CSV_RAW, CSV_PGS]);
       return;
     }
 
+    // hard timeout fallback
+    const MAX_MS = 5 * 60_000;
     if ((Date.now()-startedAt) > MAX_MS){
       clearInterval(poll);
       barEl.style.width="100%"; barEl.classList.add("timeout");
