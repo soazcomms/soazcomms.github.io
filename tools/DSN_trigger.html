@@ -41,7 +41,7 @@
     <button id="exit-btn"   type="button">🔙 Exit</button>
   </div>
 
-  <!-- Your env.js should set window.DEBUG_TURD if you want lightweight logging -->
+  <!-- Your env.js should set window.DEBUG_FLAG if you want lightweight logging -->
   <script src="https://sound-kangaroo-unlikely.ngrok-free.app/env.js"></script>
 
 <script>
@@ -62,7 +62,7 @@
   const DEFAULT_WEBHOOK = "https://sound-kangaroo-unlikely.ngrok-free.app";
   const WEBHOOK_ORIG = (qs.get("webhook") || DEFAULT_WEBHOOK).replace(/\/+$/,"");
   const WEBHOOK_URL  = WEBHOOK_ORIG + "/webhook";     // analysis endpoint
-  const TURD_URL     = WEBHOOK_ORIG + "/DSN_turd";    // debug pixel
+  const DEBUG_URL     = WEBHOOK_ORIG + "/DSN_debug";    // debug pixel
 
   // ========= UI handles =========
   const titleEl  = document.getElementById("title");
@@ -100,23 +100,23 @@
     extraTime += EXTEND_MS;
     extendBtn.style.display = "none";
     statusEl.innerHTML = "⏳ Extended… still working.";
-    turd("manual_extend", `+${Math.round(EXTEND_MS/60000)}m`);
+    debug("manual_extend", `+${Math.round(EXTEND_MS/60000)}m`);
   });
 
   exitBtn.addEventListener("click", () => window.close());
 
   // ========= ultra-light “pixel” logger =========
-  const DEBUG = !!window.DEBUG_TURD;
-  function turd(step, note) {
+  const DEBUG = !!window.DEBUG_FLAG;
+  function debug(step, note) {
     if (!DEBUG) return;
     try {
       const payload = {step, note: String(note||""), label, from: fromISO, to: toISO, run_id: RUN_ID, t: Date.now()};
       if (navigator.sendBeacon) {
         const blob = new Blob([JSON.stringify(payload)], {type:"application/json"});
-        navigator.sendBeacon(TURD_URL, blob);
+        navigator.sendBeacon(DEBUG_URL, blob);
       } else {
         const img = new Image(1,1);
-        img.src = TURD_URL + "?" + new URLSearchParams(payload).toString();
+        img.src = DEBUG_URL + "?" + new URLSearchParams(payload).toString();
       }
     } catch(_) {}
   }
@@ -151,8 +151,8 @@
     });
   }
   async function preflightNgrok(){
-    turd("preflight_begin", WEBHOOK_ORIG);
-    const ok1 = await pingPixel(TURD_URL);
+    debug("preflight_begin", WEBHOOK_ORIG);
+    const ok1 = await pingPixel(DEBUG_URL);
     if (ok1) return true;
     try {
       const ctrl = new AbortController(); const t=setTimeout(()=>ctrl.abort(),4000);
@@ -165,14 +165,14 @@
   // ========= Kick job & poll =========
   async function postJob(){
     const body = { label, from: fromISO, to: toISO };
-    turd("post_job", JSON.stringify(body));
+    debug("post_job", JSON.stringify(body));
     const r = await fetch(WEBHOOK_URL, {
       method: "POST",
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify(body)
     });
     if (!r.ok) throw new Error("Webhook HTTP "+r.status);
-    turd("post_job_ok");
+    debug("post_job_ok");
   }
 
   async function pollOnce(){
@@ -186,7 +186,7 @@
         if (data.phase === "error"){
           statusEl.innerHTML = (data.status || "❌ Analysis failed.") +
             (data.note ? `<pre style="text-align:left;white-space:pre-wrap">${data.note}</pre>` : "");
-          turd("server_error", data.status||"");
+          debug("server_error", data.status||"");
           document.title = "❌ DSN Analysis";
           return {done:true};
         }
@@ -200,7 +200,7 @@
           statusEl.innerHTML = data.status || "✅ Analysis complete.";
           document.title = "✅ DSN Analysis";
           barEl.style.width = "100%";
-          turd("html_ready", url);
+          debug("html_ready", url);
           return {done:true};
         }
 
@@ -211,7 +211,7 @@
       // both 404 -> not ready
       return {done:false};
     } catch (e){
-      turd("poll_exception", String(e));
+      debug("poll_exception", String(e));
       return {done:false};
     }
   }
@@ -237,7 +237,7 @@
     try { await postJob(); }
     catch(e){
       statusEl.textContent = "⏳ Processing… (webhook may be delayed)";
-      turd("post_job_fail", String(e));
+      debug("post_job_fail", String(e));
     }
 
     let done=false;
