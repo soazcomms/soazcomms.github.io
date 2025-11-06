@@ -51,8 +51,8 @@
   const WEBHOOK_BASE  = "https://sound-kangaroo-unlikely.ngrok-free.app";  // your ngrok
   const WEBHOOK_URL   = WEBHOOK_BASE + "/csv_only";
   const CLEANUP_URL   = WEBHOOK_BASE + "/DSN_cleanup";
-  const DEBUG_URL      = WEBHOOK_BASE + "/DSN_debug";
-  if (typeof window.DEBUG_FLAG === "undefined") window.DEBUG_FLAG = true;   // keeps your lite logging
+  const DEBUG_URL     = WEBHOOK_BASE + "/DSN_debug";
+  if (typeof window.DEBUG_FLAG === "undefined") window.DEBUG_FLAG = true;
 
   /* ===== DOM ===== */
   const headerEl = document.getElementById("headerText");
@@ -116,23 +116,8 @@
   /* ===== helpers ===== */
   function bust(u){ return u + (u.includes("?")?"&":"?") + "bust=" + Date.now(); }
   function disable(a){ a.classList.add("disabled"); a.setAttribute("aria-disabled","true"); }
-    function enable(a){ a.classList.remove("disabled"); a.removeAttribute("aria-disabled"); }
-    // --- ultra-lightweight pixel logger ---
-  function debugPixel(step, note) {
-    try {
-      const params = new URLSearchParams({
-        s: step,
-        n: (note || "").slice(0, 120),
-        l: label,
-        f: yFrom,
-        t: yTo,
-        z: Date.now()
-      });
-      const img = new Image(1,1);
-      img.src = `${WEBHOOK_BASE}/DSN_debug?${params.toString()}`;
-    } catch(e) { console.warn("debugPixel error", e); }
-  }
-  //
+  function enable(a){ a.classList.remove("disabled"); a.removeAttribute("aria-disabled"); }
+  // ultra-lightweight debug “pixel”
   function debugLite(step, note){
     if (!window.DEBUG_FLAG) return;
     try{
@@ -152,7 +137,7 @@
     catch(_){ return false; }
   }
   async function getStatus(){
-    // only status-<label8>.json is considered authoritative
+    // authoritative: status-<label8>.json
     const u = `${GH_PAGES_BASE}/status/status-${encodeURIComponent(label8)}.json`;
     try{
       const r = await fetch(bust(u), {cache:"no-store"});
@@ -175,9 +160,8 @@
           const a    = document.createElement("a");
           a.href = obj; a.download = pretty; document.body.appendChild(a); a.click(); a.remove();
           setTimeout(()=>URL.revokeObjectURL(obj), 800);
-          // ask server to clean up after download (server decides policy)
-          fetch(CLEANUP_URL, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({csv: csvRel})})
-            .catch(()=>{});
+          // request cleanup after user download
+          fetch(CLEANUP_URL, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({csv: csvRel})}).catch(()=>{});
           statusEl.innerHTML = '<span class="ok">✅ CSV downloaded. Cleaning up…</span>';
           return;
         }catch(_){}
@@ -192,11 +176,9 @@
 
   /* ===== boot ===== */
   debugLite("page_load","csv_trigger");
-  debugPixel("page_load","csv_trigger");  
-  // show log link as soon as it appears
   enableLogWhenReady();
 
-  // PRE-FLIGHT: if CSV already exists, finish immediately (prevents stale “working…”)
+  // PRE-FLIGHT: if CSV already exists, finish immediately
   if (await head(CSV_RAW) || await head(CSV_PGS)){
     barEl.style.width="100%";
     statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
@@ -221,7 +203,7 @@
     return;
   }
 
-  // poll: status first (trusts webhook), then HEADs as fallback
+  // poll: status first (trust webhook), then HEADs as fallback
   const MAX_MS = 5 * 60_000;
   const poll = setInterval(async ()=>{
     const timedOut = (Date.now()-startedAt) >= (TIMEOUT_MS_INIT + EXTRA_MS);
@@ -231,11 +213,11 @@
     // 1) trust status json if present
     const st = await getStatus();
     if (st && st.phase === "done"){
-      // prefer URLs provided by server if present
+      // ✅ FIX: accept webhook's 'csv' and/or 'csv_raw'
       const urls = [];
-      if (st.csv_raw)  urls.push(st.csv_raw);
-      if (st.csv_pages) urls.push(st.csv_pages);
-      // otherwise use our canonical path
+      if (st.csv_raw) urls.push(st.csv_raw + (st.csv_raw.includes("?") ? "&" : "?") + "bust=" + Date.now());
+      if (st.csv)     urls.push(st.csv     + (st.csv.includes("?")     ? "&" : "?") + "bust=" + Date.now());
+      // fallback to canonical if none provided
       if (urls.length === 0) urls.push(CSV_RAW, CSV_PGS);
 
       // confirm at least one is live before claiming success
@@ -268,10 +250,6 @@
       retryEl.onclick = (ev)=>{ ev.preventDefault(); location.reload(); };
     }
   }, POLL_INTERVAL_MS);
-
-  /* ===== utilities ===== */
-  function disable(a){ a.classList.add("disabled"); a.setAttribute("aria-disabled","true"); }
-  function enable(a){ a.classList.remove("disabled"); a.removeAttribute("aria-disabled"); }
 
 })();
 </script>
