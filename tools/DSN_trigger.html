@@ -43,7 +43,7 @@
     <button id="exit-btn"   type="button">🔙 Exit</button>
   </div>
 
-  <!-- Optional: sets window.DEBUG_FLAG for lightweight logging if you want -->
+  <!-- Optional: exposes window.DEBUG_FLAG from your /env.js -->
   <script src="https://sound-kangaroo-unlikely.ngrok-free.app/env.js"></script>
 
 <script>
@@ -57,8 +57,7 @@
   const fromQ = (qs.get("from") || "").trim();
   const toQ   = (qs.get("to")   || "").trim();
 
-  // We accept YYYY-MM-DD or ISO and pass through unchanged
-  const fromISO = fromQ;
+  const fromISO = fromQ;   // accept YYYY-MM-DD or ISO and pass through unchanged
   const toISO   = toQ;
 
   const DEFAULT_WEBHOOK = "https://sound-kangaroo-unlikely.ngrok-free.app";
@@ -79,9 +78,10 @@
   const exitBtn  = document.getElementById("exit-btn");
 
   function onlyDate(s){ return (s||"").split("T")[0]; }
-  if (label) titleEl.textContent = `🔬 DSN Analysis v4 — ${label}`;
+  if (label) titleEl.textContent = `🔬 DSN Analysis — ${label}`;
   if (label && fromISO && toISO) headerEl.textContent =
-  `Label: ${label} · Range: ${onlyDate(fromISO)} → ${onlyDate(toISO)}`;
+    `Label: ${label} · Range: ${onlyDate(fromISO)} → ${onlyDate(toISO)}`;
+
   // ========= Progress / timing =========
   const POLL_MS       = 5000;
   const TIMEOUT_INIT  = 7 * 60_000;
@@ -135,14 +135,16 @@
   function statusUrls(){
     const sFull  = safeFull(label);
     const sShort = safeShort(label);
+    // Check both, newest wins — BUT must include .html to count as “done”
     return [
       `${GH_PAGES_BASE}${STATUS_DIR}/status-${sFull}.json`,
       `${GH_PAGES_BASE}${STATUS_DIR}/status-${sShort}.json`,
     ].map(bust);
   }
 
-  function resolveUrl(relOrAbs){
-    return /^https?:\/\//i.test(relOrAbs) ? relOrAbs : (GH_PAGES_BASE + String(relOrAbs).replace(/^\/+/, ""));
+  function resolveUrl(rel){
+    // rel is required; we do NOT fallback to any index.html anymore
+    return GH_PAGES_BASE + String(rel).replace(/^\/+/, "");
   }
 
   // Minimal ngrok preflight (pixel GET, then /health GET)
@@ -168,10 +170,10 @@
     } catch { return false; }
   }
 
-  // ========= NEW: fetch both statuses and choose the newest =========
-  async function fetchStatuses() {
+  // ========= Fetch newest status that includes an HTML result =========
+  async function fetchNewestWithHtml() {
     const urls = statusUrls();
-    const results = [];
+    const found = [];
     await Promise.all(urls.map(async (u) => {
       try {
         const r = await fetch(u, {cache:"no-store"});
@@ -179,27 +181,22 @@
         const j = await r.json();
         const ts = Number(j.timestamp)||0;
         const hasHtml = !!(j.html && String(j.html).trim());
-        const isCsvOnly = !!(j.csv) && !hasHtml;
-        results.push({url:u, data:j, ts, hasHtml, isCsvOnly});
+        // Ignore csv-only updates (they may carry a "CSV complete" message)
+        if (hasHtml) found.push({url:u, data:j, ts});
       } catch(_) {}
     }));
-    if (!results.length) return null;
-
-  // Sort newest first, but prefer results with HTML over csv-only at same/close timestamp
-    results.sort((a,b) => {
-      if (a.hasHtml !== b.hasHtml) return b.hasHtml - a.hasHtml; // html first
-      return b.ts - a.ts; // newest first
-    });
-    return results[0];
+    if (!found.length) return null;
+    found.sort((a,b)=> b.ts - a.ts);
+    return found[0];
   }
-  // ========= Poll using newest status only =========
+
+  // ========= Poll loop (analysis only) =========
   async function pollOnce(){
     try {
-      const newest = await fetchStatuses();
-      if (!newest) return {done:false};
+      const newest = await fetchNewestWithHtml();
+      if (!newest) { statusEl.innerHTML = "⏳ Generating plots…"; return {done:false}; }
 
       const data = newest.data;
-
       if (data.phase === "error"){
         statusEl.innerHTML = (data.status || "❌ Analysis failed.") +
           (data.note ? `<pre style="text-align:left;white-space:pre-wrap">${data.note}</pre>` : "");
@@ -208,37 +205,23 @@
         return {done:true};
       }
 
-      // success path — explicit html OR inferred index.html
-      const htmlRel = (data.html && String(data.html).trim()) || "";
-      const finalUrl = resolveUrl(htmlRel || `analysis/${safeShort(label)}/index.html`);
-
-      if (htmlRel) {
-        linkEl.href = finalUrl;
-        linkEl.style.display = "inline-block";
-        statusEl.innerHTML = data.status || "✅ Analysis complete.";
-        document.title = "✅ DSN Analysis";
-        barEl.style.width = "100%";
-        debug("html_ready", finalUrl);
-        return {done:true};
+      // Success path: require `html` from the status JSON
+      const htmlRel = String(data.html || "").trim();
+      if (!htmlRel){
+        // Shouldn't happen because we filtered, but keep safe
+        statusEl.innerHTML = "⏳ Generating plots…";
+        return {done:false};
       }
 
-      // no html in JSON: probe inferred index.html
-      try {
-        const head = await fetch(finalUrl, {method:"HEAD", cache:"no-store"});
-        if (head.ok){
-          linkEl.href = finalUrl;
-          linkEl.style.display = "inline-block";
-          statusEl.innerHTML = data.status || "✅ Analysis complete.";
-          document.title = "✅ DSN Analysis";
-          barEl.style.width = "100%";
-          debug("html_ready_inferred", finalUrl);
-          return {done:true};
-        }
-      } catch(_) {}
+      const finalUrl = resolveUrl(htmlRel);
+      linkEl.href = finalUrl;
+      linkEl.style.display = "inline-block";
+      statusEl.innerHTML = data.status || "✅ Analysis complete.";
+      document.title = "✅ DSN Analysis";
+      barEl.style.width = "100%";
+      debug("html_ready", finalUrl);
+      return {done:true};
 
-      // keep waiting
-      statusEl.innerHTML = "⏳ Generating plots…";
-      return {done:false};
     } catch (e){
       debug("poll_exception", String(e));
       return {done:false};
@@ -262,7 +245,7 @@
       return;
     }
 
-    // start job (fire and poll)
+    // Start job (fire and poll). We try main then legacy endpoint.
     try {
       const body = { label, from: fromISO, to: toISO };
       let lastErr = null;
