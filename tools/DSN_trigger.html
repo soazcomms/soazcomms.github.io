@@ -43,6 +43,270 @@
     <button id="exit-btn"   type="button">🔙 Exit</button>
   </div>
 
+  <!-- Optional: exposes window.DEBUG_FLAG / window.DEBUG_TURD -->
+  <script src="https://sound-kangaroo-unlikely.ngrok-free.app/env.js"></script>
+
+<script>
+(() => {
+  // ===== Params & constants =====
+  const GH_PAGES_BASE = "https://soazcomms.github.io/";
+  const STATUS_DIR    = "status";
+
+  const qs     = new URLSearchParams(location.search);
+  const label  = (qs.get("label")||"").trim();
+  const fromQ  = (qs.get("from") || "").trim();
+  const toQ    = (qs.get("to")   || "").trim();
+  const fromISO = fromQ;              // pass-through (YYYY-MM-DD or full ISO)
+  const toISO   = toQ;
+
+  const DEFAULT_WEBHOOK = "https://sound-kangaroo-unlikely.ngrok-free.app";
+  const WEBHOOK_ORIG = (qs.get("webhook") || DEFAULT_WEBHOOK).replace(/\/+$/,"");
+  const WEBHOOK_MAIN = WEBHOOK_ORIG + "/DSN_trigger";  // your live route
+  const WEBHOOK_FALL = WEBHOOK_ORIG + "/webhook";      // optional fallback
+  const DEBUG_URL    = WEBHOOK_ORIG + "/DSN_debug";    // pixel logger
+
+  // ===== UI nodes =====
+  const titleEl  = document.getElementById("title");
+  const headerEl = document.getElementById("headerText");
+  const statusEl = document.getElementById("status");
+  const linkEl   = document.getElementById("open-link");
+  const barEl    = document.getElementById("bar");
+  const legL     = document.getElementById("leg-left");
+  const legR     = document.getElementById("leg-right");
+  const extendBtn= document.getElementById("extend-btn");
+  const exitBtn  = document.getElementById("exit-btn");
+
+  function onlyDate(s){ return (s||"").split("T")[0]; }
+  if (label) titleEl.textContent = `🔬 DSN Analysis — ${label}`;
+  if (label && fromISO && toISO) headerEl.textContent =
+    `Label: ${label} · Range: ${onlyDate(fromISO)} → ${onlyDate(toISO)}`;
+
+  // ===== Progress / timing =====
+  const POLL_MS      = 5000;
+  const TIMEOUT_INIT = 7 * 60_000;
+  const EXTEND_MS    = 5 * 60_000;
+  const RUN_ID       = "run-" + Date.now().toString(36);
+
+  let extraTime = 0;
+  const start   = Date.now();
+
+  function mmss(ms){ const s=Math.max(0,Math.floor(ms/1000)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
+  function updateProgress(timedOut){
+    const elapsed = Date.now()-start;
+    const total   = TIMEOUT_INIT + extraTime;
+    const pct     = Math.max(3, Math.min(100, Math.floor(elapsed/total*100)));
+    barEl.style.width = pct + "%";
+    barEl.classList.toggle("timeout", !!timedOut);
+    legL.textContent = mmss(elapsed);
+    legR.textContent = timedOut ? "Waiting…" : `Timeout in ${mmss(Math.max(0,total-elapsed))}`;
+  }
+
+  extendBtn.addEventListener("click", () => {
+    extraTime += EXTEND_MS;
+    extendBtn.style.display = "none";
+    statusEl.innerHTML = "⏳ Extended… still working.";
+    debug("manual_extend", `+${Math.round(EXTEND_MS/60000)}m`);
+  });
+
+  exitBtn.addEventListener("click", () => window.close());
+
+  // ===== ultra-light “pixel” logger =====
+  const DEBUG = !!(window.DEBUG_FLAG ?? window.DEBUG_TURD);
+  function debug(step, note) {
+    if (!DEBUG) return;
+    try {
+      const payload = {step, note: String(note||""), label, from: fromISO, to: toISO, run_id: RUN_ID, t: Date.now()};
+      if (navigator.sendBeacon) {
+        const blob = new Blob([JSON.stringify(payload)], {type:"application/json"});
+        navigator.sendBeacon(DEBUG_URL, blob);
+      } else {
+        const img = new Image(1,1);
+        img.src = DEBUG_URL + "?" + new URLSearchParams(payload).toString();
+      }
+    } catch(_) {}
+  }
+
+  // ===== Helpers =====
+  function safeShort(lbl){ return (lbl||"").split("_")[0].replace(/[^\w.\-]/g,"_"); } // DSN019-S_MtLemmon -> DSN019-S
+  function safeFull(lbl){  return (lbl||"").replace(/[^\w.\-]/g,"_"); }
+  function bust(u){ return u + (u.includes("?")?"&":"?") + "bust=" + Date.now(); }
+
+  function statusUrls(){
+    const sFull  = safeFull(label);
+    const sShort = safeShort(label);
+    // We only consider entries that contain an `html` field (analysis done).
+    return [
+      `${GH_PAGES_BASE}${STATUS_DIR}/status-${sFull}.json`,
+      `${GH_PAGES_BASE}${STATUS_DIR}/status-${sShort}.json`,
+    ].map(bust);
+  }
+
+  function resolveUrl(rel){
+    // rel is required; no index.html assumptions.
+    return GH_PAGES_BASE + String(rel).replace(/^\/+/, "");
+  }
+
+  // Minimal ngrok preflight
+  async function preflightNgrok(){
+    debug("preflight_begin", WEBHOOK_ORIG);
+    try {
+      const ctrl = new AbortController(); const t=setTimeout(()=>ctrl.abort(),4000);
+      const r = await fetch(WEBHOOK_ORIG + "/health", {signal:ctrl.signal, cache:"no-store"});
+      clearTimeout(t);
+      return r.ok;
+    } catch { return false; }
+  }
+
+  // ===== Poll newest status that has `html` =====
+  async function fetchNewestWithHtml() {
+    const urls = statusUrls();
+    const found = [];
+    await Promise.all(urls.map(async (u) => {
+      try {
+        const r = await fetch(u, {cache:"no-store"});
+        if (!r.ok) return;
+        const j = await r.json();
+        const ts = Number(j.timestamp)||0;
+        const hasHtml = !!(j.html && String(j.html).trim());
+        if (hasHtml) found.push({url:u, data:j, ts});
+      } catch(_) {}
+    }));
+    if (!found.length) return null;
+    found.sort((a,b)=> b.ts - a.ts);
+    return found[0];
+  }
+
+  // ===== Poll loop (analysis only) =====
+  async function pollOnce(){
+    try {
+      const newest = await fetchNewestWithHtml();
+      if (!newest) { statusEl.innerHTML = "⏳ Generating plots…"; return {done:false}; }
+
+      const data = newest.data;
+      if (data.phase === "error"){
+        statusEl.innerHTML = (data.status || "❌ Analysis failed.") +
+          (data.note ? `<pre style="text-align:left;white-space:pre-wrap">${data.note}</pre>` : "");
+        debug("server_error_latest", newest.url);
+        document.title = "❌ DSN Analysis";
+        return {done:true};
+      }
+
+      const htmlRel = String(data.html || "").trim();
+      if (!htmlRel){
+        statusEl.innerHTML = "⏳ Generating plots…";
+        return {done:false};
+      }
+
+      const finalUrl = resolveUrl(htmlRel);
+      linkEl.href = finalUrl;
+      linkEl.style.display = "inline-block";
+      statusEl.innerHTML = data.status || "✅ Analysis complete.";
+      document.title = "✅ DSN Analysis";
+      barEl.style.width = "100%";
+      debug("html_ready", finalUrl);
+      return {done:true};
+
+    } catch (e){
+      debug("poll_exception", String(e));
+      return {done:false};
+    }
+  }
+
+  // ===== Main =====
+  (async function main(){
+    if (!label || !fromISO || !toISO){
+      statusEl.innerHTML = "❌ Missing/invalid label/from/to (need YYYY-MM-DD).";
+      return;
+    }
+
+    statusEl.innerHTML = `🔄 Running analysis for <b>${label}</b>…<br/>⏳ Generating plots…`;
+
+    const ok = await preflightNgrok();
+    if (!ok){
+      statusEl.innerHTML = `❌ ngrok unreachable at <code>${WEBHOOK_ORIG}</code><br/><span class="muted">Run your tunnel and reload.</span>`;
+      barEl.style.width = "0%";
+      document.title = "❌ DSN Analysis";
+      return;
+    }
+
+    // Fire the job: try /DSN_trigger first, fallback to /webhook
+    try {
+      const body = { label, from: fromISO, to: toISO };
+      let posted = false;
+      for (const url of [WEBHOOK_MAIN, WEBHOOK_FALL]){
+        try {
+          const r = await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
+          if (r.ok){ posted = true; break; }
+        } catch(_){ /* try next */ }
+      }
+      if (!posted) debug("post_job_warn", "no 200 from webhook");
+    } catch(e){
+      statusEl.textContent = "⏳ Processing… (webhook may be delayed)";
+      debug("post_job_fail", String(e));
+    }
+
+    let done=false;
+    while (!done){
+      const elapsed = Date.now()-start;
+      const timedOut = elapsed >= (TIMEOUT_INIT + extraTime);
+      updateProgress(timedOut);
+      if (timedOut){
+        statusEl.innerHTML = "⏱️ Still working… might be a larger data window.";
+        extendBtn.style.display = "inline-block";
+      }
+      const r = await pollOnce();
+      done = !!r.done;
+      if (!done) await new Promise(r => setTimeout(r, POLL_MS));
+    }
+  })();
+})();
+</script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>🔬 DSN Analysis</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-store, max-age=0" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <style>
+    :root { --primary:#007bff; --accent:#87CEFA; --ok:#2e7d32; --warn:#c62828; --barbg:#edf2f7; }
+    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,sans-serif; text-align:center; margin:2rem; }
+    h2 { margin-bottom:.25rem; }
+    #headerText { margin:.25rem 0 .5rem; color:#444; }
+    #status { margin:.5rem 0 .5rem; font-size:1.05rem; min-height:2.4em; }
+    a.button { display:none; margin-top:.75rem; padding:.6rem 1.2rem; font-size:1rem; background:var(--primary); color:#fff; text-decoration:none; border-radius:8px; }
+    .actions { margin-top:.75rem; display:flex; gap:.5rem; justify-content:center; flex-wrap:wrap; }
+    button { padding:.55rem .95rem; font-size:.95rem; border:0; border-radius:8px; cursor:pointer; }
+    #exit-btn { background:var(--accent); }
+    #extend-btn { background:#e0e7ff; display:none; }
+    .muted { color:#666; font-size:.9rem; }
+    .progress-wrap { width:min(720px,90vw); margin:1rem auto .25rem; text-align:center; }
+    .progress { width:50%; margin:0 auto; height:12px; background:var(--barbg); border-radius:999px; overflow:hidden; box-shadow:inset 0 0 0 1px #e2e8f0; }
+    .legend { width:50%; margin:.35rem auto 0; display:flex; justify-content:space-between; font-size:.85rem; color:#555; }
+    .bar { height:100%; width:0%; background:linear-gradient(90deg,#69c,#38bdf8 40%,#22c55e 75%,#16a34a 100%); transition:width .4s ease; }
+    .bar.timeout { background:linear-gradient(90deg,#f59e0b,#ef4444); }
+  </style>
+</head>
+<body>
+  <h2 id="title">🔬 DSN Analysis</h2>
+  <div id="headerText" class="muted"></div>
+  <div id="status">⏳ Initializing…</div>
+
+  <div class="progress-wrap" aria-label="Progress toward timeout window">
+    <div class="progress"><div id="bar" class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div></div>
+    <div class="legend"><span id="leg-left" class="muted">0:00</span><span id="leg-right" class="muted">Timeout in 7:00</span></div>
+  </div>
+
+  <a id="open-link" class="button" target="_blank" rel="noopener">📄 View Analysis Result</a>
+
+  <div class="actions">
+    <button id="extend-btn" type="button">⏱️ Keep waiting 5 more min</button>
+    <button id="exit-btn"   type="button">🔙 Exit</button>
+  </div>
+
   <!-- Optional: exposes window.DEBUG_FLAG from your /env.js -->
   <script src="https://sound-kangaroo-unlikely.ngrok-free.app/env.js"></script>
 
