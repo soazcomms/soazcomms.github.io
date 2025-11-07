@@ -19,11 +19,11 @@
     #bar{height:100%;width:0%;background:linear-gradient(90deg,#69c,#38bdf8 40%,#22c55e 75%,#16a34a 100%);transition:width .5s ease}
     #bar.timeout{background:linear-gradient(90deg,#f59e0b,#ef4444)}
     #status{margin:8px 0;min-height:2.2em}
-    #timer{font-variant-numeric:tabular-nums}
     #controls a{margin-right:10px}
     details{border:1px solid #e5e7eb;border-radius:8px;padding:.5rem 1rem;background:#fafafa}
     details pre{white-space:pre-wrap;word-break:break-word;background:#fff;border:1px solid #eee;border-radius:6px;padding:.75rem;max-height:260px;overflow:auto}
     code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,monospace}
+    .done{border:1px solid #dcfce7;background:#f0fdf4;border-radius:10px;padding:12px;margin-top:16px}
   </style>
 </head>
 <body>
@@ -86,6 +86,7 @@
   const elapsedEl = document.getElementById("elapsed");
   const leftEl    = document.getElementById("timeoutLeft");
   const viewBtn   = document.getElementById("viewBtn");
+  const exitBtn   = document.getElementById("exitBtn");
 
   const dbgParams = document.getElementById("dbgParams");
   const dbgHook   = document.getElementById("dbgHook");
@@ -96,7 +97,7 @@
   // Validate params up front
   if (!rawLabel || !fromQ || !toQ){
     statusEl.innerHTML = "❌ Missing label/from/to.";
-    headerEl.textContent = "DSN Analysis — (missing params)";
+    headerEl.textContent = "DSN Analysis — (missing params) --V6--";
     document.title = "🔬 DSN Analysis — missing params";
     return;
   }
@@ -125,6 +126,14 @@
   const HARD_TIMEOUT_MS = 7 * 60 * 1000;  // 7 minutes
   const startTs = Date.now();
   let timedOutShown = false;
+  let timersActive = true;
+
+  function stopAllTimers(){
+    if (!timersActive) return;
+    timersActive = false;
+    clearInterval(tIv);
+    clearInterval(pIv);
+  }
 
   function tickTime(){
     const t = Date.now()-startTs;
@@ -138,11 +147,13 @@
   }
   const tIv = setInterval(tickTime, 1000); tickTime();
 
-  // Simple GET probes to help debug "no log" situations
+  // Simple GET probes to help debug "no log" situations; they will hit Flask and create log lines
   async function healthChecks(){
     const targets = [
       {name:"/healthz", url: WEBHOOK_ORIG + "/healthz"},
-      {name:"/DSN_trigger?ping=1", url: WEBHOOK_URL + "?ping=1"}
+      {name:"/DSN_trigger?ping=1", url: WEBHOOK_URL + "?ping=1"},
+      // fallback path in case the server uses /webhook instead of /DSN_trigger
+      {name:"/webhook?ping=1", url: WEBHOOK_ORIG + "/webhook?ping=1"}
     ];
     const lines = [];
     for (const t of targets){
@@ -158,11 +169,15 @@
     dbgHealth.textContent = lines.join("\\n");
   }
 
-  // POST once
+  // POST once; also fire a best-effort log-ping that most Flask setups will log even if JSON parsing fails
   let posted = false;
   async function startJobOnce(){
     if (posted) return; posted = true;
     const payload = { label: rawLabel, from: fromIso, to: toIso };
+
+    // side-channel GET to force a visible log entry even before JSON is parsed
+    try { fetch(`${WEBHOOK_ORIG}/log?msg=client_start&label=${encodeURIComponent(rawLabel)}`, {mode:"no-cors"}); } catch(_){}
+
     try{
       const resp = await fetch(WEBHOOK_URL, {
         method: "POST",
@@ -178,7 +193,7 @@
       if (!resp.ok){
         statusEl.innerHTML = `❌ Job failed to start (HTTP ${resp.status}).`;
         bar.style.width = "100%";
-        clearInterval(tIv);
+        stopAllTimers();
         return;
       }
       statusEl.textContent = "⏳ Running analysis…";
@@ -186,7 +201,7 @@
       dbgPost.textContent = `NETWORK ERROR: ${e && e.message ? e.message : e}`;
       statusEl.textContent = "❌ Could not reach webhook.";
       bar.style.width = "100%";
-      clearInterval(tIv);
+      stopAllTimers();
     }
   }
 
@@ -214,29 +229,42 @@
     return found[0].data;
   }
 
+  function showDone(statusText, href){
+    // Freeze UI and indicate finished
+    stopAllTimers();
+    bar.style.width = "100%";
+    viewBtn.removeAttribute("disabled");
+    viewBtn.href = href;
+    statusEl.innerHTML = statusText || "✅ Analysis complete.";
+    headerEl.textContent += " — DONE";
+    document.title = "✅ DSN Analysis — finished";
+    // Replace controls area with a DONE card
+    const card = document.createElement("div");
+    card.className = "done";
+    card.innerHTML = `✅ Finished. <a href="${href}" target="_blank" rel="noopener">Open result</a>. This page is idle and can be closed.`;
+    document.getElementById("controls").replaceWith(card);
+    // Stop any further network activity
+    try{ window.stop && window.stop(); }catch(_){}
+  }
+
   async function pollStatus(){
     try{
       const data = await fetchNewestWithHtml();
       if (!data){ statusEl.innerHTML = "⏳ Generating plots…"; return; }
 
       if (data.phase === "error"){
+        stopAllTimers();
         statusEl.innerHTML = data.status || "❌ Analysis failed.";
         bar.style.width = "100%";
-        clearInterval(tIv);
-        clearInterval(pIv);
         return;
       }
       const htmlRel = String(data.html||"").trim();
       if (!htmlRel){ statusEl.innerHTML = "⏳ Generating plots…"; return; }
 
-      // success
-      viewBtn.removeAttribute("disabled");
-      viewBtn.href = GH_PAGES_BASE + htmlRel.replace(/^\\/+/, "");
-      statusEl.innerHTML = data.status || "✅ Analysis complete.";
-      bar.style.width = "100%";
-      clearInterval(tIv);
-      clearInterval(pIv);
-    }catch(_){ /* keep polling */ }
+      // success -> STOP EVERYTHING
+      const href = GH_PAGES_BASE + htmlRel.replace(/^\\/+/, "");
+      showDone(data.status, href);
+    }catch(_){ /* keep polling until timeout */ }
   }
   const pIv = setInterval(pollStatus, 1500);
 
@@ -246,8 +274,8 @@
 
   // Hard timeout
   setTimeout(function(){
-    clearInterval(pIv);
-    clearInterval(tIv);
+    if (!timersActive) return;
+    stopAllTimers();
     bar.style.width = "100%";
     const now = statusEl.textContent || statusEl.innerHTML || "";
     if (!/complete/i.test(now)){
