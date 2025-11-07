@@ -9,7 +9,7 @@
   <meta http-equiv="Expires" content="0" />
   <style>
     :root { --primary:#007bff; --accent:#87CEFA; --ok:#2e7d32; --warn:#c62828; --barbg:#edf2f7; }
-    body{font:16px/1.35 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:24px;max-width:820px}
+    body{font:16px/1.35 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:24px;max-width:880px}
     h1{margin:0 0 8px 0}
     .muted{opacity:.75}
     .row{margin:10px 0}
@@ -21,6 +21,9 @@
     #status{margin:8px 0;min-height:2.2em}
     #timer{font-variant-numeric:tabular-nums}
     #controls a{margin-right:10px}
+    details{border:1px solid #e5e7eb;border-radius:8px;padding:.5rem 1rem;background:#fafafa}
+    details pre{white-space:pre-wrap;word-break:break-word;background:#fff;border:1px solid #eee;border-radius:6px;padding:.75rem;max-height:260px;overflow:auto}
+    code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,monospace}
   </style>
 </head>
 <body>
@@ -40,11 +43,23 @@
     <a id="exitBtn" class="btn" href="about:blank">🔙 Exit</a>
   </div>
 
+  <details id="debug">
+    <summary>🔧 Debug</summary>
+    <div><strong>Params</strong>: <code id="dbgParams"></code></div>
+    <div><strong>Webhook base</strong>: <code id="dbgHook"></code></div>
+    <div><strong>Health checks</strong>:</div>
+    <pre id="dbgHealth">(pending)</pre>
+    <div><strong>POST result</strong>:</div>
+    <pre id="dbgPost">(pending)</pre>
+    <div><strong>Status polls</strong>:</div>
+    <pre id="dbgPolls">(pending)</pre>
+  </details>
+
 <script>
 (function(){
   // ------------ config ------------
-  const GH_PAGES_BASE = "https://soazcomms.github.io/";           // gh-pages root
-  const STATUS_DIR    = "status";                                  // status/ at root of site
+  const GH_PAGES_BASE = "https://soazcomms.github.io/";   // gh-pages root
+  const STATUS_DIR    = "status";                         // status/ at root of site
   const DEFAULT_WEBHOOK = "https://sound-kangaroo-unlikely.ngrok-free.app";
   const qs = new URLSearchParams(location.search);
 
@@ -56,13 +71,14 @@
   const WEBHOOK_URL  = WEBHOOK_ORIG + "/DSN_trigger";
 
   // Helpers
-  function isYMD(s){ return /^\\d{4}-\\d{2}-\\d{2}$/.test(s); }
   function toISO(s){ return (s.includes("T") ? s : (s + "T00:00:00.000Z")); }
   function onlyDate(s){ return (s||"").split("T")[0]; }
   function safeShort(lbl){ return (lbl||"").split("_")[0].replace(/[^\\w.\\-]/g,"_"); } // DSN019-S_MtLemmon -> DSN019-S
   function safeFull(lbl){  return (lbl||"").replace(/[^\\w.\\-]/g,"_"); }
   function bust(u){ return u + (u.includes("?")?"&":"?") + "bust=" + Date.now(); }
+  function mmss(ms){ const s=Math.max(0,Math.floor(ms/1000)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
 
+  // DOM
   const statusEl  = document.getElementById("status");
   const headerEl  = document.getElementById("header");
   const titleEl   = document.getElementById("title");
@@ -71,10 +87,17 @@
   const leftEl    = document.getElementById("timeoutLeft");
   const viewBtn   = document.getElementById("viewBtn");
 
+  const dbgParams = document.getElementById("dbgParams");
+  const dbgHook   = document.getElementById("dbgHook");
+  const dbgHealth = document.getElementById("dbgHealth");
+  const dbgPost   = document.getElementById("dbgPost");
+  const dbgPolls  = document.getElementById("dbgPolls");
+
   // Validate params up front
   if (!rawLabel || !fromQ || !toQ){
     statusEl.innerHTML = "❌ Missing label/from/to.";
     headerEl.textContent = "DSN Analysis — (missing params)";
+    document.title = "🔬 DSN Analysis — missing params";
     return;
   }
 
@@ -86,7 +109,7 @@
 
   document.title = `🔬 DSN Analysis — ${rawLabel}`;
   titleEl.textContent = `🔬 DSN Analysis — ${rawLabel}`;
-  headerEl.textContent = `Label: ${rawLabel} V5 Range: ${onlyDate(fromIso)} → ${onlyDate(toIso)}`;
+  headerEl.textContent = `Label: ${rawLabel} V6 Range: ${onlyDate(fromIso)} → ${onlyDate(toIso)}`;
 
   // Status JSONs we will poll (newest with html wins)
   const statusUrls = [
@@ -94,12 +117,15 @@
     `${GH_PAGES_BASE}${STATUS_DIR}/status-${encodeURIComponent(label8)}.json`,
   ];
 
+  // Diagnostics banner values
+  dbgParams.textContent = JSON.stringify({label: rawLabel, from: fromIso, to: toIso});
+  dbgHook.textContent   = JSON.stringify({webhook_base: WEBHOOK_ORIG, post_url: WEBHOOK_URL});
+
   // Timer/progress
   const HARD_TIMEOUT_MS = 7 * 60 * 1000;  // 7 minutes
   const startTs = Date.now();
   let timedOutShown = false;
 
-  function mmss(ms){ const s=Math.max(0,Math.floor(ms/1000)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
   function tickTime(){
     const t = Date.now()-startTs;
     const m = Math.floor(t/60000), s = Math.floor((t%60000)/1000);
@@ -112,17 +138,43 @@
   }
   const tIv = setInterval(tickTime, 1000); tickTime();
 
+  // Simple GET probes to help debug "no log" situations
+  async function healthChecks(){
+    const targets = [
+      {name:"/healthz", url: WEBHOOK_ORIG + "/healthz"},
+      {name:"/DSN_trigger?ping=1", url: WEBHOOK_URL + "?ping=1"}
+    ];
+    const lines = [];
+    for (const t of targets){
+      try{
+        const r = await fetch(t.url, {method:"GET", cache:"no-store", mode:"cors", credentials:"omit"});
+        let body = "";
+        try{ body = await r.text(); }catch(_){}
+        lines.push(`${t.name}: HTTP ${r.status} ${r.statusText}  body=${(body||"").slice(0,200)}`);
+      }catch(e){
+        lines.push(`${t.name}: NETWORK ERROR (${e && e.message ? e.message : "unknown"})`);
+      }
+    }
+    dbgHealth.textContent = lines.join("\\n");
+  }
+
   // POST once
   let posted = false;
   async function startJobOnce(){
     if (posted) return; posted = true;
+    const payload = { label: rawLabel, from: fromIso, to: toIso };
     try{
       const resp = await fetch(WEBHOOK_URL, {
         method: "POST",
+        mode: "cors",
+        credentials: "omit",
         cache: "no-store",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ label: rawLabel, from: fromIso, to: toIso })
+        body: JSON.stringify(payload)
       });
+      let body="";
+      try{ body = await resp.text(); }catch(_){}
+      dbgPost.textContent = `HTTP ${resp.status} ${resp.statusText}\\n${(body||"").slice(0,2000)}`;
       if (!resp.ok){
         statusEl.innerHTML = `❌ Job failed to start (HTTP ${resp.status}).`;
         bar.style.width = "100%";
@@ -131,6 +183,7 @@
       }
       statusEl.textContent = "⏳ Running analysis…";
     }catch(e){
+      dbgPost.textContent = `NETWORK ERROR: ${e && e.message ? e.message : e}`;
       statusEl.textContent = "❌ Could not reach webhook.";
       bar.style.width = "100%";
       clearInterval(tIv);
@@ -140,16 +193,22 @@
   // Poll for status that includes an `html` field (no index.html fallback)
   async function fetchNewestWithHtml(){
     const found = [];
+    const logs = [];
     await Promise.all(statusUrls.map(async (u) => {
       try{
         const r = await fetch(bust(u), {cache:"no-store"});
+        logs.push(`${u} -> HTTP ${r.status}`);
         if (!r.ok) return;
         const j = await r.json();
         const ts = Number(j.timestamp)||0;
         const hasHtml = !!(j.html && String(j.html).trim());
+        logs.push(`  json: ts=${ts} html=${hasHtml?'yes':'no'} phase=${j.phase||''} status=${(j.status||'').slice(0,80)}`);
         if (hasHtml) found.push({data:j, ts});
-      }catch(_){}
+      }catch(e){
+        logs.push(`${u} -> ERROR ${e && e.message ? e.message : e}`);
+      }
     }));
+    dbgPolls.textContent = logs.join("\\n");
     if (!found.length) return null;
     found.sort((a,b)=> b.ts - a.ts);
     return found[0].data;
@@ -182,6 +241,7 @@
   const pIv = setInterval(pollStatus, 1500);
 
   // Kick off
+  healthChecks();
   startJobOnce();
 
   // Hard timeout
