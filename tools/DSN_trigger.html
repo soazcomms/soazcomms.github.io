@@ -4,22 +4,27 @@
   <meta charset="utf-8"/>
   <title>🔬 DSN Analysis</title>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta http-equiv="Cache-Control" content="no-store, max-age=0" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <style>
+    :root { --primary:#007bff; --accent:#87CEFA; --ok:#2e7d32; --warn:#c62828; --barbg:#edf2f7; }
     body{font:16px/1.35 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:24px;max-width:820px}
     h1{margin:0 0 8px 0}
-    .muted{opacity:.7}
+    .muted{opacity:.75}
     .row{margin:10px 0}
     .btn{display:inline-block;padding:8px 12px;border-radius:8px;border:1px solid #ccc;text-decoration:none}
     .btn[disabled]{opacity:.4;pointer-events:none}
-    #barwrap{height:8px;background:#eee;border-radius:6px;overflow:hidden;margin:12px 0 4px 0}
-    #bar{height:100%;width:0%;background:#0a84ff;transition:width .6s ease}
-    #status{margin:8px 0}
+    #barwrap{height:10px;background:var(--barbg);border-radius:999px;overflow:hidden;margin:12px 0 4px 0;box-shadow:inset 0 0 0 1px #e2e8f0}
+    #bar{height:100%;width:0%;background:linear-gradient(90deg,#69c,#38bdf8 40%,#22c55e 75%,#16a34a 100%);transition:width .5s ease}
+    #bar.timeout{background:linear-gradient(90deg,#f59e0b,#ef4444)}
+    #status{margin:8px 0;min-height:2.2em}
     #timer{font-variant-numeric:tabular-nums}
     #controls a{margin-right:10px}
   </style>
 </head>
 <body>
-  <h1>🔬 DSN Analysis</h1>
+  <h1 id="title">🔬 DSN Analysis</h1>
   <div id="header" class="muted">⏳ Initializing…</div>
 
   <div id="barwrap"><div id="bar"></div></div>
@@ -31,695 +36,164 @@
   </div>
 
   <div id="controls" class="row">
-    <a id="viewBtn" class="btn" href="#" target="_blank" disabled>📄 View Analysis Result</a>
+    <a id="viewBtn" class="btn" href="#" target="_blank" rel="noopener" disabled>📄 View Analysis Result</a>
     <a id="exitBtn" class="btn" href="about:blank">🔙 Exit</a>
   </div>
 
 <script>
 (function(){
-  // ---------------- config ----------------
-  const GH_PAGES_BASE = "https://soazcomms.github.io";
-  // If you prefer local /DSN_trigger (ngrok forward), set this to your tunnel:
-  const WEBHOOK_URL   = "https://sound-kangaroo-unlikely.ngrok-free.app/DSN_trigger";
-
-  // ---------------- helpers ----------------
+  // ------------ config ------------
+  const GH_PAGES_BASE = "https://soazcomms.github.io/";           // gh-pages root
+  const STATUS_DIR    = "status";                                  // status/ at root of site
+  const DEFAULT_WEBHOOK = "https://sound-kangaroo-unlikely.ngrok-free.app";
   const qs = new URLSearchParams(location.search);
+
+  // Inputs
   const rawLabel = (qs.get("label")||"").trim();
-  let   fromStr  = (qs.get("from") || "").trim();
-  let   toStr    = (qs.get("to")   || "").trim();
+  const fromQ    = (qs.get("from") || "").trim();
+  const toQ      = (qs.get("to")   || "").trim();
+  const WEBHOOK_ORIG = (qs.get("webhook") || DEFAULT_WEBHOOK).replace(/\\/+$/,"");
+  const WEBHOOK_URL  = WEBHOOK_ORIG + "/DSN_trigger";
 
-  function isYMD(s){ return /^\d{4}-\d{2}-\d{2}$/.test(s); }
+  // Helpers
+  function isYMD(s){ return /^\\d{4}-\\d{2}-\\d{2}$/.test(s); }
   function toISO(s){ return (s.includes("T") ? s : (s + "T00:00:00.000Z")); }
+  function onlyDate(s){ return (s||"").split("T")[0]; }
+  function safeShort(lbl){ return (lbl||"").split("_")[0].replace(/[^\\w.\\-]/g,"_"); } // DSN019-S_MtLemmon -> DSN019-S
+  function safeFull(lbl){  return (lbl||"").replace(/[^\\w.\\-]/g,"_"); }
+  function bust(u){ return u + (u.includes("?")?"&":"?") + "bust=" + Date.now(); }
 
-  // Guard + normalize
-  if (!rawLabel || !fromStr || !toStr){
-    document.getElementById("status").innerHTML = "❌ Missing label/from/to.";
-    document.getElementById("header").textContent = "DSN Analysis — (missing params)";
+  const statusEl  = document.getElementById("status");
+  const headerEl  = document.getElementById("header");
+  const titleEl   = document.getElementById("title");
+  const bar       = document.getElementById("bar");
+  const elapsedEl = document.getElementById("elapsed");
+  const leftEl    = document.getElementById("timeoutLeft");
+  const viewBtn   = document.getElementById("viewBtn");
+
+  // Validate params up front
+  if (!rawLabel || !fromQ || !toQ){
+    statusEl.innerHTML = "❌ Missing label/from/to.";
+    headerEl.textContent = "DSN Analysis — (missing params)";
     return;
   }
-  const fromIso = toISO(fromStr);
-  const toIso   = toISO(toStr);
-  const label8  = rawLabel.slice(0,8);
 
-  // Header shows what user picked (keep your visuals)
-  document.getElementById("header").textContent =
-    `DSN Analysis — ${rawLabel}\nLabel: ${rawLabel} · Range: ${fromStr} → ${toStr}`;
+  // Normalize to full ISO for server
+  const fromIso = toISO(fromQ);
+  const toIso   = toISO(toQ);
+  const label8  = safeShort(rawLabel);
+  const labelFull = safeFull(rawLabel);
 
-  // Status JSON path the server writes: status/status-<label8>.json
-  const statusUrl = `${GH_PAGES_BASE}/status/status-${encodeURIComponent(label8)}.json`;
+  document.title = `🔬 DSN Analysis — ${rawLabel}`;
+  titleEl.textContent = `🔬 DSN Analysis — ${rawLabel}`;
+  headerEl.textContent = `Label: ${rawLabel} V5 Range: ${onlyDate(fromIso)} → ${onlyDate(toIso)}`;
+
+  // Status JSONs we will poll (newest with html wins)
+  const statusUrls = [
+    `${GH_PAGES_BASE}${STATUS_DIR}/status-${encodeURIComponent(labelFull)}.json`,
+    `${GH_PAGES_BASE}${STATUS_DIR}/status-${encodeURIComponent(label8)}.json`,
+  ];
 
   // Timer/progress
-  const bar     = document.getElementById("bar");
-  const status  = document.getElementById("status");
-  const elapsed = document.getElementById("elapsed");
-  const leftEl  = document.getElementById("timeoutLeft");
-  const viewBtn = document.getElementById("viewBtn");
-
   const HARD_TIMEOUT_MS = 7 * 60 * 1000;  // 7 minutes
   const startTs = Date.now();
+  let timedOutShown = false;
 
+  function mmss(ms){ const s=Math.max(0,Math.floor(ms/1000)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
   function tickTime(){
-    const t = Math.floor((Date.now()-startTs)/1000);
-    const m = Math.floor(t/60), s = t%60;
-    elapsed.textContent = `${m}:${String(s).padStart(2,"0")}`;
-
-    const left = Math.max(0, HARD_TIMEOUT_MS - (Date.now()-startTs));
-    const lm = Math.floor(left/60000), ls = Math.floor((left%60000)/1000);
-    leftEl.textContent = `${lm}:${String(ls).padStart(2,"0")}`;
-
-    // simple progress visualization
-    const pct = Math.min(99, Math.floor(((Date.now()-startTs)/HARD_TIMEOUT_MS)*100));
+    const t = Date.now()-startTs;
+    const m = Math.floor(t/60000), s = Math.floor((t%60000)/1000);
+    elapsedEl.textContent = `${m}:${String(s).padStart(2,"0")}`;
+    const left = Math.max(0, HARD_TIMEOUT_MS - t);
+    leftEl.textContent = mmss(left);
+    const pct = Math.min(99, Math.floor((t/HARD_TIMEOUT_MS)*100));
     bar.style.width = pct + "%";
+    if (left === 0 && !timedOutShown){ bar.classList.add("timeout"); timedOutShown = true; }
   }
   const tIv = setInterval(tickTime, 1000); tickTime();
 
-  // Single fire POST guard
+  // POST once
   let posted = false;
-
   async function startJobOnce(){
     if (posted) return; posted = true;
-
-    // POST exactly what Flask expects: {label, from, to}
-    // Use ISO (you said that works with DSN_generate_analysis.py)
     try{
       const resp = await fetch(WEBHOOK_URL, {
         method: "POST",
+        cache: "no-store",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({ label: rawLabel, from: fromIso, to: toIso })
       });
-      // Don’t try to parse body here—server writes status JSON we’ll poll
       if (!resp.ok){
-        status.innerHTML = `❌ Job failed to start (HTTP ${resp.status}).`;
-        clearInterval(tIv);
+        statusEl.innerHTML = `❌ Job failed to start (HTTP ${resp.status}).`;
         bar.style.width = "100%";
+        clearInterval(tIv);
         return;
       }
-      status.textContent = "⏳ Running analysis…";
+      statusEl.textContent = "⏳ Running analysis…";
     }catch(e){
-      status.textContent = "❌ Could not reach webhook.";
-      clearInterval(tIv);
+      statusEl.textContent = "❌ Could not reach webhook.";
       bar.style.width = "100%";
-      return;
+      clearInterval(tIv);
     }
   }
 
-  // Poll status JSON for phase+html; no CSV text anywhere.
+  // Poll for status that includes an `html` field (no index.html fallback)
+  async function fetchNewestWithHtml(){
+    const found = [];
+    await Promise.all(statusUrls.map(async (u) => {
+      try{
+        const r = await fetch(bust(u), {cache:"no-store"});
+        if (!r.ok) return;
+        const j = await r.json();
+        const ts = Number(j.timestamp)||0;
+        const hasHtml = !!(j.html && String(j.html).trim());
+        if (hasHtml) found.push({data:j, ts});
+      }catch(_){}
+    }));
+    if (!found.length) return null;
+    found.sort((a,b)=> b.ts - a.ts);
+    return found[0].data;
+  }
+
   async function pollStatus(){
     try{
-      const u = statusUrl + `?bust=${Date.now()}`;
-      const r = await fetch(u, {cache:"no-store"});
-      if (!r.ok) return; // keep polling
+      const data = await fetchNewestWithHtml();
+      if (!data){ statusEl.innerHTML = "⏳ Generating plots…"; return; }
 
-      const data = await r.json();
-      if (data && typeof data === "object"){
-        // Show server status line if present (but never mention CSV)
-        if (data.status) status.innerHTML = data.status;
-
-        if (data.phase === "done"){
-          // Prefer server-provided html path; otherwise fall back to analysis/<label8>/index.html
-          let rel = data.html || `analysis/${encodeURIComponent(label8)}/index.html`;
-          // enable the button
-          viewBtn.removeAttribute("disabled");
-          viewBtn.href = `${GH_PAGES_BASE}/${rel}`;
-          // finalize UI
-          bar.style.width = "100%";
-          clearInterval(tIv);
-          clearInterval(pIv);
-          return;
-        }
-        if (data.phase === "error"){
-          clearInterval(tIv);
-          clearInterval(pIv);
-          bar.style.width = "100%";
-          status.innerHTML = data.status || "❌ Analysis failed.";
-          return;
-        }
+      if (data.phase === "error"){
+        statusEl.innerHTML = data.status || "❌ Analysis failed.";
+        bar.style.width = "100%";
+        clearInterval(tIv);
+        clearInterval(pIv);
+        return;
       }
-    }catch(_e){
-      // ignore and keep polling
-    }
+      const htmlRel = String(data.html||"").trim();
+      if (!htmlRel){ statusEl.innerHTML = "⏳ Generating plots…"; return; }
+
+      // success
+      viewBtn.removeAttribute("disabled");
+      viewBtn.href = GH_PAGES_BASE + htmlRel.replace(/^\\/+/, "");
+      statusEl.innerHTML = data.status || "✅ Analysis complete.";
+      bar.style.width = "100%";
+      clearInterval(tIv);
+      clearInterval(pIv);
+    }catch(_){ /* keep polling */ }
   }
   const pIv = setInterval(pollStatus, 1500);
 
-  // Kick it off
+  // Kick off
   startJobOnce();
 
-  // Hard timeout safety
+  // Hard timeout
   setTimeout(function(){
-    clearInterval(tIv);
     clearInterval(pIv);
+    clearInterval(tIv);
     bar.style.width = "100%";
-    const now = status.textContent || status.innerHTML || "";
+    const now = statusEl.textContent || statusEl.innerHTML || "";
     if (!/complete/i.test(now)){
-      status.innerHTML = "❌ Timed out waiting for analysis.";
+      statusEl.innerHTML = "❌ Timed out waiting for analysis.";
     }
   }, HARD_TIMEOUT_MS);
-
-})();
-</script>
-</body>
-</html><!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>🔬 DSN Analysis</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta http-equiv="Cache-Control" content="no-store, max-age=0" />
-  <meta http-equiv="Pragma" content="no-cache" />
-  <meta http-equiv="Expires" content="0" />
-  <style>
-    :root { --primary:#007bff; --accent:#87CEFA; --ok:#2e7d32; --warn:#c62828; --barbg:#edf2f7; }
-    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,sans-serif; text-align:center; margin:2rem; }
-    h2 { margin-bottom:.25rem; }
-    #headerText { margin:.25rem 0 .5rem; color:#444; }
-    #status { margin:.5rem 0 .5rem; font-size:1.05rem; min-height:2.4em; }
-    a.button { display:none; margin-top:.75rem; padding:.6rem 1.2rem; font-size:1rem; background:var(--primary); color:#fff; text-decoration:none; border-radius:8px; }
-    .actions { margin-top:.75rem; display:flex; gap:.5rem; justify-content:center; flex-wrap:wrap; }
-    button { padding:.55rem .95rem; font-size:.95rem; border:0; border-radius:8px; cursor:pointer; }
-    #exit-btn { background:var(--accent); }
-    #extend-btn { background:#e0e7ff; display:none; }
-    .muted { color:#666; font-size:.9rem; }
-    .progress-wrap { width:min(720px,90vw); margin:1rem auto .25rem; text-align:center; }
-    .progress { width:50%; margin:0 auto; height:12px; background:var(--barbg); border-radius:999px; overflow:hidden; box-shadow:inset 0 0 0 1px #e2e8f0; }
-    .legend { width:50%; margin:.35rem auto 0; display:flex; justify-content:space-between; font-size:.85rem; color:#555; }
-    .bar { height:100%; width:0%; background:linear-gradient(90deg,#69c,#38bdf8 40%,#22c55e 75%,#16a34a 100%); transition:width .4s ease; }
-    .bar.timeout { background:linear-gradient(90deg,#f59e0b,#ef4444); }
-  </style>
-</head>
-<body>
-  <h2 id="title">🔬 DSN Analysis</h2>
-  <div id="headerText" class="muted"></div>
-  <div id="status">⏳ Initializing…</div>
-
-  <div class="progress-wrap" aria-label="Progress toward timeout window">
-    <div class="progress"><div id="bar" class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div></div>
-    <div class="legend"><span id="leg-left" class="muted">0:00</span><span id="leg-right" class="muted">Timeout in 7:00</span></div>
-  </div>
-
-  <a id="open-link" class="button" target="_blank" rel="noopener">📄 View Analysis Result</a>
-
-  <div class="actions">
-    <button id="extend-btn" type="button">⏱️ Keep waiting 5 more min</button>
-    <button id="exit-btn"   type="button">🔙 Exit</button>
-  </div>
-
-  <!-- Optional: exposes window.DEBUG_FLAG / window.DEBUG_TURD -->
-  <script src="https://sound-kangaroo-unlikely.ngrok-free.app/env.js"></script>
-
-<script>
-(() => {
-  // ===== Params & constants =====
-  const GH_PAGES_BASE = "https://soazcomms.github.io/";
-  const STATUS_DIR    = "status";
-
-  const qs     = new URLSearchParams(location.search);
-  const label  = (qs.get("label")||"").trim();
-  const fromQ  = (qs.get("from") || "").trim();
-  const toQ    = (qs.get("to")   || "").trim();
-  const fromISO = fromQ;              // pass-through (YYYY-MM-DD or full ISO)
-  const toISO   = toQ;
-
-  const DEFAULT_WEBHOOK = "https://sound-kangaroo-unlikely.ngrok-free.app";
-  const WEBHOOK_ORIG = (qs.get("webhook") || DEFAULT_WEBHOOK).replace(/\/+$/,"");
-  const WEBHOOK_MAIN = WEBHOOK_ORIG + "/DSN_trigger";  // your live route
-  const WEBHOOK_FALL = WEBHOOK_ORIG + "/webhook";      // optional fallback
-  const DEBUG_URL    = WEBHOOK_ORIG + "/DSN_debug";    // pixel logger
-
-  // ===== UI nodes =====
-  const titleEl  = document.getElementById("title");
-  const headerEl = document.getElementById("headerText");
-  const statusEl = document.getElementById("status");
-  const linkEl   = document.getElementById("open-link");
-  const barEl    = document.getElementById("bar");
-  const legL     = document.getElementById("leg-left");
-  const legR     = document.getElementById("leg-right");
-  const extendBtn= document.getElementById("extend-btn");
-  const exitBtn  = document.getElementById("exit-btn");
-
-  function onlyDate(s){ return (s||"").split("T")[0]; }
-  if (label) titleEl.textContent = `🔬 DSN Analysis — ${label}`;
-  if (label && fromISO && toISO) headerEl.textContent =
-    `Label: ${label} V4 Range: ${onlyDate(fromISO)} → ${onlyDate(toISO)}`;
-
-  // ===== Progress / timing =====
-  const POLL_MS      = 5000;
-  const TIMEOUT_INIT = 7 * 60_000;
-  const EXTEND_MS    = 5 * 60_000;
-  const RUN_ID       = "run-" + Date.now().toString(36);
-
-  let extraTime = 0;
-  const start   = Date.now();
-
-  function mmss(ms){ const s=Math.max(0,Math.floor(ms/1000)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
-  function updateProgress(timedOut){
-    const elapsed = Date.now()-start;
-    const total   = TIMEOUT_INIT + extraTime;
-    const pct     = Math.max(3, Math.min(100, Math.floor(elapsed/total*100)));
-    barEl.style.width = pct + "%";
-    barEl.classList.toggle("timeout", !!timedOut);
-    legL.textContent = mmss(elapsed);
-    legR.textContent = timedOut ? "Waiting…" : `Timeout in ${mmss(Math.max(0,total-elapsed))}`;
-  }
-
-  extendBtn.addEventListener("click", () => {
-    extraTime += EXTEND_MS;
-    extendBtn.style.display = "none";
-    statusEl.innerHTML = "⏳ Extended… still working.";
-    debug("manual_extend", `+${Math.round(EXTEND_MS/60000)}m`);
-  });
-
-  exitBtn.addEventListener("click", () => window.close());
-
-  // ===== ultra-light “pixel” logger =====
-  const DEBUG = !!(window.DEBUG_FLAG ?? window.DEBUG_TURD);
-  function debug(step, note) {
-    if (!DEBUG) return;
-    try {
-      const payload = {step, note: String(note||""), label, from: fromISO, to: toISO, run_id: RUN_ID, t: Date.now()};
-      if (navigator.sendBeacon) {
-        const blob = new Blob([JSON.stringify(payload)], {type:"application/json"});
-        navigator.sendBeacon(DEBUG_URL, blob);
-      } else {
-        const img = new Image(1,1);
-        img.src = DEBUG_URL + "?" + new URLSearchParams(payload).toString();
-      }
-    } catch(_) {}
-  }
-
-  // ===== Helpers =====
-  function safeShort(lbl){ return (lbl||"").split("_")[0].replace(/[^\w.\-]/g,"_"); } // DSN019-S_MtLemmon -> DSN019-S
-  function safeFull(lbl){  return (lbl||"").replace(/[^\w.\-]/g,"_"); }
-  function bust(u){ return u + (u.includes("?")?"&":"?") + "bust=" + Date.now(); }
-
-  function statusUrls(){
-    const sFull  = safeFull(label);
-    const sShort = safeShort(label);
-    // We only consider entries that contain an `html` field (analysis done).
-    return [
-      `${GH_PAGES_BASE}${STATUS_DIR}/status-${sFull}.json`,
-      `${GH_PAGES_BASE}${STATUS_DIR}/status-${sShort}.json`,
-    ].map(bust);
-  }
-
-  function resolveUrl(rel){
-    // rel is required; no index.html assumptions.
-    return GH_PAGES_BASE + String(rel).replace(/^\/+/, "");
-  }
-
-  // Minimal ngrok preflight
-  async function preflightNgrok(){
-    debug("preflight_begin", WEBHOOK_ORIG);
-    try {
-      const ctrl = new AbortController(); const t=setTimeout(()=>ctrl.abort(),4000);
-      const r = await fetch(WEBHOOK_ORIG + "/health", {signal:ctrl.signal, cache:"no-store"});
-      clearTimeout(t);
-      return r.ok;
-    } catch { return false; }
-  }
-
-  // ===== Poll newest status that has `html` =====
-  async function fetchNewestWithHtml() {
-    const urls = statusUrls();
-    const found = [];
-    await Promise.all(urls.map(async (u) => {
-      try {
-        const r = await fetch(u, {cache:"no-store"});
-        if (!r.ok) return;
-        const j = await r.json();
-        const ts = Number(j.timestamp)||0;
-        const hasHtml = !!(j.html && String(j.html).trim());
-        if (hasHtml) found.push({url:u, data:j, ts});
-      } catch(_) {}
-    }));
-    if (!found.length) return null;
-    found.sort((a,b)=> b.ts - a.ts);
-    return found[0];
-  }
-
-  // ===== Poll loop (analysis only) =====
-  async function pollOnce(){
-    try {
-      const newest = await fetchNewestWithHtml();
-      if (!newest) { statusEl.innerHTML = "⏳ Generating plots…"; return {done:false}; }
-
-      const data = newest.data;
-      if (data.phase === "error"){
-        statusEl.innerHTML = (data.status || "❌ Analysis failed.") +
-          (data.note ? `<pre style="text-align:left;white-space:pre-wrap">${data.note}</pre>` : "");
-        debug("server_error_latest", newest.url);
-        document.title = "❌ DSN Analysis";
-        return {done:true};
-      }
-
-      const htmlRel = String(data.html || "").trim();
-      if (!htmlRel){
-        statusEl.innerHTML = "⏳ Generating plots…";
-        return {done:false};
-      }
-
-      const finalUrl = resolveUrl(htmlRel);
-      linkEl.href = finalUrl;
-      linkEl.style.display = "inline-block";
-      statusEl.innerHTML = data.status || "✅ Analysis complete.";
-      document.title = "✅ DSN Analysis";
-      barEl.style.width = "100%";
-      debug("html_ready", finalUrl);
-      return {done:true};
-
-    } catch (e){
-      debug("poll_exception", String(e));
-      return {done:false};
-    }
-  }
-
-  // ===== Main =====
-  (async function main(){
-    if (!label || !fromISO || !toISO){
-      statusEl.innerHTML = "❌ Missing/invalid label/from/to (need YYYY-MM-DD).";
-      return;
-    }
-
-    statusEl.innerHTML = `🔄 Running analysis for <b>${label}</b>…<br/>⏳ Generating plots…`;
-
-    const ok = await preflightNgrok();
-    if (!ok){
-      statusEl.innerHTML = `❌ ngrok unreachable at <code>${WEBHOOK_ORIG}</code><br/><span class="muted">Run your tunnel and reload.</span>`;
-      barEl.style.width = "0%";
-      document.title = "❌ DSN Analysis";
-      return;
-    }
-
-    // Fire the job: try /DSN_trigger first, fallback to /webhook
-    try {
-      const body = { label, from: fromISO, to: toISO };
-      let posted = false;
-      for (const url of [WEBHOOK_MAIN, WEBHOOK_FALL]){
-        try {
-          const r = await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
-          if (r.ok){ posted = true; break; }
-        } catch(_){ /* try next */ }
-      }
-      if (!posted) debug("post_job_warn", "no 200 from webhook");
-    } catch(e){
-      statusEl.textContent = "⏳ Processing… (webhook may be delayed)";
-      debug("post_job_fail", String(e));
-    }
-
-    let done=false;
-    while (!done){
-      const elapsed = Date.now()-start;
-      const timedOut = elapsed >= (TIMEOUT_INIT + extraTime);
-      updateProgress(timedOut);
-      if (timedOut){
-        statusEl.innerHTML = "⏱️ Still working… might be a larger data window.";
-        extendBtn.style.display = "inline-block";
-      }
-      const r = await pollOnce();
-      done = !!r.done;
-      if (!done) await new Promise(r => setTimeout(r, POLL_MS));
-    }
-  })();
-})();
-</script>
-</body>
-</html><!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>🔬 DSN Analysis</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta http-equiv="Cache-Control" content="no-store, max-age=0" />
-  <meta http-equiv="Pragma" content="no-cache" />
-  <meta http-equiv="Expires" content="0" />
-  <style>
-    :root { --primary:#007bff; --accent:#87CEFA; --ok:#2e7d32; --warn:#c62828; --barbg:#edf2f7; }
-    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,sans-serif; text-align:center; margin:2rem; }
-    h2 { margin-bottom:.25rem; }
-    #headerText { margin:.25rem 0 .5rem; color:#444; }
-    #status { margin:.5rem 0 .5rem; font-size:1.05rem; min-height:2.4em; }
-    a.button { display:none; margin-top:.75rem; padding:.6rem 1.2rem; font-size:1rem; background:var(--primary); color:#fff; text-decoration:none; border-radius:8px; }
-    .actions { margin-top:.75rem; display:flex; gap:.5rem; justify-content:center; flex-wrap:wrap; }
-    button { padding:.55rem .95rem; font-size:.95rem; border:0; border-radius:8px; cursor:pointer; }
-    #exit-btn { background:var(--accent); }
-    #extend-btn { background:#e0e7ff; display:none; }
-    .muted { color:#666; font-size:.9rem; }
-    .progress-wrap { width:min(720px,90vw); margin:1rem auto .25rem; text-align:center; }
-    .progress { width:50%; margin:0 auto; height:12px; background:var(--barbg); border-radius:999px; overflow:hidden; box-shadow:inset 0 0 0 1px #e2e8f0; }
-    .legend { width:50%; margin:.35rem auto 0; display:flex; justify-content:space-between; font-size:.85rem; color:#555; }
-    .bar { height:100%; width:0%; background:linear-gradient(90deg,#69c,#38bdf8 40%,#22c55e 75%,#16a34a 100%); transition:width .4s ease; }
-    .bar.timeout { background:linear-gradient(90deg,#f59e0b,#ef4444); }
-  </style>
-</head>
-<body>
-  <h2 id="title">🔬 DSN Analysis</h2>
-  <div id="headerText" class="muted"></div>
-  <div id="status">⏳ Initializing…</div>
-
-  <div class="progress-wrap" aria-label="Progress toward timeout window">
-    <div class="progress"><div id="bar" class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div></div>
-    <div class="legend"><span id="leg-left" class="muted">0:00</span><span id="leg-right" class="muted">Timeout in 7:00</span></div>
-  </div>
-
-  <a id="open-link" class="button" target="_blank" rel="noopener">📄 View Analysis Result</a>
-
-  <div class="actions">
-    <button id="extend-btn" type="button">⏱️ Keep waiting 5 more min</button>
-    <button id="exit-btn"   type="button">🔙 Exit</button>
-  </div>
-
-  <!-- Optional: exposes window.DEBUG_FLAG from your /env.js -->
-  <script src="https://sound-kangaroo-unlikely.ngrok-free.app/env.js"></script>
-
-<script>
-(() => {
-  // ========= Constants & params =========
-  const GH_PAGES_BASE = "https://soazcomms.github.io/";
-  const STATUS_DIR    = "status";
-
-  const qs    = new URLSearchParams(location.search);
-  const label = (qs.get("label")||"").trim();
-  const fromQ = (qs.get("from") || "").trim();
-  const toQ   = (qs.get("to")   || "").trim();
-
-  const fromISO = fromQ;   // accept YYYY-MM-DD or ISO and pass through unchanged
-  const toISO   = toQ;
-
-  const DEFAULT_WEBHOOK = "https://sound-kangaroo-unlikely.ngrok-free.app";
-  const WEBHOOK_ORIG = (qs.get("webhook") || DEFAULT_WEBHOOK).replace(/\/+$/,"");
-  const WEBHOOK_MAIN = WEBHOOK_ORIG + "/webhook";      // preferred analysis endpoint
-  const WEBHOOK_FALL = WEBHOOK_ORIG + "/DSN_trigger";  // legacy fallback
-  const DEBUG_URL    = WEBHOOK_ORIG + "/DSN_debug";    // ultra-light pixel logger
-
-  // ========= UI handles =========
-  const titleEl  = document.getElementById("title");
-  const headerEl = document.getElementById("headerText");
-  const statusEl = document.getElementById("status");
-  const linkEl   = document.getElementById("open-link");
-  const barEl    = document.getElementById("bar");
-  const legL     = document.getElementById("leg-left");
-  const legR     = document.getElementById("leg-right");
-  const extendBtn= document.getElementById("extend-btn");
-  const exitBtn  = document.getElementById("exit-btn");
-
-  function onlyDate(s){ return (s||"").split("T")[0]; }
-  if (label) titleEl.textContent = `🔬 DSN Analysis — ${label}`;
-  if (label && fromISO && toISO) headerEl.textContent =
-    `Label: ${label} · Range: ${onlyDate(fromISO)} → ${onlyDate(toISO)}`;
-
-  // ========= Progress / timing =========
-  const POLL_MS       = 5000;
-  const TIMEOUT_INIT  = 7 * 60_000;
-  const EXTEND_MS     = 5 * 60_000;
-  const RUN_ID        = "run-" + Date.now().toString(36);
-
-  let extraTime = 0;
-  const start   = Date.now();
-
-  function mmss(ms){ const s=Math.max(0,Math.floor(ms/1000)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
-  function updateProgress(timedOut){
-    const elapsed = Date.now()-start;
-    const total   = TIMEOUT_INIT + extraTime;
-    const pct     = Math.max(3, Math.min(100, Math.floor(elapsed/total*100)));
-    barEl.style.width = pct + "%";
-    barEl.classList.toggle("timeout", !!timedOut);
-    legL.textContent = mmss(elapsed);
-    legR.textContent = timedOut ? "Waiting…" : `Timeout in ${mmss(Math.max(0,total-elapsed))}`;
-  }
-
-  extendBtn.addEventListener("click", () => {
-    extraTime += EXTEND_MS;
-    extendBtn.style.display = "none";
-    statusEl.innerHTML = "⏳ Extended… still working.";
-    debug("manual_extend", `+${Math.round(EXTEND_MS/60000)}m`);
-  });
-
-  exitBtn.addEventListener("click", () => window.close());
-
-  // ========= ultra-light “pixel” logger =========
-  const DEBUG = !!window.DEBUG_FLAG;
-  function debug(step, note) {
-    if (!DEBUG) return;
-    try {
-      const payload = {step, note: String(note||""), label, from: fromISO, to: toISO, run_id: RUN_ID, t: Date.now()};
-      if (navigator.sendBeacon) {
-        const blob = new Blob([JSON.stringify(payload)], {type:"application/json"});
-        navigator.sendBeacon(DEBUG_URL, blob);
-      } else {
-        const img = new Image(1,1);
-        img.src = DEBUG_URL + "?" + new URLSearchParams(payload).toString();
-      }
-    } catch(_) {}
-  }
-
-  // ========= Helpers =========
-  function safeShort(lbl){ return (lbl||"").split("_")[0].replace(/[^\w.\-]/g,"_"); } // DSN019-S_MtLemmon -> DSN019-S
-  function safeFull(lbl){  return (lbl||"").replace(/[^\w.\-]/g,"_"); }
-  function bust(u){ return u + (u.includes("?")?"&":"?") + "bust=" + Date.now(); }
-
-  function statusUrls(){
-    const sFull  = safeFull(label);
-    const sShort = safeShort(label);
-    // Check both, newest wins — BUT must include .html to count as “done”
-    return [
-      `${GH_PAGES_BASE}${STATUS_DIR}/status-${sFull}.json`,
-      `${GH_PAGES_BASE}${STATUS_DIR}/status-${sShort}.json`,
-    ].map(bust);
-  }
-
-  function resolveUrl(rel){
-    // rel is required; we do NOT fallback to any index.html anymore
-    return GH_PAGES_BASE + String(rel).replace(/^\/+/, "");
-  }
-
-  // Minimal ngrok preflight (pixel GET, then /health GET)
-  function pingPixel(url, timeoutMs=3000){
-    return new Promise(res => {
-      let done=false; const img=new Image();
-      const to=setTimeout(()=>{ if(!done){ done=true; img.src=""; res(false); } }, timeoutMs);
-      img.onload=()=>{ if(!done){ done=true; clearTimeout(to); res(true); } };
-      img.onerror=()=>{ if(!done){ done=true; clearTimeout(to); res(false); } };
-      img.referrerPolicy="no-referrer";
-      img.src=url + (url.includes("?")?"&":"?") + "ts=" + Date.now();
-    });
-  }
-  async function preflightNgrok(){
-    debug("preflight_begin", WEBHOOK_ORIG);
-    const ok1 = await pingPixel(DEBUG_URL);
-    if (ok1) return true;
-    try {
-      const ctrl = new AbortController(); const t=setTimeout(()=>ctrl.abort(),4000);
-      const r = await fetch(WEBHOOK_ORIG + "/health", {signal:ctrl.signal, cache:"no-store"});
-      clearTimeout(t);
-      return r.ok;
-    } catch { return false; }
-  }
-
-  // ========= Fetch newest status that includes an HTML result =========
-  async function fetchNewestWithHtml() {
-    const urls = statusUrls();
-    const found = [];
-    await Promise.all(urls.map(async (u) => {
-      try {
-        const r = await fetch(u, {cache:"no-store"});
-        if (!r.ok) return;
-        const j = await r.json();
-        const ts = Number(j.timestamp)||0;
-        const hasHtml = !!(j.html && String(j.html).trim());
-        // Ignore csv-only updates (they may carry a "CSV complete" message)
-        if (hasHtml) found.push({url:u, data:j, ts});
-      } catch(_) {}
-    }));
-    if (!found.length) return null;
-    found.sort((a,b)=> b.ts - a.ts);
-    return found[0];
-  }
-
-  // ========= Poll loop (analysis only) =========
-  async function pollOnce(){
-    try {
-      const newest = await fetchNewestWithHtml();
-      if (!newest) { statusEl.innerHTML = "⏳ Generating plots…"; return {done:false}; }
-
-      const data = newest.data;
-      if (data.phase === "error"){
-        statusEl.innerHTML = (data.status || "❌ Analysis failed.") +
-          (data.note ? `<pre style="text-align:left;white-space:pre-wrap">${data.note}</pre>` : "");
-        debug("server_error_latest", newest.url);
-        document.title = "❌ DSN Analysis";
-        return {done:true};
-      }
-
-      // Success path: require `html` from the status JSON
-      const htmlRel = String(data.html || "").trim();
-      if (!htmlRel){
-        // Shouldn't happen because we filtered, but keep safe
-        statusEl.innerHTML = "⏳ Generating plots…";
-        return {done:false};
-      }
-
-      const finalUrl = resolveUrl(htmlRel);
-      linkEl.href = finalUrl;
-      linkEl.style.display = "inline-block";
-      statusEl.innerHTML = data.status || "✅ Analysis complete.";
-      document.title = "✅ DSN Analysis";
-      barEl.style.width = "100%";
-      debug("html_ready", finalUrl);
-      return {done:true};
-
-    } catch (e){
-      debug("poll_exception", String(e));
-      return {done:false};
-    }
-  }
-
-  // ========= Main =========
-  (async function main(){
-    if (!label || !fromISO || !toISO){
-      statusEl.innerHTML = "❌ Missing/invalid label/from/to (need YYYY-MM-DD).";
-      return;
-    }
-
-    statusEl.innerHTML = `🔄 Running analysis for <b>${label}</b>…<br/>⏳ Generating plots…`;
-
-    const ok = await preflightNgrok();
-    if (!ok){
-      statusEl.innerHTML = `❌ ngrok unreachable at <code>${WEBHOOK_ORIG}</code><br/><span class="muted">Run your tunnel and reload.</span>`;
-      barEl.style.width = "0%";
-      document.title = "❌ DSN Analysis";
-      return;
-    }
-
-    // Start job (fire and poll). We try main then legacy endpoint.
-    try {
-      const body = { label, from: fromISO, to: toISO };
-      let lastErr = null;
-      for (const url of [WEBHOOK_MAIN, WEBHOOK_FALL]){
-        try {
-          const r = await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
-          if (r.ok) break;
-          lastErr = new Error("HTTP "+r.status+" @ "+url);
-        } catch(e){ lastErr = e; }
-      }
-      if (lastErr) debug("post_job_warn", String(lastErr));
-    } catch(e){
-      statusEl.textContent = "⏳ Processing… (webhook may be delayed)";
-      debug("post_job_fail", String(e));
-    }
-
-    let done=false;
-    while (!done){
-      const elapsed = Date.now()-start;
-      const timedOut = elapsed >= (TIMEOUT_INIT + extraTime);
-      updateProgress(timedOut);
-      if (timedOut){
-        statusEl.innerHTML = "⏱️ Still working… might be a larger data window.";
-        extendBtn.style.display = "inline-block";
-      }
-      const r = await pollOnce();
-      done = !!r.done;
-      if (!done) await new Promise(r => setTimeout(r, POLL_MS));
-    }
-  })();
 })();
 </script>
 </body>
