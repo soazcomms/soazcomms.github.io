@@ -9,7 +9,7 @@
   <meta http-equiv="Expires" content="0" />
   <style>
     :root { --primary:#007bff; --accent:#87CEFA; --ok:#2e7d32; --warn:#c62828; --barbg:#edf2f7; }
-    body{font:16px/1.35 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:24px;max-width:880px}
+    body{font:16px/1.35 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:24px;max-width:900px}
     h1{margin:0 0 8px 0}
     .muted{opacity:.75}
     .row{margin:10px 0}
@@ -24,11 +24,12 @@
     details pre{white-space:pre-wrap;word-break:break-word;background:#fff;border:1px solid #eee;border-radius:6px;padding:.75rem;max-height:260px;overflow:auto}
     code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,monospace}
     .done{border:1px solid #dcfce7;background:#f0fdf4;border-radius:10px;padding:12px;margin-top:16px}
+    .badge{display:inline-block;padding:.15rem .45rem;border-radius:6px;border:1px solid #e5e7eb;background:#f8fafc;font-size:.9rem}
   </style>
 </head>
 <body>
   <h1 id="title">🔬 DSN Analysis</h1>
-  <div id="header" class="muted">⏳ Initializing…</div>
+  <div id="header" class="muted">⏳ Initializing… <span id="jsBadge" class="badge">JS: starting</span></div>
 
   <div id="barwrap"><div id="bar"></div></div>
   <div class="row" id="status">Preparing…</div>
@@ -53,235 +54,253 @@
     <pre id="dbgPost">(pending)</pre>
     <div><strong>Status polls</strong>:</div>
     <pre id="dbgPolls">(pending)</pre>
+    <div><strong>Errors</strong>:</div>
+    <pre id="dbgErrors">(none)</pre>
   </details>
 
 <script>
 (function(){
-  // ------------ config ------------
-  const GH_PAGES_BASE = "https://soazcomms.github.io/";   // gh-pages root
-  const STATUS_DIR    = "status";                         // status/ at root of site
-  const DEFAULT_WEBHOOK = "https://sound-kangaroo-unlikely.ngrok-free.app";
-  const qs = new URLSearchParams(location.search);
+  // Global error capture so "Debug" never stays (pending)
+  const dbgErrors = document.getElementById("dbgErrors");
+  window.addEventListener("error", e => { dbgErrors.textContent += "\\n" + (e.message||e); });
+  window.addEventListener("unhandledrejection", e => { dbgErrors.textContent += "\\n" + (e.reason && e.reason.message ? e.reason.message : e.reason); });
 
-  // Inputs
-  const rawLabel = (qs.get("label")||"").trim();
-  const fromQ    = (qs.get("from") || "").trim();
-  const toQ      = (qs.get("to")   || "").trim();
-  const WEBHOOK_ORIG = (qs.get("webhook") || DEFAULT_WEBHOOK).replace(/\\/+$/,"");
-  const WEBHOOK_URL  = WEBHOOK_ORIG + "/DSN_trigger";
+  const jsBadge = document.getElementById("jsBadge");
+  function setJS(state){ jsBadge.textContent = "JS: " + state; }
 
-  // Helpers
-  function toISO(s){ return (s.includes("T") ? s : (s + "T00:00:00.000Z")); }
-  function onlyDate(s){ return (s||"").split("T")[0]; }
-  function safeShort(lbl){ return (lbl||"").split("_")[0].replace(/[^\\w.\\-]/g,"_"); } // DSN019-S_MtLemmon -> DSN019-S
-  function safeFull(lbl){  return (lbl||"").replace(/[^\\w.\\-]/g,"_"); }
-  function bust(u){ return u + (u.includes("?")?"&":"?") + "bust=" + Date.now(); }
-  function mmss(ms){ const s=Math.max(0,Math.floor(ms/1000)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
+  try{
+    setJS("alive");
 
-  // DOM
-  const statusEl  = document.getElementById("status");
-  const headerEl  = document.getElementById("header");
-  const titleEl   = document.getElementById("title");
-  const bar       = document.getElementById("bar");
-  const elapsedEl = document.getElementById("elapsed");
-  const leftEl    = document.getElementById("timeoutLeft");
-  const viewBtn   = document.getElementById("viewBtn");
-  const exitBtn   = document.getElementById("exitBtn");
+    // ------------ config ------------
+    const GH_PAGES_BASE = "https://soazcomms.github.io/";
+    const STATUS_DIR    = "status";
+    const DEFAULT_WEBHOOK = "https://sound-kangaroo-unlikely.ngrok-free.app";
+    const qs = new URLSearchParams(location.search);
 
-  const dbgParams = document.getElementById("dbgParams");
-  const dbgHook   = document.getElementById("dbgHook");
-  const dbgHealth = document.getElementById("dbgHealth");
-  const dbgPost   = document.getElementById("dbgPost");
-  const dbgPolls  = document.getElementById("dbgPolls");
+    // Inputs
+    const rawLabel = (qs.get("label")||"").trim();
+    const fromQ    = (qs.get("from") || "").trim();
+    const toQ      = (qs.get("to")   || "").trim();
+    const WEBHOOK_ORIG = (qs.get("webhook") || DEFAULT_WEBHOOK).replace(/\\/+$/,"");
+    const WEBHOOK_URL  = WEBHOOK_ORIG + "/DSN_trigger";
 
-  // Validate params up front
-  if (!rawLabel || !fromQ || !toQ){
-    statusEl.innerHTML = "❌ Missing label/from/to.";
-    headerEl.textContent = "DSN Analysis — (missing params) --V6--";
-    document.title = "🔬 DSN Analysis — missing params";
-    return;
-  }
+    // Helpers
+    function toISO(s){ return (s.includes("T") ? s : (s + "T00:00:00.000Z")); }
+    function onlyDate(s){ return (s||"").split("T")[0]; }
+    function safeShort(lbl){ return (lbl||"").split("_")[0].replace(/[^\\w.\\-]/g,"_"); }
+    function safeFull(lbl){  return (lbl||"").replace(/[^\\w.\\-]/g,"_"); }
+    function bust(u){ return u + (u.includes("?")?"&":"?") + "bust=" + Date.now(); }
+    function mmss(ms){ const s=Math.max(0,Math.floor(ms/1000)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
 
-  // Normalize to full ISO for server
-  const fromIso = toISO(fromQ);
-  const toIso   = toISO(toQ);
-  const label8  = safeShort(rawLabel);
-  const labelFull = safeFull(rawLabel);
+    // DOM
+    const statusEl  = document.getElementById("status");
+    const headerEl  = document.getElementById("header");
+    const titleEl   = document.getElementById("title");
+    const bar       = document.getElementById("bar");
+    const elapsedEl = document.getElementById("elapsed");
+    const leftEl    = document.getElementById("timeoutLeft");
+    const viewBtn   = document.getElementById("viewBtn");
 
-  document.title = `🔬 DSN Analysis — ${rawLabel}`;
-  titleEl.textContent = `🔬 DSN Analysis — ${rawLabel}`;
-  headerEl.textContent = `Label: ${rawLabel} --V6-- Range: ${onlyDate(fromIso)} → ${onlyDate(toIso)}`;
+    const dbgParams = document.getElementById("dbgParams");
+    const dbgHook   = document.getElementById("dbgHook");
+    const dbgHealth = document.getElementById("dbgHealth");
+    const dbgPost   = document.getElementById("dbgPost");
+    const dbgPolls  = document.getElementById("dbgPolls");
 
-  // Status JSONs we will poll (newest with html wins)
-  const statusUrls = [
-    `${GH_PAGES_BASE}${STATUS_DIR}/status-${encodeURIComponent(labelFull)}.json`,
-    `${GH_PAGES_BASE}${STATUS_DIR}/status-${encodeURIComponent(label8)}.json`,
-  ];
+    // Validation
+    if (!rawLabel || !fromQ || !toQ){
+      statusEl.innerHTML = "❌ Missing label/from/to.";
+      headerEl.textContent = "DSN Analysis — (missing params) --V7--";
+      document.title = "🔬 DSN Analysis — missing params";
+      setJS("alive (params missing)");
+      return;
+    }
 
-  // Diagnostics banner values
-  dbgParams.textContent = JSON.stringify({label: rawLabel, from: fromIso, to: toIso});
-  dbgHook.textContent   = JSON.stringify({webhook_base: WEBHOOK_ORIG, post_url: WEBHOOK_URL});
+    // Normalize
+    const fromIso = toISO(fromQ);
+    const toIso   = toISO(toQ);
+    const label8  = safeShort(rawLabel);
+    const labelFull = safeFull(rawLabel);
 
-  // Timer/progress
-  const HARD_TIMEOUT_MS = 7 * 60 * 1000;  // 7 minutes
-  const startTs = Date.now();
-  let timedOutShown = false;
-  let timersActive = true;
+    document.title = `🔬 DSN Analysis — ${rawLabel}`;
+    titleEl.textContent = `🔬 DSN Analysis — ${rawLabel}`;
+    headerEl.textContent = `Label: ${rawLabel} --V7-- Range: ${onlyDate(fromIso)} → ${onlyDate(toIso)}`;
 
-  function stopAllTimers(){
-    if (!timersActive) return;
-    timersActive = false;
-    clearInterval(tIv);
-    clearInterval(pIv);
-  }
-
-  function tickTime(){
-    const t = Date.now()-startTs;
-    const m = Math.floor(t/60000), s = Math.floor((t%60000)/1000);
-    elapsedEl.textContent = `${m}:${String(s).padStart(2,"0")}`;
-    const left = Math.max(0, HARD_TIMEOUT_MS - t);
-    leftEl.textContent = mmss(left);
-    const pct = Math.min(99, Math.floor((t/HARD_TIMEOUT_MS)*100));
-    bar.style.width = pct + "%";
-    if (left === 0 && !timedOutShown){ bar.classList.add("timeout"); timedOutShown = true; }
-  }
-  const tIv = setInterval(tickTime, 1000); tickTime();
-
-  // Simple GET probes to help debug "no log" situations; they will hit Flask and create log lines
-  async function healthChecks(){
-    const targets = [
-      {name:"/healthz", url: WEBHOOK_ORIG + "/healthz"},
-      {name:"/DSN_trigger?ping=1", url: WEBHOOK_URL + "?ping=1"},
-      // fallback path in case the server uses /webhook instead of /DSN_trigger
-      {name:"/webhook?ping=1", url: WEBHOOK_ORIG + "/webhook?ping=1"}
+    // Status URLs
+    const statusUrls = [
+      `${GH_PAGES_BASE}${STATUS_DIR}/status-${encodeURIComponent(labelFull)}.json`,
+      `${GH_PAGES_BASE}${STATUS_DIR}/status-${encodeURIComponent(label8)}.json`,
     ];
-    const lines = [];
-    for (const t of targets){
-      try{
-        const r = await fetch(t.url, {method:"GET", cache:"no-store", mode:"cors", credentials:"omit"});
-        let body = "";
-        try{ body = await r.text(); }catch(_){}
-        lines.push(`${t.name}: HTTP ${r.status} ${r.statusText}  body=${(body||"").slice(0,200)}`);
-      }catch(e){
-        lines.push(`${t.name}: NETWORK ERROR (${e && e.message ? e.message : "unknown"})`);
-      }
+
+    // Debug fill
+    dbgParams.textContent = JSON.stringify({label: rawLabel, from: fromIso, to: toIso});
+    dbgHook.textContent   = JSON.stringify({webhook_base: WEBHOOK_ORIG, post_url: WEBHOOK_URL});
+
+    // Timers
+    const HARD_TIMEOUT_MS = 7 * 60 * 1000;
+    const startTs = Date.now();
+    let timedOutShown = false;
+    let timersActive = true;
+
+    function stopAllTimers(){
+      if (!timersActive) return;
+      timersActive = false;
+      clearInterval(tIv);
+      clearInterval(pIv);
     }
-    dbgHealth.textContent = lines.join("\\n");
-  }
 
-  // POST once; also fire a best-effort log-ping that most Flask setups will log even if JSON parsing fails
-  let posted = false;
-  async function startJobOnce(){
-    if (posted) return; posted = true;
-    const payload = { label: rawLabel, from: fromIso, to: toIso };
+    function tickTime(){
+      const t = Date.now()-startTs;
+      const m = Math.floor(t/60000), s = Math.floor((t%60000)/1000);
+      elapsedEl.textContent = `${m}:${String(s).padStart(2,"0")}`;
+      const left = Math.max(0, HARD_TIMEOUT_MS - t);
+      leftEl.textContent = mmss(left);
+      const pct = Math.min(99, Math.floor((t/HARD_TIMEOUT_MS)*100));
+      bar.style.width = pct + "%";
+      if (left === 0 && !timedOutShown){ bar.classList.add("timeout"); timedOutShown = true; }
+    }
+    const tIv = setInterval(tickTime, 1000); tickTime();
 
-    // side-channel GET to force a visible log entry even before JSON is parsed
-    try { fetch(`${WEBHOOK_ORIG}/log?msg=client_start&label=${encodeURIComponent(rawLabel)}`, {mode:"no-cors"}); } catch(_){}
+    // Health checks
+    async function healthChecks(){
+      setJS("probing");
+      const targets = [
+        {name:"/healthz", url: WEBHOOK_ORIG + "/healthz"},
+        {name:"/DSN_trigger?ping=1", url: WEBHOOK_URL + "?ping=1"},
+        {name:"/webhook?ping=1", url: WEBHOOK_ORIG + "/webhook?ping=1"}
+      ];
+      const lines = [];
+      for (const t of targets){
+        try{
+          const r = await fetch(t.url, {method:"GET", cache:"no-store", mode:"cors", credentials:"omit"});
+          let body="";
+          try{ body = await r.text(); }catch(_){}
+          lines.push(`${t.name}: HTTP ${r.status} ${r.statusText} body=${(body||"").slice(0,160)}`);
+        }catch(e){
+          lines.push(`${t.name}: NETWORK ERROR (${e && e.message ? e.message : e})`);
+        }
+      }
+      dbgHealth.textContent = lines.join("\\n");
+      setJS("posting");
+    }
 
-    try{
-      const resp = await fetch(WEBHOOK_URL, {
-        method: "POST",
-        mode: "cors",
-        credentials: "omit",
-        cache: "no-store",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(payload)
-      });
-      let body="";
-      try{ body = await resp.text(); }catch(_){}
-      dbgPost.textContent = `HTTP ${resp.status} ${resp.statusText}\\n${(body||"").slice(0,2000)}`;
-      if (!resp.ok){
-        statusEl.innerHTML = `❌ Job failed to start (HTTP ${resp.status}).`;
+    // Kick job
+    let posted = false;
+    async function startJobOnce(){
+      if (posted) return; posted = true;
+      const payload = { label: rawLabel, from: fromIso, to: toIso };
+      try { fetch(`${WEBHOOK_ORIG}/log?msg=client_start&label=${encodeURIComponent(rawLabel)}`, {mode:"no-cors"}); } catch(_){}
+      try{
+        const resp = await fetch(WEBHOOK_URL, {
+          method: "POST",
+          mode: "cors",
+          credentials: "omit",
+          cache: "no-store",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify(payload)
+        });
+        let body="";
+        try{ body = await resp.text(); }catch(_){}
+        dbgPost.textContent = `HTTP ${resp.status} ${resp.statusText}\\n${(body||"").slice(0,2000)}`;
+        if (!resp.ok){
+          statusEl.innerHTML = `❌ Job failed to start (HTTP ${resp.status}).`;
+          bar.style.width = "100%";
+          stopAllTimers();
+          setJS("error");
+          return;
+        }
+        statusEl.textContent = "⏳ Running analysis…";
+        setJS("polling");
+      }catch(e){
+        dbgPost.textContent = `NETWORK ERROR: ${e && e.message ? e.message : e}`;
+        statusEl.textContent = "❌ Could not reach webhook.";
         bar.style.width = "100%";
         stopAllTimers();
-        return;
+        setJS("error");
       }
-      statusEl.textContent = "⏳ Running analysis…";
-    }catch(e){
-      dbgPost.textContent = `NETWORK ERROR: ${e && e.message ? e.message : e}`;
-      statusEl.textContent = "❌ Could not reach webhook.";
-      bar.style.width = "100%";
+    }
+
+    // Poll
+    async function fetchNewestWithHtml(){
+      const found = [];
+      const logs = [];
+      await Promise.all(statusUrls.map(async (u) => {
+        try{
+          const r = await fetch(bust(u), {cache:"no-store"});
+          logs.push(`${u} -> HTTP ${r.status}`);
+          if (!r.ok) return;
+          const j = await r.json();
+          const ts = Number(j.timestamp)||0;
+          const hasHtml = !!(j.html && String(j.html).trim());
+          logs.push(`  json: ts=${ts} html=${hasHtml?'yes':'no'} phase=${j.phase||''} status=${(j.status||'').slice(0,80)}`);
+          if (hasHtml) found.push({data:j, ts});
+        }catch(e){
+          logs.push(`${u} -> ERROR ${e && e.message ? e.message : e}`);
+        }
+      }));
+      dbgPolls.textContent = logs.join("\\n");
+      if (!found.length) return null;
+      found.sort((a,b)=> b.ts - a.ts);
+      return found[0].data;
+    }
+
+    function showDone(statusText, href){
       stopAllTimers();
+      bar.style.width = "100%";
+      viewBtn.removeAttribute("disabled");
+      viewBtn.href = href;
+      statusEl.innerHTML = statusText || "✅ Analysis complete.";
+      headerEl.textContent += " — DONE";
+      document.title = "✅ DSN Analysis — finished";
+      const card = document.createElement("div");
+      card.className = "done";
+      card.innerHTML = `✅ Finished. <a href="${href}" target="_blank" rel="noopener">Open result</a>. This page is idle and can be closed.`;
+      document.getElementById("controls").replaceWith(card);
+      try{ window.stop && window.stop(); }catch(_){}
+      setJS("done");
     }
-  }
 
-  // Poll for status that includes an `html` field (no index.html fallback)
-  async function fetchNewestWithHtml(){
-    const found = [];
-    const logs = [];
-    await Promise.all(statusUrls.map(async (u) => {
+    async function pollStatus(){
       try{
-        const r = await fetch(bust(u), {cache:"no-store"});
-        logs.push(`${u} -> HTTP ${r.status}`);
-        if (!r.ok) return;
-        const j = await r.json();
-        const ts = Number(j.timestamp)||0;
-        const hasHtml = !!(j.html && String(j.html).trim());
-        logs.push(`  json: ts=${ts} html=${hasHtml?'yes':'no'} phase=${j.phase||''} status=${(j.status||'').slice(0,80)}`);
-        if (hasHtml) found.push({data:j, ts});
+        const data = await fetchNewestWithHtml();
+        if (!data){ statusEl.innerHTML = "⏳ Generating plots…"; return; }
+        if (data.phase === "error"){
+          stopAllTimers();
+          statusEl.innerHTML = data.status || "❌ Analysis failed.";
+          bar.style.width = "100%";
+          setJS("error");
+          return;
+        }
+        const htmlRel = String(data.html||"").trim();
+        if (!htmlRel){ statusEl.innerHTML = "⏳ Generating plots…"; return; }
+        const href = GH_PAGES_BASE + htmlRel.replace(/^\\/+/, "");
+        showDone(data.status, href);
       }catch(e){
-        logs.push(`${u} -> ERROR ${e && e.message ? e.message : e}`);
+        dbgErrors.textContent += "\\n poll error: " + (e && e.message ? e.message : e);
       }
-    }));
-    dbgPolls.textContent = logs.join("\\n");
-    if (!found.length) return null;
-    found.sort((a,b)=> b.ts - a.ts);
-    return found[0].data;
-  }
-
-  function showDone(statusText, href){
-    // Freeze UI and indicate finished
-    stopAllTimers();
-    bar.style.width = "100%";
-    viewBtn.removeAttribute("disabled");
-    viewBtn.href = href;
-    statusEl.innerHTML = statusText || "✅ Analysis complete.";
-    headerEl.textContent += " — DONE";
-    document.title = "✅ DSN Analysis — finished";
-    // Replace controls area with a DONE card
-    const card = document.createElement("div");
-    card.className = "done";
-    card.innerHTML = `✅ Finished. <a href="${href}" target="_blank" rel="noopener">Open result</a>. This page is idle and can be closed.`;
-    document.getElementById("controls").replaceWith(card);
-    // Stop any further network activity
-    try{ window.stop && window.stop(); }catch(_){}
-  }
-
-  async function pollStatus(){
-    try{
-      const data = await fetchNewestWithHtml();
-      if (!data){ statusEl.innerHTML = "⏳ Generating plots…"; return; }
-
-      if (data.phase === "error"){
-        stopAllTimers();
-        statusEl.innerHTML = data.status || "❌ Analysis failed.";
-        bar.style.width = "100%";
-        return;
-      }
-      const htmlRel = String(data.html||"").trim();
-      if (!htmlRel){ statusEl.innerHTML = "⏳ Generating plots…"; return; }
-
-      // success -> STOP EVERYTHING
-      const href = GH_PAGES_BASE + htmlRel.replace(/^\\/+/, "");
-      showDone(data.status, href);
-    }catch(_){ /* keep polling until timeout */ }
-  }
-  const pIv = setInterval(pollStatus, 1500);
-
-  // Kick off
-  healthChecks();
-  startJobOnce();
-
-  // Hard timeout
-  setTimeout(function(){
-    if (!timersActive) return;
-    stopAllTimers();
-    bar.style.width = "100%";
-    const now = statusEl.textContent || statusEl.innerHTML || "";
-    if (!/complete/i.test(now)){
-      statusEl.innerHTML = "❌ Timed out waiting for analysis.";
     }
-  }, HARD_TIMEOUT_MS);
+    const pIv = setInterval(pollStatus, 1500);
+
+    // Kick off
+    healthChecks();
+    startJobOnce();
+
+    // Timeout
+    setTimeout(function(){
+      if (!timersActive) return;
+      stopAllTimers();
+      bar.style.width = "100%";
+      const now = statusEl.textContent || statusEl.innerHTML || "";
+      if (!/complete/i.test(now)){
+        statusEl.innerHTML = "❌ Timed out waiting for analysis.";
+      }
+      setJS("timeout");
+    }, HARD_TIMEOUT_MS);
+
+  }catch(e){
+    setJS("crashed");
+    dbgErrors.textContent += "\\n fatal: " + (e && e.message ? e.message : e);
+  }
 })();
 </script>
 </body>
