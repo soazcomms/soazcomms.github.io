@@ -185,7 +185,7 @@
     }));
     if (!results.length) return null;
 
-  /  / Sort newest first, but prefer results with HTML over csv-only at same/close timestamp
+  // Sort newest first, but prefer results with HTML over csv-only at same/close timestamp
     results.sort((a,b) => {
       if (a.hasHtml !== b.hasHtml) return b.hasHtml - a.hasHtml; // html first
       return b.ts - a.ts; // newest first
