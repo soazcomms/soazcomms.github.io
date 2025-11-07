@@ -1,4 +1,184 @@
-<!DOCTYPE html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>🔬 DSN Analysis</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <style>
+    body{font:16px/1.35 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:24px;max-width:820px}
+    h1{margin:0 0 8px 0}
+    .muted{opacity:.7}
+    .row{margin:10px 0}
+    .btn{display:inline-block;padding:8px 12px;border-radius:8px;border:1px solid #ccc;text-decoration:none}
+    .btn[disabled]{opacity:.4;pointer-events:none}
+    #barwrap{height:8px;background:#eee;border-radius:6px;overflow:hidden;margin:12px 0 4px 0}
+    #bar{height:100%;width:0%;background:#0a84ff;transition:width .6s ease}
+    #status{margin:8px 0}
+    #timer{font-variant-numeric:tabular-nums}
+    #controls a{margin-right:10px}
+  </style>
+</head>
+<body>
+  <h1>🔬 DSN Analysis</h1>
+  <div id="header" class="muted">⏳ Initializing…</div>
+
+  <div id="barwrap"><div id="bar"></div></div>
+  <div class="row" id="status">Preparing…</div>
+
+  <div class="row">
+    <span id="elapsed">0:00</span>
+    <span class="muted"> · Timeout in <span id="timeoutLeft">7:00</span></span>
+  </div>
+
+  <div id="controls" class="row">
+    <a id="viewBtn" class="btn" href="#" target="_blank" disabled>📄 View Analysis Result</a>
+    <a id="exitBtn" class="btn" href="about:blank">🔙 Exit</a>
+  </div>
+
+<script>
+(function(){
+  // ---------------- config ----------------
+  const GH_PAGES_BASE = "https://soazcomms.github.io";
+  // If you prefer local /DSN_trigger (ngrok forward), set this to your tunnel:
+  const WEBHOOK_URL   = "https://sound-kangaroo-unlikely.ngrok-free.app/DSN_trigger";
+
+  // ---------------- helpers ----------------
+  const qs = new URLSearchParams(location.search);
+  const rawLabel = (qs.get("label")||"").trim();
+  let   fromStr  = (qs.get("from") || "").trim();
+  let   toStr    = (qs.get("to")   || "").trim();
+
+  function isYMD(s){ return /^\d{4}-\d{2}-\d{2}$/.test(s); }
+  function toISO(s){ return (s.includes("T") ? s : (s + "T00:00:00.000Z")); }
+
+  // Guard + normalize
+  if (!rawLabel || !fromStr || !toStr){
+    document.getElementById("status").innerHTML = "❌ Missing label/from/to.";
+    document.getElementById("header").textContent = "DSN Analysis — (missing params)";
+    return;
+  }
+  const fromIso = toISO(fromStr);
+  const toIso   = toISO(toStr);
+  const label8  = rawLabel.slice(0,8);
+
+  // Header shows what user picked (keep your visuals)
+  document.getElementById("header").textContent =
+    `DSN Analysis — ${rawLabel}\nLabel: ${rawLabel} · Range: ${fromStr} → ${toStr}`;
+
+  // Status JSON path the server writes: status/status-<label8>.json
+  const statusUrl = `${GH_PAGES_BASE}/status/status-${encodeURIComponent(label8)}.json`;
+
+  // Timer/progress
+  const bar     = document.getElementById("bar");
+  const status  = document.getElementById("status");
+  const elapsed = document.getElementById("elapsed");
+  const leftEl  = document.getElementById("timeoutLeft");
+  const viewBtn = document.getElementById("viewBtn");
+
+  const HARD_TIMEOUT_MS = 7 * 60 * 1000;  // 7 minutes
+  const startTs = Date.now();
+
+  function tickTime(){
+    const t = Math.floor((Date.now()-startTs)/1000);
+    const m = Math.floor(t/60), s = t%60;
+    elapsed.textContent = `${m}:${String(s).padStart(2,"0")}`;
+
+    const left = Math.max(0, HARD_TIMEOUT_MS - (Date.now()-startTs));
+    const lm = Math.floor(left/60000), ls = Math.floor((left%60000)/1000);
+    leftEl.textContent = `${lm}:${String(ls).padStart(2,"0")}`;
+
+    // simple progress visualization
+    const pct = Math.min(99, Math.floor(((Date.now()-startTs)/HARD_TIMEOUT_MS)*100));
+    bar.style.width = pct + "%";
+  }
+  const tIv = setInterval(tickTime, 1000); tickTime();
+
+  // Single fire POST guard
+  let posted = false;
+
+  async function startJobOnce(){
+    if (posted) return; posted = true;
+
+    // POST exactly what Flask expects: {label, from, to}
+    // Use ISO (you said that works with DSN_generate_analysis.py)
+    try{
+      const resp = await fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ label: rawLabel, from: fromIso, to: toIso })
+      });
+      // Don’t try to parse body here—server writes status JSON we’ll poll
+      if (!resp.ok){
+        status.innerHTML = `❌ Job failed to start (HTTP ${resp.status}).`;
+        clearInterval(tIv);
+        bar.style.width = "100%";
+        return;
+      }
+      status.textContent = "⏳ Running analysis…";
+    }catch(e){
+      status.textContent = "❌ Could not reach webhook.";
+      clearInterval(tIv);
+      bar.style.width = "100%";
+      return;
+    }
+  }
+
+  // Poll status JSON for phase+html; no CSV text anywhere.
+  async function pollStatus(){
+    try{
+      const u = statusUrl + `?bust=${Date.now()}`;
+      const r = await fetch(u, {cache:"no-store"});
+      if (!r.ok) return; // keep polling
+
+      const data = await r.json();
+      if (data && typeof data === "object"){
+        // Show server status line if present (but never mention CSV)
+        if (data.status) status.innerHTML = data.status;
+
+        if (data.phase === "done"){
+          // Prefer server-provided html path; otherwise fall back to analysis/<label8>/index.html
+          let rel = data.html || `analysis/${encodeURIComponent(label8)}/index.html`;
+          // enable the button
+          viewBtn.removeAttribute("disabled");
+          viewBtn.href = `${GH_PAGES_BASE}/${rel}`;
+          // finalize UI
+          bar.style.width = "100%";
+          clearInterval(tIv);
+          clearInterval(pIv);
+          return;
+        }
+        if (data.phase === "error"){
+          clearInterval(tIv);
+          clearInterval(pIv);
+          bar.style.width = "100%";
+          status.innerHTML = data.status || "❌ Analysis failed.";
+          return;
+        }
+      }
+    }catch(_e){
+      // ignore and keep polling
+    }
+  }
+  const pIv = setInterval(pollStatus, 1500);
+
+  // Kick it off
+  startJobOnce();
+
+  // Hard timeout safety
+  setTimeout(function(){
+    clearInterval(tIv);
+    clearInterval(pIv);
+    bar.style.width = "100%";
+    const now = status.textContent || status.innerHTML || "";
+    if (!/complete/i.test(now)){
+      status.innerHTML = "❌ Timed out waiting for analysis.";
+    }
+  }, HARD_TIMEOUT_MS);
+
+})();
+</script>
+</body>
+</html><!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -79,7 +259,7 @@
   function onlyDate(s){ return (s||"").split("T")[0]; }
   if (label) titleEl.textContent = `🔬 DSN Analysis — ${label}`;
   if (label && fromISO && toISO) headerEl.textContent =
-    `Label: ${label} · Range: ${onlyDate(fromISO)} → ${onlyDate(toISO)}`;
+    `Label: ${label} V4 Range: ${onlyDate(fromISO)} → ${onlyDate(toISO)}`;
 
   // ===== Progress / timing =====
   const POLL_MS      = 5000;
