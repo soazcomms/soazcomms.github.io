@@ -65,7 +65,8 @@
 
   try{
     setJS("alive");
-
+    dbgErrors.textContent += "\n[boot] href=" + location.href;
+    dbgErrors.textContent += "\n[boot] top_vs_self=" + (window.top === window ? "top" : "iframe");
     // ------------ config ------------
     const GH_PAGES_BASE = "https://soazcomms.github.io/";
     const STATUS_DIR    = "status";
@@ -78,10 +79,9 @@
     const toQ      = (qs.get("to")   || "").trim();
     const WEBHOOK_ORIG = (qs.get("webhook") || DEFAULT_WEBHOOK).replace(/\\/+$/,"");
     const WEBHOOK_URL  = WEBHOOK_ORIG + "/DSN_trigger";
-
+    (new Image()).src = WEBHOOK_ORIG + "/log?msg=beacon_img&label=" + encodeURIComponent(rawLabel) + "&t=" + Date.now();
     // Helpers
-    function toISO(s){ return (s.includes("T") ? s : (s + "T00:00:00.000Z")); }
-    function onlyDate(s){ return (s||"").split("T")[0]; }
+    function onlyDate(s){ if(!s) return s; if(s.includes(" ")) return s.split(" ")[0]; return s.split("T")[0]; }
     function safeShort(lbl){ return (lbl||"").split("_")[0].replace(/[^\\w.\\-]/g,"_"); }
     function safeFull(lbl){  return (lbl||"").replace(/[^\\w.\\-]/g,"_"); }
     function bust(u){ return u + (u.includes("?")?"&":"?") + "bust=" + Date.now(); }
@@ -112,14 +112,14 @@
     }
 
     // Normalize
-    const fromIso = toISO(fromQ);
-    const toIso   = toISO(toQ);
+    const fromTxt = fromQ; const toTxt = toQ;
+    dbgErrors.textContent += "\n[params] raw_from=" + fromTxt + " raw_to=" + toTxt;
     const label8  = safeShort(rawLabel);
     const labelFull = safeFull(rawLabel);
 
     document.title = `🔬 DSN Analysis — ${rawLabel}`;
     titleEl.textContent = `🔬 DSN Analysis — ${rawLabel}`;
-    headerEl.textContent = `Label: ${rawLabel} --V8-- Range: ${onlyDate(fromIso)} → ${onlyDate(toIso)}`;
+    headerEl.textContent = `Label: ${rawLabel} --V4-- Range: ${onlyDate(fromTxt)} → ${onlyDate(toTxt)}`;
 
     // Status URLs
     const statusUrls = [
@@ -128,7 +128,7 @@
     ];
 
     // Debug fill
-    dbgParams.textContent = JSON.stringify({label: rawLabel, from: fromIso, to: toIso});
+    dbgParams.textContent = JSON.stringify({label: rawLabel, from: fromTxt, to: toTxt});
     dbgHook.textContent   = JSON.stringify({webhook_base: WEBHOOK_ORIG, post_url: WEBHOOK_URL});
 
     // Timers
@@ -167,7 +167,9 @@
       const lines = [];
       for (const t of targets){
         try{
+	  lines.push(`[req] ${t.url}`);
           const r = await fetch(t.url, {method:"GET", cache:"no-store", mode:"cors", credentials:"omit"});
+	  lines.push(`[hdr] acao=${r.headers.get("Access-Control-Allow-Origin")||"(none)"} ct=${r.headers.get("Content-Type")||"(none)"}`);
           let body="";
           try{ body = await r.text(); }catch(_){}
           lines.push(`${t.name}: HTTP ${r.status} ${r.statusText} body=${(body||"").slice(0,160)}`);
@@ -183,28 +185,31 @@
     let posted = false;
     async function startJobOnce(){
       if (posted) return; posted = true;
-      const payload = { label: rawLabel, from: fromIso, to: toIso };
+      const payload = { label: rawLabel, from: fromTxt, to: toTxt };
+      dbgErrors.textContent += "\n[post] url=" + WEBHOOK_URL;
+      dbgErrors.textContent += "\n[post] payload=" + JSON.stringify(payload);	
       try{
-        const resp = await fetch(WEBHOOK_URL, {
-          method: "POST",
-          mode: "cors",
-          credentials: "omit",
-          cache: "no-store",
-          headers: {"Content-Type": "application/json"},
-          body: JSON.stringify(payload)
-        });
-        let body="";
-        try{ body = await resp.text(); }catch(_){}
-        dbgPost.textContent = `HTTP ${resp.status} ${resp.statusText}\\n${(body||"").slice(0,2000)}`;
-        if (!resp.ok){
-          statusEl.innerHTML = `❌ Job failed to start (HTTP ${resp.status}).`;
-          bar.style.width = "100%";
-          stopAllTimers();
-          setJS("error");
-          return;
-        }
-        statusEl.textContent = "⏳ Running analysis…";
-        setJS("polling");
+          const resp = await fetch(WEBHOOK_URL, {
+	      dbgErrors.textContent += "\n[post] acao=" + (resp.headers && resp.headers.get("Access-Control-Allow-Origin") || "(none)");
+              method: "POST",
+              mode: "cors",
+              credentials: "omit",
+              cache: "no-store",
+              headers: {"Content-Type": "application/json"},
+              body: JSON.stringify(payload)
+          });
+          let body="";
+          try{ body = await resp.text(); }catch(_){}
+          dbgPost.textContent = `HTTP ${resp.status} ${resp.statusText}\\n${(body||"").slice(0,2000)}`;
+          if (!resp.ok){
+              statusEl.innerHTML = `❌ Job failed to start (HTTP ${resp.status}).`;
+              bar.style.width = "100%";
+              stopAllTimers();
+              setJS("error");
+              return;
+          }
+          statusEl.textContent = "⏳ Running analysis…";
+          setJS("polling");
       }catch(e){
         dbgPost.textContent = `NETWORK ERROR: ${e && e.message ? e.message : e}`;
         statusEl.textContent = "❌ Could not reach webhook.";
@@ -221,9 +226,11 @@
       await Promise.all(statusUrls.map(async (u) => {
         try{
           const r = await fetch(bust(u), {cache:"no-store"});
+	  logs.push(`[poll] ${u} acao=${r.headers.get("Access-Control-Allow-Origin")||"(none)"} ct=${r.headers.get("Content-Type")||"(none)"}`);  
           logs.push(`${u} -> HTTP ${r.status}`);
           if (!r.ok) return;
           const j = await r.json();
+	  logs.push(`[json] keys=${Object.keys(j||{}).join(",")} phase=${j && j.phase || ""} has_html=${!!(j && j.html)}`);  
           const ts = Number(j.timestamp)||0;
           const hasHtml = !!(j.html && String(j.html).trim());
           logs.push(`  json: ts=${ts} html=${hasHtml?'yes':'no'} phase=${j.phase||''} status=${(j.status||'').slice(0,80)}`);
@@ -280,6 +287,7 @@
     startJobOnce();
 
     // Timeout
+    dbgErrors.textContent += "\n[timeout] hard_ms=420000 polling_every=1500ms";  
     setTimeout(function(){
       if (!timersActive) return;
       stopAllTimers();
