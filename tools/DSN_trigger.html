@@ -110,13 +110,6 @@
     return;
   }
 
-  // STRICT timestamp format guard (must be "YYYY-MM-DD HH:MM:SS")
-  const tsPat = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
-  if (!tsPat.test(fromTxt) || !tsPat.test(toTxt)) {
-    statusEl.innerHTML = "❌ Bad from/to format (expect YYYY-MM-DD HH:MM:SS).";
-    srvlog("fatal_bad_ts", { from: fromTxt, to: toTxt });
-    return;
-  }
   // Populate header now
   const label8 = safeShort(rawLabel);
   document.title = `🔬 DSN Analysis `;
@@ -177,7 +170,7 @@
   let posted = false;
   async function startJobOnce(){
     if (posted) return; posted = true;
-    const payload = { label: rawLabel, from: fromTxt, to: toTxt }; // plain timestamps
+    const payload = { label: rawLabel, from: fromTxt, to: toTxt }; // plain tstamps
     srvlog("post_build", { url: WEBHOOK_URL, label: rawLabel, from: payload.from, to: payload.to });
     try{
       srvlog("post_send", { url: WEBHOOK_URL });
