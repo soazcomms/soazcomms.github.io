@@ -28,7 +28,7 @@
   </style>
 </head>
 <body>
-  <h1 id="title">🔬 DSN Analysis</h1>
+  <h1 id="title">🔬 DSN Analysis V09</h1>
   <div id="header" class="muted">⏳ Initializing… <span id="jsBadge" class="badge">JS: starting</span></div>
   <div id="barwrap"><div id="bar"></div></div>
   <div class="row" id="status">Preparing…</div>
@@ -136,6 +136,8 @@
     if (left===0 && !timedOut){ timedOut = true; bar.classList.add("timeout"); }
   }
   const tIv = setInterval(tickTime, 1000); tickTime();
+  const pIv = setInterval(pollStatus, 1500);
+
   function stopAllTimers(){ if (!timersActive) return; timersActive=false; clearInterval(tIv); clearInterval(pIv); }
 
   setTimeout(()=>{
@@ -266,11 +268,16 @@
       return;
     }
     const htmlRel = String(data.html||"").trim();
-    if (!htmlRel){ statusEl.innerHTML = "⏳ Generating plots…"; return; }
+    // don't stop until both html exists AND phase/done marker visible
+    if (!htmlRel || !/done/i.test(data.phase || "") && !/✅/u.test(data.status || "")) {
+      statusEl.innerHTML = data.status || "⏳ Running analysis…";
+      return;
+    }
+
+    // only here we consider it finished
     const href = GH_PAGES_BASE + htmlRel.replace(/^\/+/, "");
-    showDone(data.status, href);
+    showDone(data.status || "✅ Analysis complete.", href);
   }
-  const pIv = setInterval(pollStatus, 1500);
 
   /* ========== GO ========== */
   startJobOnce();
