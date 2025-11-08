@@ -47,7 +47,7 @@
   // Parse URL params
   const qs = new URLSearchParams(location.search || "");
   const rawLabel = (qs.get("label") || "").trim();
-  const fromTxt  = (qs.get("from")  || "").trim();   // plain "YYYY-MM-DD HH:MM:SS" from Grafana
+  const fromTxt  = (qs.get("from")  || "").trim();   // "YYYY-MM-DD HH:MM:SS" Grafana
   const toTxt    = (qs.get("to")    || "").trim();
   const WEBHOOK_ORIG = (qs.get("webhook") || qs.get("webhook_id") || "").trim()
                         ? (qs.get("webhook") || `https://${qs.get("webhook_id").trim()}.ngrok-free.app`).replace(/\/+$/,"")
