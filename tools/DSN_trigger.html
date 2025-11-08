@@ -113,8 +113,8 @@
   // Populate header now
   const label8 = safeShort(rawLabel);
   document.title = `🔬 DSN Analysis — ${rawLabel}`;
-  titleEl.textContent = `🔬 DSN Analysis — ${rawLabel}`;
-  headerEl.textContent = `Label: ${rawLabel} · Range: ${onlyDate(fromTxt)} → ${onlyDate(toTxt)}`;
+  titleEl.textContent = `🔬 DSN Analysis `;
+  headerEl.textContent = `Site: ${rawLabel} · Range: ${onlyDate(fromTxt)} → ${onlyDate(toTxt)}`;
   setJS("alive");
   srvlog("boot", { href: location.href, in_iframe: (window.top === window ? "no" : "yes"), v: "V5-srv" });
 
