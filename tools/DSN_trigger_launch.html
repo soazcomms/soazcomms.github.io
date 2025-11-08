@@ -2,16 +2,35 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <title>DSN Trigger Launcher XXXX</title>
+  <title>DSN Trigger Launcher</title>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <meta http-equiv="refresh" content="0;url==https://soazcomms.github.io/?label=${__dashboard.title}&from=${__from:date:YYYY-MM-DD}&to=${__to:date:YYYY-MM-DD}&webhook=https://sound-kangaroo-unlikely.ngrok-free.app">
+  <script>
+    (function () {
+      var qs = location.search || "";
+      var target = "https://soazcomms.github.io/tools/DSN_trigger.html" + qs;
+      var m = document.createElement("meta");
+      m.httpEquiv = "refresh";
+      m.content = "0;url=" + target;
+      document.head.appendChild(m);
+      window.location.replace(target);
+    })();
+  </script>
   <style>
     body{font:16px/1.35 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:24px}
     code{background:#f1f5f9;padding:2px 6px;border-radius:6px}
   </style>
 </head>
 <body>
-  Redirecting to <a id="a" href=https://soazcomms.github.io/tools/DSN_trigger.html?label=${__dashboard.title}&from=${__from:date:YYYY-MM-DD}&to=${__to:date:YYYY-MM-DD}&webhook=https://sound-kangaroo-unlikely.ngrok-free.app" target="_blank" rel="noopener">trigger page</a>…
-  <script>document.getElementById('a').click();</script>
+  Redirecting to trigger… If not redirected,
+  <a id="a" href="#">click here</a>.
+  <script>
+    (function () {
+      var qs = location.search || "";
+      var target = "https://soazcomms.github.io/tools/DSN_trigger.html" + qs;
+      var a = document.getElementById("a");
+      a.href = target;
+      try { a.click(); } catch (_) {}
+    })();
+  </script>
 </body>
 </html>
