@@ -40,269 +40,227 @@
     <a id="viewBtn" class="btn" href="#" target="_blank" rel="noopener" disabled>📄 View Analysis Result</a>
     <a id="exitBtn" class="btn" href="about:blank">🔙 Exit</a>
   </div>
-  <details id="debug">
-    <summary>🔧 Debug</summary>
-    <div><strong>Params</strong>: <code id="dbgParams"></code></div>
-    <div><strong>Webhook base</strong>: <code id="dbgHook"></code></div>
-    <div><strong>Health checks</strong>:</div>
-    <pre id="dbgHealth">(pending)</pre>
-    <div><strong>POST result</strong>:</div>
-    <pre id="dbgPost">(pending)</pre>
-    <div><strong>Status polls</strong>:</div>
-    <pre id="dbgPolls">(pending)</pre>
-    <div><strong>Errors</strong>:</div>
-    <pre id="dbgErrors">(none)</pre>
-  </details>
-
 <script>
 (function(){
-  const dbgErrors = document.getElementById("dbgErrors");
-  window.addEventListener("error", e => { dbgErrors.textContent += "\\n" + (e.message||e); });
-  window.addEventListener("unhandledrejection", e => { dbgErrors.textContent += "\\n" + (e.reason && e.reason.message ? e.reason.message : e.reason); });
+  /* ========== CONFIG / PARAMS ========== */
 
-  const jsBadge = document.getElementById("jsBadge");
-  function setJS(state){ jsBadge.textContent = "JS: " + state; }
+  // Parse URL params
+  const qs = new URLSearchParams(location.search || "");
+  const rawLabel = (qs.get("label") || "").trim();
+  const fromTxt  = (qs.get("from")  || "").trim();   // plain "YYYY-MM-DD HH:MM:SS" from Grafana
+  const toTxt    = (qs.get("to")    || "").trim();
+  const WEBHOOK_ORIG = (qs.get("webhook") || qs.get("webhook_id") || "").trim()
+                        ? (qs.get("webhook") || `https://${qs.get("webhook_id").trim()}.ngrok-free.app`).replace(/\/+$/,"")
+                        : "";
+  const WEBHOOK_URL  = WEBHOOK_ORIG ? (WEBHOOK_ORIG + "/DSN_trigger") : "";
+  const GH_PAGES_BASE = "https://soazcomms.github.io/";
+  const STATUS_DIR    = "status";
 
-  try{
-    setJS("alive");
-    dbgErrors.textContent += "\n[boot] href=" + location.href;
-    dbgErrors.textContent += "\n[boot] top_vs_self=" + (window.top === window ? "top" : "iframe");
-    // ------------ config ------------
-    const GH_PAGES_BASE = "https://soazcomms.github.io/";
-    const STATUS_DIR    = "status";
-    const DEFAULT_WEBHOOK = "https://sound-kangaroo-unlikely.ngrok-free.app";
-    const qs = new URLSearchParams(location.search);
+  // DOM hooks (assumes your page already has these elements)
+  const titleEl   = document.getElementById("title")   || {textContent: ""};
+  const headerEl  = document.getElementById("header")  || {textContent: ""};
+  const statusEl  = document.getElementById("status")  || {textContent: ""};
+  const bar       = document.getElementById("bar")     || {style:{}, classList:{add(){}}};
+  const elapsedEl = document.getElementById("elapsed") || {textContent: ""};
+  const leftEl    = document.getElementById("timeoutLeft") || {textContent: ""};
+  const viewBtn   = document.getElementById("viewBtn") || {removeAttribute(){}, setAttribute(){}, href:"#"};
+  const jsBadge   = document.getElementById("jsBadge") || {textContent:""};
 
-    // Inputs
-    const rawLabel = (qs.get("label")||"").trim();
-    const fromQ    = (qs.get("from") || "").trim();
-    const toQ      = (qs.get("to")   || "").trim();
-    const WEBHOOK_ORIG = (qs.get("webhook") || DEFAULT_WEBHOOK).replace(/\\/+$/,"");
-    const WEBHOOK_URL  = WEBHOOK_ORIG + "/DSN_trigger";
-    (new Image()).src = WEBHOOK_ORIG + "/log?msg=beacon_img&label=" + encodeURIComponent(rawLabel) + "&t=" + Date.now();
-    // Helpers
-    function onlyDate(s){ if(!s) return s; if(s.includes(" ")) return s.split(" ")[0]; return s.split("T")[0]; }
-    function safeShort(lbl){ return (lbl||"").split("_")[0].replace(/[^\\w.\\-]/g,"_"); }
-    function safeFull(lbl){  return (lbl||"").replace(/[^\\w.\\-]/g,"_"); }
-    function bust(u){ return u + (u.includes("?")?"&":"?") + "bust=" + Date.now(); }
-    function mmss(ms){ const s=Math.max(0,Math.floor(ms/1000)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
+  function setJS(state){ try{ jsBadge.textContent = "JS: " + state; }catch(_){ } }
 
-    // DOM
-    const statusEl  = document.getElementById("status");
-    const headerEl  = document.getElementById("header");
-    const titleEl   = document.getElementById("title");
-    const bar       = document.getElementById("bar");
-    const elapsedEl = document.getElementById("elapsed");
-    const leftEl    = document.getElementById("timeoutLeft");
-    const viewBtn   = document.getElementById("viewBtn");
+  // Small helpers
+  function onlyDate(s){ if(!s) return s; if(s.includes(" ")) return s.split(" ")[0]; return s.split("T")[0]; }
+  function safeShort(lbl){ return (lbl||"").split("_")[0].replace(/[^\w.\-]/g,"_"); }
 
-    const dbgParams = document.getElementById("dbgParams");
-    const dbgHook   = document.getElementById("dbgHook");
-    const dbgHealth = document.getElementById("dbgHealth");
-    const dbgPost   = document.getElementById("dbgPost");
-    const dbgPolls  = document.getElementById("dbgPolls");
+  // Server-side logger (image beacon → always hits Flask /log; no CORS reads needed)
+  function srvlog(msg, fields){
+    try {
+      const p = new URLSearchParams();
+      p.set("msg", msg);
+      p.set("label", rawLabel || "");
+      if (fields && typeof fields === "object") {
+        for (const k in fields) {
+          if (!Object.prototype.hasOwnProperty.call(fields,k)) continue;
+          let v = fields[k];
+          if (v == null) continue;
+          v = String(v);
+          p.set(k, v.length > 400 ? v.slice(0,400) + "…(trunc)" : v);
+        }
+      }
+      p.set("t", Date.now()); // cache-bust
+      if (WEBHOOK_ORIG) {
+        const i = new Image();
+        i.src = WEBHOOK_ORIG + "/log?" + p.toString();
+      }
+    } catch(_) {}
+  }
 
-    // Validation
-    if (!rawLabel || !fromQ || !toQ){
-      statusEl.innerHTML = "❌ Missing label/from/to.";
-      headerEl.textContent = "DSN Analysis — (missing params)";
-      document.title = "🔬 DSN Analysis — missing params";
-      setJS("alive (params missing)");
+  /* ========== BOOT ========== */
+
+  setJS("starting");
+  document.title = `🔬 DSN Analysis`;
+  titleEl.textContent = `🔬 DSN Analysis`;
+  headerEl.textContent = `⏳ Initializing… --V5--`;
+
+  // Validate inputs
+  if (!rawLabel || !fromTxt || !toTxt || !WEBHOOK_URL) {
+    statusEl.innerHTML = "❌ Missing label/from/to/webhook.";
+    setJS("params-missing");
+    srvlog("fatal_params_missing", { label: rawLabel, from: fromTxt, to: toTxt, webhook: WEBHOOK_URL ? "set" : "missing" });
+    return;
+  }
+
+  // Populate header now
+  const label8 = safeShort(rawLabel);
+  document.title = `🔬 DSN Analysis — ${rawLabel}`;
+  titleEl.textContent = `🔬 DSN Analysis — ${rawLabel}`;
+  headerEl.textContent = `Label: ${rawLabel} · Range: ${onlyDate(fromTxt)} → ${onlyDate(toTxt)}`;
+  setJS("alive");
+  srvlog("boot", { href: location.href, in_iframe: (window.top === window ? "no" : "yes"), v: "V5-srv" });
+
+  /* ========== TIMERS / PROGRESS ========== */
+  const startTs = Date.now();
+  const HARD_TIMEOUT_MS = 7 * 60 * 1000;
+  let timersActive = true, timedOut = false;
+
+  function stopAllTimers(){
+    if (!timersActive) return;
+    timersActive = false;
+    clearInterval(tIv);
+    clearInterval(pIv);
+  }
+  function mmss(ms){ const s=Math.max(0,Math.floor(ms/1000)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
+  function tickTime(){
+    const t = Date.now()-startTs;
+    elapsedEl.textContent = mmss(t);
+    const left = Math.max(0, HARD_TIMEOUT_MS - t);
+    leftEl.textContent = mmss(left);
+    try { bar.style.width = Math.min(99, Math.floor((t/HARD_TIMEOUT_MS)*100)) + "%"; } catch(_){}
+    if (left === 0 && !timedOut){ timedOut = true; try{ bar.classList.add("timeout"); }catch(_){} }
+  }
+  const tIv = setInterval(tickTime, 1000); tickTime();
+
+  setTimeout(function(){
+    if (!timersActive) return;
+    stopAllTimers();
+    try { bar.style.width = "100%"; }catch(_){}
+    statusEl.innerHTML = "❌ Timed out waiting for analysis.";
+    srvlog("timeout", { elapsed_ms: (Date.now()-startTs) });
+  }, HARD_TIMEOUT_MS);
+
+  /* ========== HEALTH CHECKS (best-effort) ========== */
+  async function healthChecks(){
+    const targets = [
+      {name:"/health", url: WEBHOOK_ORIG + "/health"},
+      {name:"/DSN_trigger?ping=1", url: WEBHOOK_URL + "?ping=1"},
+      {name:"/log?msg=client_start&label="+encodeURIComponent(rawLabel), url: WEBHOOK_ORIG + "/log?msg=client_start&label="+encodeURIComponent(rawLabel)}
+    ];
+    for (const t of targets){
+      try{
+        srvlog("health_req", { url: t.url });
+        const r = await fetch(t.url, {method:"GET", cache:"no-store", mode:"cors", credentials:"omit"});
+        srvlog("health_resp", { url: t.url, status: r.status });
+      }catch(e){
+        srvlog("health_err", { url: t.url, err: (e && e.message) ? e.message : String(e) });
+      }
+    }
+  }
+
+  /* ========== KICK THE JOB (POST /DSN_trigger) ========== */
+  let posted = false;
+  async function startJobOnce(){
+    if (posted) return; posted = true;
+    const payload = { label: rawLabel, from: fromTxt, to: toTxt }; // plain timestamps
+    srvlog("post_build", { url: WEBHOOK_URL, label: rawLabel, from: payload.from, to: payload.to });
+    try{
+      srvlog("post_send", { url: WEBHOOK_URL });
+      const resp = await fetch(WEBHOOK_URL, {
+        method: "POST",
+        mode: "cors",
+        credentials: "omit",
+        cache: "no-store",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+      });
+      srvlog("post_rc", { status: resp.status });
+      if (!resp.ok){
+        statusEl.innerHTML = `❌ Job failed to start (HTTP ${resp.status}).`;
+        try { bar.style.width = "100%"; }catch(_){}
+        stopAllTimers();
+        return;
+      }
+      statusEl.textContent = "⏳ Running analysis…";
+    }catch(e){
+      srvlog("post_err", { err: (e && e.message) ? e.message : String(e) });
+      statusEl.textContent = "❌ Could not reach webhook.";
+      try { bar.style.width = "100%"; }catch(_){}
+      stopAllTimers();
+    }
+  }
+
+  /* ========== STATUS POLLING (GitHub Pages) ========== */
+  const statusUrls = [
+    `${GH_PAGES_BASE}${STATUS_DIR}/status-${encodeURIComponent(rawLabel)}.json`,
+    `${GH_PAGES_BASE}${STATUS_DIR}/status-${encodeURIComponent(label8)}.json`,
+  ];
+  function bust(u){ return u + (u.includes("?")?"&":"?") + "bust=" + Date.now(); }
+
+  async function fetchNewestWithHtml(){
+    const found = [];
+    for (const u of statusUrls){
+      try{
+        srvlog("poll_req", { url: u });
+        const r = await fetch(bust(u), {cache:"no-store"});
+        srvlog("poll_rc", { url: u, status: r.status });
+        if (!r.ok) continue;
+        const j = await r.json();
+        srvlog("poll_json", { url: u, phase: j && j.phase, has_html: (j && j.html) ? "yes":"no" });
+        const ts = Number(j.timestamp)||0;
+        if (j && j.html && String(j.html).trim()){
+          found.push({data:j, ts});
+        }
+      }catch(e){
+        srvlog("poll_err", { url: u, err: (e && e.message) ? e.message : String(e) });
+      }
+    }
+    if (!found.length) return null;
+    found.sort((a,b)=> b.ts - a.ts);
+    return found[0].data;
+  }
+
+  function showDone(statusText, href){
+    stopAllTimers();
+    try { bar.style.width = "100%"; }catch(_){}
+    try { viewBtn.removeAttribute("disabled"); viewBtn.href = href; }catch(_){}
+    statusEl.innerHTML = statusText || "✅ Analysis complete.";
+    headerEl.textContent = headerEl.textContent + " — DONE";
+    srvlog("done", { html: href });
+    try { window.stop && window.stop(); } catch(_){}
+  }
+
+  async function pollStatus(){
+    const data = await fetchNewestWithHtml();
+    if (!data){ statusEl.innerHTML = "⏳ Generating plots…"; return; }
+    if (data.phase === "error"){
+      stopAllTimers();
+      statusEl.innerHTML = data.status || "❌ Analysis failed.";
+      try { bar.style.width = "100%"; }catch(_){}
       return;
     }
-
-    // Normalize
-    const fromTxt = fromQ; const toTxt = toQ;
-    dbgErrors.textContent += "\n[params] raw_from=" + fromTxt + " raw_to=" + toTxt;
-    const label8  = safeShort(rawLabel);
-    const labelFull = safeFull(rawLabel);
-
-    document.title = `🔬 DSN Analysis — ${rawLabel}`;
-    titleEl.textContent = `🔬 DSN Analysis — ${rawLabel}`;
-    headerEl.textContent = `Label: ${rawLabel} --V5-- Range: ${onlyDate(fromTxt)} → ${onlyDate(toTxt)}`;
-
-    // Status URLs
-    const statusUrls = [
-      `${GH_PAGES_BASE}${STATUS_DIR}/status-${encodeURIComponent(labelFull)}.json`,
-      `${GH_PAGES_BASE}${STATUS_DIR}/status-${encodeURIComponent(label8)}.json`,
-    ];
-
-    // Debug fill
-    dbgParams.textContent = JSON.stringify({label: rawLabel, from: fromTxt, to: toTxt});
-    dbgHook.textContent   = JSON.stringify({webhook_base: WEBHOOK_ORIG, post_url: WEBHOOK_URL});
-
-    // Timers
-    const HARD_TIMEOUT_MS = 7 * 60 * 1000;
-    const startTs = Date.now();
-    let timedOutShown = false;
-    let timersActive = true;
-
-    function stopAllTimers(){
-      if (!timersActive) return;
-      timersActive = false;
-      clearInterval(tIv);
-      clearInterval(pIv);
-    }
-
-    function tickTime(){
-      const t = Date.now()-startTs;
-      const m = Math.floor(t/60000), s = Math.floor((t%60000)/1000);
-      elapsedEl.textContent = `${m}:${String(s).padStart(2,"0")}`;
-      const left = Math.max(0, HARD_TIMEOUT_MS - t);
-      leftEl.textContent = mmss(left);
-      const pct = Math.min(99, Math.floor((t/HARD_TIMEOUT_MS)*100));
-      bar.style.width = pct + "%";
-      if (left === 0 && !timedOutShown){ bar.classList.add("timeout"); timedOutShown = true; }
-    }
-    const tIv = setInterval(tickTime, 1000); tickTime();
-
-    // Health checks
-    async function healthChecks(){
-      setJS("probing");
-      const targets = [
-        {name:"/health", url: WEBHOOK_ORIG + "/health"},
-        {name:"/DSN_trigger?ping=1", url: WEBHOOK_URL + "?ping=1"},
-        {name:"/log?msg=client_start&label="+encodeURIComponent(rawLabel), url: WEBHOOK_ORIG + "/log?msg=client_start&label="+encodeURIComponent(rawLabel)}
-      ];
-      const lines = [];
-      for (const t of targets){
-        try{
-	  lines.push(`[req] ${t.url}`);
-          const r = await fetch(t.url, {method:"GET", cache:"no-store", mode:"cors", credentials:"omit"});
-	  lines.push(`[hdr] acao=${r.headers.get("Access-Control-Allow-Origin")||"(none)"} ct=${r.headers.get("Content-Type")||"(none)"}`);
-          let body="";
-          try{ body = await r.text(); }catch(_){}
-          lines.push(`${t.name}: HTTP ${r.status} ${r.statusText} body=${(body||"").slice(0,160)}`);
-        }catch(e){
-          lines.push(`${t.name}: NETWORK ERROR (${e && e.message ? e.message : e})`);
-        }
-      }
-      dbgHealth.textContent = lines.join("\\n");
-      setJS("posting");
-    }
-
-    // Kick job
-    let posted = false;
-    async function startJobOnce(){
-      if (posted) return; posted = true;
-      const payload = { label: rawLabel, from: fromTxt, to: toTxt };
-      dbgErrors.textContent += "\n[post] url=" + WEBHOOK_URL;
-      dbgErrors.textContent += "\n[post] payload=" + JSON.stringify(payload);	
-      try{
-          const resp = await fetch(WEBHOOK_URL, {
-	      dbgErrors.textContent += "\n[post] acao=" + (resp.headers && resp.headers.get("Access-Control-Allow-Origin") || "(none)");
-              method: "POST",
-              mode: "cors",
-              credentials: "omit",
-              cache: "no-store",
-              headers: {"Content-Type": "application/json"},
-              body: JSON.stringify(payload)
-          });
-          let body="";
-          try{ body = await resp.text(); }catch(_){}
-          dbgPost.textContent = `HTTP ${resp.status} ${resp.statusText}\\n${(body||"").slice(0,2000)}`;
-          if (!resp.ok){
-              statusEl.innerHTML = `❌ Job failed to start (HTTP ${resp.status}).`;
-              bar.style.width = "100%";
-              stopAllTimers();
-              setJS("error");
-              return;
-          }
-          statusEl.textContent = "⏳ Running analysis…";
-          setJS("polling");
-      }catch(e){
-        dbgPost.textContent = `NETWORK ERROR: ${e && e.message ? e.message : e}`;
-        statusEl.textContent = "❌ Could not reach webhook.";
-        bar.style.width = "100%";
-        stopAllTimers();
-        setJS("error");
-      }
-    }
-
-    // Poll
-    async function fetchNewestWithHtml(){
-      const found = [];
-      const logs = [];
-      await Promise.all(statusUrls.map(async (u) => {
-        try{
-          const r = await fetch(bust(u), {cache:"no-store"});
-	  logs.push(`[poll] ${u} acao=${r.headers.get("Access-Control-Allow-Origin")||"(none)"} ct=${r.headers.get("Content-Type")||"(none)"}`);  
-          logs.push(`${u} -> HTTP ${r.status}`);
-          if (!r.ok) return;
-          const j = await r.json();
-	  logs.push(`[json] keys=${Object.keys(j||{}).join(",")} phase=${j && j.phase || ""} has_html=${!!(j && j.html)}`);  
-          const ts = Number(j.timestamp)||0;
-          const hasHtml = !!(j.html && String(j.html).trim());
-          logs.push(`  json: ts=${ts} html=${hasHtml?'yes':'no'} phase=${j.phase||''} status=${(j.status||'').slice(0,80)}`);
-          if (hasHtml) found.push({data:j, ts});
-        }catch(e){
-          logs.push(`${u} -> ERROR ${e && e.message ? e.message : e}`);
-        }
-      }));
-      dbgPolls.textContent = logs.join("\\n");
-      if (!found.length) return null;
-      found.sort((a,b)=> b.ts - a.ts);
-      return found[0].data;
-    }
-
-    function showDone(statusText, href){
-      stopAllTimers();
-      bar.style.width = "100%";
-      viewBtn.removeAttribute("disabled");
-      viewBtn.href = href;
-      statusEl.innerHTML = statusText || "✅ Analysis complete.";
-      headerEl.textContent += " — DONE";
-      document.title = "✅ DSN Analysis — finished";
-      const card = document.createElement("div");
-      card.className = "done";
-      card.innerHTML = `✅ Finished. <a href="${href}" target="_blank" rel="noopener">Open result</a>. This page is idle and can be closed.`;
-      document.getElementById("controls").replaceWith(card);
-      try{ window.stop && window.stop(); }catch(_){}
-      setJS("done");
-    }
-
-    async function pollStatus(){
-      try{
-        const data = await fetchNewestWithHtml();
-        if (!data){ statusEl.innerHTML = "⏳ Generating plots…"; return; }
-        if (data.phase === "error"){
-          stopAllTimers();
-          statusEl.innerHTML = data.status || "❌ Analysis failed.";
-          bar.style.width = "100%";
-          setJS("error");
-          return;
-        }
-        const htmlRel = String(data.html||"").trim();
-        if (!htmlRel){ statusEl.innerHTML = "⏳ Generating plots…"; return; }
-        const href = GH_PAGES_BASE + htmlRel.replace(/^\\/+/, "");
-        showDone(data.status, href);
-      }catch(e){
-        dbgErrors.textContent += "\\n poll error: " + (e && e.message ? e.message : e);
-      }
-    }
-    const pIv = setInterval(pollStatus, 1500);
-
-    // Kick off
-    healthChecks();
-    startJobOnce();
-
-    // Timeout
-    dbgErrors.textContent += "\n[timeout] hard_ms=420000 polling_every=1500ms";  
-    setTimeout(function(){
-      if (!timersActive) return;
-      stopAllTimers();
-      bar.style.width = "100%";
-      const now = statusEl.textContent || statusEl.innerHTML || "";
-      if (!/complete/i.test(now)){
-        statusEl.innerHTML = "❌ Timed out waiting for analysis.";
-      }
-      setJS("timeout");
-    }, HARD_TIMEOUT_MS);
-
-  }catch(e){
-    setJS("crashed");
-    dbgErrors.textContent += "\\n fatal: " + (e && e.message ? e.message : e);
+    const htmlRel = String(data.html||"").trim();
+    if (!htmlRel){ statusEl.innerHTML = "⏳ Generating plots…"; return; }
+    const href = GH_PAGES_BASE + htmlRel.replace(/^\/+/, "");
+    showDone(data.status, href);
   }
+  const pIv = setInterval(pollStatus, 1500);
+
+  /* ========== START ========== */
+  healthChecks();
+  startJobOnce();
+
+  // Optional: page becomes idle if we ever bail early (uncomment if you add early returns)
+  // srvlog("page_idle", { reason: "early-exit" });
+
 })();
 </script>
 </body>
