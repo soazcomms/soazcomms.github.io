@@ -20,16 +20,16 @@
     #bar.timeout{background:linear-gradient(90deg,#f59e0b,#ef4444)}
     #status{margin:8px 0;min-height:2.2em}
     #controls a{margin-right:10px}
+    .done{border:1px solid #dcfce7;background:#f0fdf4;border-radius:10px;padding:12px;margin-top:16px}
+    .badge{display:inline-block;padding:.15rem .45rem;border-radius:6px;border:1px solid #e5e7eb;background:#f8fafc;font-size:.9rem}
     details{border:1px solid #e5e7eb;border-radius:8px;padding:.5rem 1rem;background:#fafafa}
     details pre{white-space:pre-wrap;word-break:break-word;background:#fff;border:1px solid #eee;border-radius:6px;padding:.75rem;max-height:260px;overflow:auto}
     code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,monospace}
-    .done{border:1px solid #dcfce7;background:#f0fdf4;border-radius:10px;padding:12px;margin-top:16px}
-    .badge{display:inline-block;padding:.15rem .45rem;border-radius:6px;border:1px solid #e5e7eb;background:#f8fafc;font-size:.9rem}
   </style>
 </head>
 <body>
   <h1 id="title">🔬 DSN Analysis</h1>
-  <div id="header" class="muted">⏳ Initializing… --V5-- <span id="jsBadge" class="badge">JS: starting</span></div>
+  <div id="header" class="muted">⏳ Initializing… <span id="jsBadge" class="badge">JS: starting</span></div>
   <div id="barwrap"><div id="bar"></div></div>
   <div class="row" id="status">Preparing…</div>
   <div class="row">
@@ -40,171 +40,191 @@
     <a id="viewBtn" class="btn" href="#" target="_blank" rel="noopener" disabled>📄 View Analysis Result</a>
     <a id="exitBtn" class="btn" href="about:blank">🔙 Exit</a>
   </div>
+
 <script>
 (function(){
-  /* ========== CONFIG / PARAMS ========== */
-
-  // Parse URL params
+  /* ========== PARAMS ========== */
   const qs = new URLSearchParams(location.search || "");
   const rawLabel = (qs.get("label") || "").trim();
-  const fromTxt  = (qs.get("from")  || "").trim();   // "YYYY-MM-DD HH:MM:SS" 
+  const fromTxt  = (qs.get("from")  || "").trim();   // "YYYY-MM-DD HH:MM:SS"
   const toTxt    = (qs.get("to")    || "").trim();
-  const WEBHOOK_ORIG = (qs.get("webhook") || qs.get("webhook_id") || "").trim()
-                        ? (qs.get("webhook") || `https://${qs.get("webhook_id").trim()}.ngrok-free.app`).replace(/\/+$/,"")
-                        : "";
-  const WEBHOOK_URL  = WEBHOOK_ORIG ? (WEBHOOK_ORIG + "/DSN_trigger") : "";
+  const userWebhook = (qs.get("webhook") || "").trim().replace(/\/+$/,"");
+  const webhookId   = (qs.get("webhook_id") || "").trim();
+
+  // Build base webhook origin
+  let WEBHOOK_ORIG = "";
+  if (userWebhook) {
+    WEBHOOK_ORIG = userWebhook; // e.g. https://sound-kangaroo-unlikely.ngrok-free.app
+  } else if (webhookId) {
+    WEBHOOK_ORIG = `https://${webhookId}.ngrok-free.app`;
+  }
+  // Build actual trigger endpoint (avoid double-append)
+  let WEBHOOK_URL = "";
+  if (WEBHOOK_ORIG) {
+    WEBHOOK_URL = WEBHOOK_ORIG.endsWith("/DSN_trigger") ? WEBHOOK_ORIG
+                    : WEBHOOK_ORIG + "/DSN_trigger";
+  }
+
   const GH_PAGES_BASE = "https://soazcomms.github.io/";
   const STATUS_DIR    = "status";
 
-  // DOM hooks (assumes your page already has these elements)
-  const titleEl   = document.getElementById("title")   || {textContent: ""};
-  const headerEl  = document.getElementById("header")  || {textContent: ""};
-  const statusEl  = document.getElementById("status")  || {textContent: ""};
-  const bar       = document.getElementById("bar")     || {style:{}, classList:{add(){}}};
-  const elapsedEl = document.getElementById("elapsed") || {textContent: ""};
-  const leftEl    = document.getElementById("timeoutLeft") || {textContent: ""};
-  const viewBtn   = document.getElementById("viewBtn") || {removeAttribute(){}, setAttribute(){}, href:"#"};
-  const jsBadge   = document.getElementById("jsBadge") || {textContent:""};
+  /* ========== DOM ========== */
+  const titleEl   = document.getElementById("title");
+  const headerEl  = document.getElementById("header");
+  const statusEl  = document.getElementById("status");
+  const bar       = document.getElementById("bar");
+  const elapsedEl = document.getElementById("elapsed");
+  const leftEl    = document.getElementById("timeoutLeft");
+  const viewBtn   = document.getElementById("viewBtn");
+  const jsBadge   = document.getElementById("jsBadge");
 
-  function setJS(state){ try{ jsBadge.textContent = "JS: " + state; }catch(_){ } }
+  function setJS(x){ if(jsBadge) jsBadge.textContent = "JS: " + x; }
 
-  // Small helpers
   function onlyDate(s){ if(!s) return s; if(s.includes(" ")) return s.split(" ")[0]; return s.split("T")[0]; }
   function safeShort(lbl){ return (lbl||"").split("_")[0].replace(/[^\w.\-]/g,"_"); }
 
-  // Server-side logger (image beacon → always hits Flask /log; no CORS reads needed)
+  // Server-side logger (image beacon)
   function srvlog(msg, fields){
     try {
+      if (!WEBHOOK_ORIG) return;
       const p = new URLSearchParams();
       p.set("msg", msg);
       p.set("label", rawLabel || "");
       if (fields && typeof fields === "object") {
         for (const k in fields) {
           if (!Object.prototype.hasOwnProperty.call(fields,k)) continue;
-          let v = fields[k];
-          if (v == null) continue;
-          v = String(v);
+          const v = String(fields[k] ?? "");
           p.set(k, v.length > 400 ? v.slice(0,400) + "…(trunc)" : v);
         }
       }
-      p.set("t", Date.now()); // cache-bust
-      if (WEBHOOK_ORIG) {
-        const i = new Image();
-        i.src = WEBHOOK_ORIG + "/log?" + p.toString();
-      }
+      p.set("t", Date.now());
+      const i = new Image();
+      i.src = WEBHOOK_ORIG + "/log?" + p.toString();
     } catch(_) {}
   }
 
-  /* ========== BOOT ========== */
-
+  /* ========== BOOT UI ========== */
   setJS("starting");
-  document.title = `🔬 DSN Analysis`;
-  titleEl.textContent = `🔬 DSN Analysis`;
-  headerEl.textContent = `⏳ Initializing…`;
+  document.title = "🔬 DSN Analysis V.08";
+  titleEl.textContent = "🔬 DSN Analysis V.08";
+  headerEl.textContent = "⏳ Initializing…";
 
-  // Validate inputs
   if (!rawLabel || !fromTxt || !toTxt || !WEBHOOK_URL) {
     statusEl.innerHTML = "❌ Missing label/from/to/webhook.";
     setJS("params-missing");
-    srvlog("fatal_params_missing", { label: rawLabel, from: fromTxt, to: toTxt, webhook: WEBHOOK_URL ? "set" : "missing" });
+    srvlog("fatal_params_missing", { label: rawLabel, from: fromTxt, to: toTxt, webhook_set: !!WEBHOOK_URL });
     return;
   }
 
-  // Populate header now
   const label8 = safeShort(rawLabel);
-  document.title = `🔬 DSN Analysis `;
-  titleEl.textContent = `🔬 DSN Analysis V.07`;
-  headerEl.textContent = `Site: ${rawLabel} Range: ${onlyDate(fromTxt)} → ${onlyDate(toTxt)}`;
+  headerEl.textContent = `Site: ${rawLabel} · Range: ${onlyDate(fromTxt)} → ${onlyDate(toTxt)}`;
   setJS("alive");
-  srvlog("boot", { href: location.href, in_iframe: (window.top === window ? "no" : "yes"), v: "V5-srv" });
+  srvlog("boot", { href: location.href });
 
-  /* ========== TIMERS / PROGRESS ========== */
-  const startTs = Date.now();
-  const HARD_TIMEOUT_MS = 7 * 60 * 1000;
-  let timersActive = true, timedOut = false;
-
-  function stopAllTimers(){
-    if (!timersActive) return;
-    timersActive = false;
-    clearInterval(tIv);
-    clearInterval(pIv);
-  }
-  function mmss(ms){ const s=Math.max(0,Math.floor(ms/1000)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
+  /* ========== TIMERS ========== */
+  const START = Date.now();
+  const HARD_TIMEOUT_MS = 7*60*1000;
+  let timersActive = true;
+  let timedOut = false;
+  const mmss = (ms)=>{ const s=Math.max(0,Math.floor(ms/1000)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; };
   function tickTime(){
-    const t = Date.now()-startTs;
+    const t = Date.now() - START;
     elapsedEl.textContent = mmss(t);
     const left = Math.max(0, HARD_TIMEOUT_MS - t);
     leftEl.textContent = mmss(left);
-    try { bar.style.width = Math.min(99, Math.floor((t/HARD_TIMEOUT_MS)*100)) + "%"; } catch(_){}
-    if (left === 0 && !timedOut){ timedOut = true; try{ bar.classList.add("timeout"); }catch(_){} }
+    bar.style.width = Math.min(99, Math.floor((t/HARD_TIMEOUT_MS)*100)) + "%";
+    if (left===0 && !timedOut){ timedOut = true; bar.classList.add("timeout"); }
   }
   const tIv = setInterval(tickTime, 1000); tickTime();
+  function stopAllTimers(){ if (!timersActive) return; timersActive=false; clearInterval(tIv); clearInterval(pIv); }
 
-  setTimeout(function(){
+  setTimeout(()=>{
     if (!timersActive) return;
-    stopAllTimers();
-    try { bar.style.width = "100%"; }catch(_){}
     statusEl.innerHTML = "❌ Timed out waiting for analysis.";
-    srvlog("timeout", { elapsed_ms: (Date.now()-startTs) });
+    bar.style.width = "100%";
+    srvlog("timeout", { elapsed_ms: (Date.now()-START) });
+    stopAllTimers();
   }, HARD_TIMEOUT_MS);
 
-  /* ========== HEALTH CHECKS (best-effort) ========== */
-  async function healthChecks(){
+  /* ========== HEALTH ========== */
+  (async ()=>{
     const targets = [
-      {name:"/health", url: WEBHOOK_ORIG + "/health"},
-      {name:"/DSN_trigger?ping=1", url: WEBHOOK_URL + "?ping=1"},
-      {name:"/log?msg=client_start&label="+encodeURIComponent(rawLabel), url: WEBHOOK_ORIG + "/log?msg=client_start&label="+encodeURIComponent(rawLabel)}
+      {n:"/health", u: WEBHOOK_ORIG + "/health"},
+      {n:"/DSN_trigger?ping=1", u: WEBHOOK_URL + "?ping=1"},
+      {n:"/log?msg=client_start&label="+encodeURIComponent(rawLabel), u: WEBHOOK_ORIG + "/log?msg=client_start&label="+encodeURIComponent(rawLabel)}
     ];
     for (const t of targets){
       try{
-        srvlog("health_req", { url: t.url });
-        const r = await fetch(t.url, {method:"GET", cache:"no-store", mode:"cors", credentials:"omit"});
-        srvlog("health_resp", { url: t.url, status: r.status });
+        srvlog("health_req", { url: t.u });
+        const r = await fetch(t.u, {method:"GET", cache:"no-store", mode:"cors", credentials:"omit"});
+        srvlog("health_rc", { url: t.u, status: r.status });
       }catch(e){
-        srvlog("health_err", { url: t.url, err: (e && e.message) ? e.message : String(e) });
+        srvlog("health_err", { url: t.u, err: (e && e.message) ? e.message : String(e) });
       }
     }
-  }
+  })();
 
-  /* ========== KICK THE JOB (POST /DSN_trigger) ========== */
+  /* ========== START JOB (with no-preflight first) ========== */
   let posted = false;
   async function startJobOnce(){
     if (posted) return; posted = true;
-    const payload = { label: rawLabel, from: fromTxt, to: toTxt }; // plain tstamps
-    srvlog("post_build", { url: WEBHOOK_URL, label: rawLabel, from: payload.from, to: payload.to });
+    const payload = { label: rawLabel, from: fromTxt, to: toTxt };
+    const bodyStr = JSON.stringify(payload);
+
+    // Attempt #1: no Content-Type header => avoid CORS preflight
     try{
-      srvlog("post_send", { url: WEBHOOK_URL });
-      const resp = await fetch(WEBHOOK_URL, {
+      srvlog("post_send_try1", { url: WEBHOOK_URL });
+      const r1 = await fetch(WEBHOOK_URL, {
+        method: "POST",
+        mode: "cors",
+        credentials: "omit",
+        cache: "no-store",
+        // no headers -> fetch defaults to text/plain; Flask get_json(force=True) still works
+        body: bodyStr
+      });
+      srvlog("post_rc_try1", { status: r1.status });
+      if (r1.ok){
+        statusEl.textContent = "⏳ Running analysis…";
+        return;
+      }
+    }catch(e){
+      srvlog("post_err_try1", { err: (e && e.message) ? e.message : String(e) });
+      // fallthrough to try #2
+    }
+
+    // Attempt #2: explicit JSON header (may cause preflight, but some proxies require it)
+    try{
+      srvlog("post_send_try2", { url: WEBHOOK_URL });
+      const r2 = await fetch(WEBHOOK_URL, {
         method: "POST",
         mode: "cors",
         credentials: "omit",
         cache: "no-store",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(payload)
+        body: bodyStr
       });
-      srvlog("post_rc", { status: resp.status });
-      if (!resp.ok){
-        statusEl.innerHTML = `❌ Job failed to start (HTTP ${resp.status}).`;
-        try { bar.style.width = "100%"; }catch(_){}
-        stopAllTimers();
+      srvlog("post_rc_try2", { status: r2.status });
+      if (r2.ok){
+        statusEl.textContent = "⏳ Running analysis…";
         return;
       }
-      statusEl.textContent = "⏳ Running analysis…";
+      statusEl.innerHTML = `❌ Job failed to start (HTTP ${r2.status}).`;
+      bar.style.width = "100%";
+      // Do NOT stop timers; keep polling in case server actually started the job
     }catch(e){
-      srvlog("post_err", { err: (e && e.message) ? e.message : String(e) });
-      statusEl.textContent = "❌ Could not reach webhook.";
-      try { bar.style.width = "100%"; }catch(_){}
-      stopAllTimers();
+      srvlog("post_err_try2", { err: (e && e.message) ? e.message : String(e) });
+      statusEl.textContent = "❌ Could not reach webhook (both attempts).";
+      bar.style.width = "100%";
+      // keep polling; job may still show up if server got the request
     }
   }
 
   /* ========== STATUS POLLING (GitHub Pages) ========== */
   const statusUrls = [
     `${GH_PAGES_BASE}${STATUS_DIR}/status-${encodeURIComponent(rawLabel)}.json`,
-    `${GH_PAGES_BASE}${STATUS_DIR}/status-${encodeURIComponent(label8)}.json`,
+    `${GH_PAGES_BASE}${STATUS_DIR}/status-${encodeURIComponent(safeShort(rawLabel))}.json`
   ];
   function bust(u){ return u + (u.includes("?")?"&":"?") + "bust=" + Date.now(); }
-
   async function fetchNewestWithHtml(){
     const found = [];
     for (const u of statusUrls){
@@ -227,24 +247,22 @@
     found.sort((a,b)=> b.ts - a.ts);
     return found[0].data;
   }
-
   function showDone(statusText, href){
     stopAllTimers();
-    try { bar.style.width = "100%"; }catch(_){}
-    try { viewBtn.removeAttribute("disabled"); viewBtn.href = href; }catch(_){}
+    bar.style.width = "100%";
+    viewBtn.removeAttribute("disabled");
+    viewBtn.href = href;
     statusEl.innerHTML = statusText || "✅ Analysis complete.";
     headerEl.textContent = headerEl.textContent + " — DONE";
-    srvlog("done", { html: href });
     try { window.stop && window.stop(); } catch(_){}
   }
-
   async function pollStatus(){
     const data = await fetchNewestWithHtml();
     if (!data){ statusEl.innerHTML = "⏳ Generating plots…"; return; }
     if (data.phase === "error"){
       stopAllTimers();
       statusEl.innerHTML = data.status || "❌ Analysis failed.";
-      try { bar.style.width = "100%"; }catch(_){}
+      bar.style.width = "100%";
       return;
     }
     const htmlRel = String(data.html||"").trim();
@@ -254,12 +272,8 @@
   }
   const pIv = setInterval(pollStatus, 1500);
 
-  /* ========== START ========== */
-  healthChecks();
+  /* ========== GO ========== */
   startJobOnce();
-
-  // Optional: page becomes idle if we ever bail early (uncomment if you add early returns)
-  // srvlog("page_idle", { reason: "early-exit" });
 
 })();
 </script>
