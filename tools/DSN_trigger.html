@@ -47,7 +47,7 @@
   // Parse URL params
   const qs = new URLSearchParams(location.search || "");
   const rawLabel = (qs.get("label") || "").trim();
-  const fromTxt  = (qs.get("from")  || "").trim();   // "YYYY-MM-DD HH:MM:SS" Grafana
+  const fromTxt  = (qs.get("from")  || "").trim();   // "YYYY-MM-DD HH:MM:SS" 
   const toTxt    = (qs.get("to")    || "").trim();
   const WEBHOOK_ORIG = (qs.get("webhook") || qs.get("webhook_id") || "").trim()
                         ? (qs.get("webhook") || `https://${qs.get("webhook_id").trim()}.ngrok-free.app`).replace(/\/+$/,"")
@@ -110,6 +110,13 @@
     return;
   }
 
+  // STRICT timestamp format guard (must be "YYYY-MM-DD HH:MM:SS")
+  const tsPat = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+  if (!tsPat.test(fromTxt) || !tsPat.test(toTxt)) {
+    statusEl.innerHTML = "❌ Bad from/to format (expect YYYY-MM-DD HH:MM:SS).";
+    srvlog("fatal_bad_ts", { from: fromTxt, to: toTxt });
+    return;
+  }
   // Populate header now
   const label8 = safeShort(rawLabel);
   document.title = `🔬 DSN Analysis `;
