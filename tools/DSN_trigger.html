@@ -16,25 +16,25 @@
     .btn{display:inline-block;padding:8px 12px;border-radius:8px;border:1px solid #ccc;text-decoration:none}
     .btn[disabled]{opacity:.4;pointer-events:none}
     #barwrap{
-	height:10px;
-	width:50%;
-	background:var(--barbg);
-	border-radius:999px;
-	overflow:hidden;
-	margin:12px 0 4px 0;
-	box-shadow:inset 0 0 0 1px #e2e8f0;
-	display:block;              /* ensure not inline */
-	margin-left:0;              /* explicit left alignment */
-	margin-right:auto;          /* push right side open */
+      height:10px;
+      width:50%;
+      background:var(--barbg);
+      border-radius:999px;
+      overflow:hidden;
+      margin:12px 0 4px 0;
+      box-shadow:inset 0 0 0 1px #e2e8f0;
+      display:block;
+      margin-left:0;
+      margin-right:auto;
     }
     #bar{
-	height:100%;
-	width:0%;
-	background:linear-gradient(90deg,#69c,#38bdf8 40%,#22c55e 75%,#16a34a 100%);
-	transition:width .5s ease
+      height:100%;
+      width:0%;
+      background:linear-gradient(90deg,#69c,#38bdf8 40%,#22c55e 75%,#16a34a 100%);
+      transition:width .5s ease
     }
     #bar.timeout{
-	background:linear-gradient(90deg,#f59e0b,#ef4444)
+      background:linear-gradient(90deg,#f59e0b,#ef4444)
     }
     status{margin:8px 0;min-height:2.2em}
     controls a{margin-right:10px}
@@ -46,7 +46,7 @@
   </style>
 </head>
 <body>
-  <h1 id="title">🔬 DSN Analysis V.16</h1>
+  <h1 id="title">🔬 DSN Analysis V.17</h1>
   <div id="header" class="muted">⏳ Initializing… <span id="jsBadge" class="badge">JS: starting</span></div>
   <div id="barwrap"><div id="bar"></div></div>
   <div class="row" id="timersRow">
@@ -61,13 +61,8 @@
 
 <script>
 function closeTab(e){
-  if (e) e.preventDefault();      // block any default action
-  try {                           // try to close if allowed
-    window.close();
-    return false;
-  } catch (_) {}
-
-  // Fallbacks when the browser blocks close()
+  if (e) e.preventDefault();
+  try { window.close(); return false; } catch (_) {}
   if (document.referrer) { location.replace(document.referrer); return false; }
   if (history.length > 1) { history.back(); return false; }
   location.replace('https://soazcomms.grafana.net/');
@@ -77,23 +72,21 @@ function closeTab(e){
   /* ========== PARAMS ========== */
   const qs = new URLSearchParams(location.search || "");
   const rawLabel = (qs.get("label") || "").trim();
-  const fromTxt  = (qs.get("from")  || "").trim();   // "YYYY-MM-DD HH:MM:SS"
+  const fromTxt  = (qs.get("from")  || "").trim();
   const toTxt    = (qs.get("to")    || "").trim();
   const userWebhook = (qs.get("webhook") || "").trim().replace(/\/+$/,"");
   const webhookId   = (qs.get("webhook_id") || "").trim();
-  const timersRow = document.getElementById("timersRow");
+
   // Build base webhook origin
   let WEBHOOK_ORIG = "";
-  if (userWebhook) {
-    WEBHOOK_ORIG = userWebhook; 
-  } else if (webhookId) {
-    WEBHOOK_ORIG = `https://${webhookId}.ngrok-free.app`;
-  }
+  if (userWebhook) WEBHOOK_ORIG = userWebhook;
+  else if (webhookId) WEBHOOK_ORIG = `https://${webhookId}.ngrok-free.app`;
+
   // Build actual trigger endpoint (avoid double-append)
   let WEBHOOK_URL = "";
   if (WEBHOOK_ORIG) {
     WEBHOOK_URL = WEBHOOK_ORIG.endsWith("/DSN_trigger") ? WEBHOOK_ORIG
-                    : WEBHOOK_ORIG + "/DSN_trigger";
+                  : WEBHOOK_ORIG + "/DSN_trigger";
   }
 
   const GH_PAGES_BASE = "https://soazcomms.github.io/";
@@ -108,11 +101,15 @@ function closeTab(e){
   const leftEl    = document.getElementById("timeoutLeft");
   const viewBtn   = document.getElementById("viewBtn");
   const jsBadge   = document.getElementById("jsBadge");
+  const timersRow = document.getElementById("timersRow");
 
   function setJS(x){ if(jsBadge) jsBadge.textContent = "JS: " + x; }
-
   function onlyDate(s){ if(!s) return s; if(s.includes(" ")) return s.split(" ")[0]; return s.split("T")[0]; }
   function safeShort(lbl){ return (lbl||"").split("_")[0].replace(/[^\w.\-]/g,"_"); }
+
+  // Final HTML targets (never use index.html)
+  const label8 = safeShort(rawLabel);
+  const FINAL_PGS = `${GH_PAGES_BASE}analysis/${encodeURIComponent(label8)}/${encodeURIComponent(label8)}.analysis.html`;
 
   // Server-side logger (image beacon)
   function srvlog(msg, fields){
@@ -136,8 +133,8 @@ function closeTab(e){
 
   /* ========== BOOT UI ========== */
   setJS("starting");
-  document.title = "🔬 DSN Analysis V.16";
-  titleEl.textContent = "🔬 DSN Analysis V.16";
+  document.title = "🔬 DSN Analysis V.17";
+  titleEl.textContent = "🔬 DSN Analysis V.17";
   headerEl.textContent = "⏳ Initializing…";
 
   if (!rawLabel || !fromTxt || !toTxt || !WEBHOOK_URL) {
@@ -147,7 +144,6 @@ function closeTab(e){
     return;
   }
 
-  const label8 = safeShort(rawLabel);
   headerEl.textContent = `Site: ${rawLabel} · Range: ${onlyDate(fromTxt)} → ${onlyDate(toTxt)}`;
   setJS("alive");
   srvlog("boot", { href: location.href });
@@ -168,7 +164,6 @@ function closeTab(e){
   }
   const tIv = setInterval(tickTime, 1000); tickTime();
   const pIv = setInterval(pollStatus, 1500);
-
   function stopAllTimers(){ if (!timersActive) return; timersActive=false; clearInterval(tIv); clearInterval(pIv); }
 
   setTimeout(()=>{
@@ -197,14 +192,12 @@ function closeTab(e){
     }
   })();
 
-  /* ========== START JOB (with no-preflight first) ========== */
+  /* ========== START JOB (single POST, no preflight header) ========== */
   let posted = false;
   async function startJobOnce(){
     if (posted) return; posted = true;
     const payload = { label: rawLabel, from: fromTxt, to: toTxt };
     const bodyStr = JSON.stringify(payload);
-
-    // *Only run* Attempt #1: no Content-Type header => avoid CORS preflight
     try{
       srvlog("post_send", { url: WEBHOOK_URL });
       const rt = await fetch(WEBHOOK_URL, {
@@ -212,23 +205,23 @@ function closeTab(e){
         mode: "cors",
         credentials: "omit",
         cache: "no-store",
-        // no headers -> fetch defaults to text/plain; Flask get_json(force=True) still works
         body: bodyStr
       });
       srvlog("post_rc", { status: rt.status });
       statusEl.textContent = "⏳ Running analysis…";
     }catch(e){
-      srvlog("post_err_try1", { err: (e && e.message) ? e.message : String(e) });
+      srvlog("post_err", { err: (e && e.message) ? e.message : String(e) });
     }
   }
 
-  /* ========== STATUS POLLING (GitHub Pages) ========== */
+  /* ========== STATUS POLLING (Pages) ========== */
   const statusUrls = [
     `${GH_PAGES_BASE}${STATUS_DIR}/status-${encodeURIComponent(rawLabel)}.json`,
     `${GH_PAGES_BASE}${STATUS_DIR}/status-${encodeURIComponent(safeShort(rawLabel))}.json`
   ];
   function bust(u){ return u + (u.includes("?")?"&":"?") + "bust=" + Date.now(); }
-  async function fetchNewestWithHtml(){
+
+  async function fetchNewest(){
     const found = [];
     for (const u of statusUrls){
       try{
@@ -237,11 +230,9 @@ function closeTab(e){
         srvlog("poll_rc", { url: u, status: r.status });
         if (!r.ok) continue;
         const j = await r.json();
-        srvlog("poll_json", { url: u, phase: j && j.phase, has_html: (j && j.html) ? "yes":"no" });
+        srvlog("poll_json", { url: u, phase: j && j.phase, status: j && j.status });
         const ts = Number(j.timestamp)||0;
-        if (j && j.html && String(j.html).trim()){
-          found.push({data:j, ts});
-        }
+        found.push({data:j, ts});
       }catch(e){
         srvlog("poll_err", { url: u, err: (e && e.message) ? e.message : String(e) });
       }
@@ -250,6 +241,7 @@ function closeTab(e){
     found.sort((a,b)=> b.ts - a.ts);
     return found[0].data;
   }
+
   function showDone(statusText, href){
     stopAllTimers();
     bar.style.width = "100%";
@@ -260,24 +252,26 @@ function closeTab(e){
     if (timersRow) timersRow.style.display = "none";
     try { window.stop && window.stop(); } catch(_){}
   }
+
   async function pollStatus(){
-    const data = await fetchNewestWithHtml();
+    const data = await fetchNewest();
     if (!data){ statusEl.innerHTML = "⏳ Generating plots…"; return; }
-    if (data.phase === "error"){
+
+    if ((data.phase && /error/i.test(data.phase)) || (data.status && /^❌/.test(data.status))){
       stopAllTimers();
       statusEl.innerHTML = data.status || "❌ Analysis failed.";
       bar.style.width = "100%";
       return;
     }
-    const htmlRel = String(data.html||"").trim();
-    // don't stop until both html exists AND phase/done marker visible
-      if (!htmlRel || (!/done/i.test(data.phase || "")
-		       && !/✅/u.test(data.status || ""))) {
+
+    const isDone = (/done/i.test(data.phase||"")) || (/✅/u.test(data.status||""));
+    if (!isDone){
       statusEl.innerHTML = data.status || "⏳ Running analysis…";
       return;
     }
-    // only here we consider it finished
-    const href = GH_PAGES_BASE + htmlRel.replace(/^\/+/, "");
+
+    // Finished: always use final .analysis.html (never index.html)
+    const href = FINAL_PGS;
     showDone(data.status || "✅ Analysis complete.", href);
   }
 
