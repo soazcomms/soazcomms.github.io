@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <meta charset="utf-8" />
-<title>DSN CSV Export V.02</title>
+<title>DSN CSV Export V.03</title>
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <style>
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:20px;line-height:1.45}
@@ -41,7 +41,7 @@
 </style>
 
 <div class="wrap" id="wrap">
-  <h1>DSN CSV Export V.02</h1>
+  <h1>DSN CSV Export V.03</h1>
   <div id="headerText" class="muted">Preparing…</div>
 
   <!-- Progress bar + timer -->
@@ -167,16 +167,23 @@ function closeTab(e){
     try{ const r = await fetch(bust(url), {method:"HEAD", cache:"no-store"}); return r.ok; }
     catch(_){ return false; }
   }
-  async function getStatus(){
-    const u = `${GH_PAGES_BASE}/status/status-${encodeURIComponent(label8)}.json`;
-    try{
-      const r = await fetch(bust(u), {cache:"no-store"});
-      if (!r.ok) return null;
-      return await r.json();
-    }catch(_){ return null; }
-  }
-  function statusJSON(){ return `${GH_PAGES_BASE}/status/status-${encodeURIComponent(label8)}.json`; }
 
+  async function getStatusFrom(base){
+      const u = `${base}/status/status-${encodeURIComponent(label8)}.json`;
+      try{
+	  const r = await fetch(u + (u.includes('?')?'&':'?') + '_cb=' + Date.now(), {cache:"no-store"});
+	  if (!r.ok) return null;
+	  return await r.json();
+      }catch(_){ return null; }
+  }
+
+  async function getStatus(){
+      // Try RAW first (usually updates faster), then Pages
+      const stRaw = await getStatusFrom("https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main");
+      if (stRaw) return stRaw;
+      return await getStatusFrom("https://soazcomms.github.io");
+  }
+    
   // client-side guard: cleanup must point to a single .csv under analysis/<label8>/
   function isSafeCsv(rel){
     if (!rel) return false;
