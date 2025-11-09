@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <meta charset="utf-8" />
-<title>DSN CSV Export V.04</title>
+<title>DSN CSV Export V.05</title>
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <style>
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:20px;line-height:1.45}
@@ -15,8 +15,8 @@
   .err{color:#b00}
   .hint{font-size:.9rem;color:#666}
   /* progress bar (keep look) */
-  .progress-wrap { width:min(720px,90vw); margin:.75rem 0 .25rem; text-align:center; }
-  .progress { width:50%; margin:0 auto; height:12px; background:#edf2f7; border-radius:999px; overflow:hidden; box-shadow:inset 0 0 0 1px #e2e8f0; }
+  .progress-wrap { width:min(720px,90vw); margin:.75rem 0 .25rem; text-align:left; }
+  .progress { width:50%; margin:0; height:12px; background:#edf2f7; border-radius:999px; overflow:hidden; box-shadow:inset 0 0 0 1px #e2e8f0; }
   .legend { width:50%; margin:.35rem auto 0; display:flex; justify-content:space-between; font-size:.85rem; color:#555; }
   #barwrap{
       height:10px;
@@ -26,9 +26,10 @@
       overflow:hidden;
       margin:12px 0 4px 0;
       box-shadow:inset 0 0 0 1px #e2e8f0;
-      display:block;              /* ensure not inline */
-      margin-left:0;              /* explicit left alignment */
-      margin-right:auto;          /* push right side open */
+      align-self:flex-start; /* if parent is flex */
+      margin-left:0;         /* explicit left alignment */
+      margin-right:auto;     /* push right side open */
+      float:left;            /* for parent with text-align:center */
   }
   #bar{
       height:100%;
@@ -41,7 +42,7 @@
 </style>
 
 <div class="wrap" id="wrap">
-  <h1>DSN CSV Export V.04</h1>
+  <h1>DSN CSV Export V.05</h1>
   <div id="headerText" class="muted">Preparing…</div>
 
   <!-- Progress bar + timer -->
@@ -56,7 +57,6 @@
     <a id="retry"   class="btn" href="#" style="display:none;">↻ Retry</a>
     <button id="exitBtn" class="btn" type="button" onclick="return closeTab(event)">🔙 Exit</button>
   </div>
-
   <div class="row muted" id="status">⚙️ Working…</div>
   <div class="row hint"   id="hint" style="display:none;"></div>
 </div>
@@ -171,18 +171,36 @@ function closeTab(e){
   async function getStatusFrom(base){
       const u = `${base}/status/status-${encodeURIComponent(label8)}.json`;
       try{
-	  const r = await fetch(u + (u.includes('?')?'&':'?') + '_cb=' + Date.now(), {cache:"no-store"});
+	  const r = await fetch(bust(u), { cache: "no-store" });
 	  if (!r.ok) return null;
 	  return await r.json();
       }catch(_){ return null; }
   }
 
   async function getStatus(){
-      // Try RAW first (usually updates faster), then Pages
-      const stRaw = await getStatusFrom("https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main");
-      if (stRaw) return stRaw;
-      return await getStatusFrom("https://soazcomms.github.io");
+    // RAW first (usually fresher), then Pages
+      return await getStatusFrom("https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main")
+	  || await getStatusFrom("https://soazcomms.github.io");
   }
+
+  async function pollStatus(){
+    // 1) if CSV is already there, finish immediately
+    if (await headOK(CSV_RAW) || await headOK(CSV_PGS)){
+	showDone("✅ CSV ready.", (await headOK(CSV_PGS)) ? CSV_PGS : CSV_RAW);
+	return;
+    }
+
+    // 2) else check status.json
+    const st = await getStatus();
+    if (st && (/done/i.test(st.phase || "") || /✅/u.test(st.status || ""))){
+	const href = (await headOK(CSV_PGS)) ? CSV_PGS : CSV_RAW;
+	showDone("✅ CSV ready.", href);
+	return;
+    }
+
+  // 3) keep waiting
+  tickBar(); // whatever your progress update is
+}
     
   // client-side guard: cleanup must point to a single .csv under analysis/<label8>/
   function isSafeCsv(rel){
@@ -247,6 +265,9 @@ function closeTab(e){
   /* ===== boot ===== */
   debugLite("page_load","csv_trigger");
 
+  function statusJSON(){
+      return `${GH_RAW_BASE}/status/status-${encodeURIComponent(label8)}.json`;
+  }
   // make View LOG do something immediately (fallback to status JSON)
   logEl.href = bust(statusJSON());
   enable(logEl);
@@ -260,6 +281,7 @@ function closeTab(e){
 
     barEl.style.width="100%";
     statusEl.innerHTML = '<span class="ok">✅ CSV ready.</span>';
+    (document.getElementById('leg-right')?.parentElement ?? null)?.style && (document.getElementById('leg-right').parentElement.style.display = "none");
     armDownload([CSV_RAW, CSV_PGS]);
     return;
   }
