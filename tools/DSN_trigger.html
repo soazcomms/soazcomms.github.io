@@ -28,7 +28,7 @@
   </style>
 </head>
 <body>
-  <h1 id="title">🔬 DSN Analysis V09</h1>
+  <h1 id="title">🔬 DSN Analysis V.09</h1>
   <div id="header" class="muted">⏳ Initializing… <span id="jsBadge" class="badge">JS: starting</span></div>
   <div id="barwrap"><div id="bar"></div></div>
   <div class="row" id="status">Preparing…</div>
@@ -54,7 +54,7 @@
   // Build base webhook origin
   let WEBHOOK_ORIG = "";
   if (userWebhook) {
-    WEBHOOK_ORIG = userWebhook; // e.g. https://sound-kangaroo-unlikely.ngrok-free.app
+    WEBHOOK_ORIG = userWebhook; 
   } else if (webhookId) {
     WEBHOOK_ORIG = `https://${webhookId}.ngrok-free.app`;
   }
@@ -105,8 +105,8 @@
 
   /* ========== BOOT UI ========== */
   setJS("starting");
-  document.title = "🔬 DSN Analysis V.08";
-  titleEl.textContent = "🔬 DSN Analysis V.08";
+  document.title = "🔬 DSN Analysis V.09";
+  titleEl.textContent = "🔬 DSN Analysis V.09";
   headerEl.textContent = "⏳ Initializing…";
 
   if (!rawLabel || !fromTxt || !toTxt || !WEBHOOK_URL) {
