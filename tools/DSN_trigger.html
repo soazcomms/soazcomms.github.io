@@ -28,7 +28,7 @@
   </style>
 </head>
 <body>
-  <h1 id="title">🔬 DSN Analysis V.10</h1>
+  <h1 id="title">🔬 DSN Analysis V.11</h1>
   <div id="header" class="muted">⏳ Initializing… <span id="jsBadge" class="badge">JS: starting</span></div>
   <div id="barwrap"><div id="bar"></div></div>
   <div class="row" id="status">Preparing…</div>
@@ -105,8 +105,8 @@
 
   /* ========== BOOT UI ========== */
   setJS("starting");
-  document.title = "🔬 DSN Analysis V.10";
-  titleEl.textContent = "🔬 DSN Analysis V.10";
+  document.title = "🔬 DSN Analysis V.11";
+  titleEl.textContent = "🔬 DSN Analysis V.11";
   headerEl.textContent = "⏳ Initializing…";
 
   if (!rawLabel || !fromTxt || !toTxt || !WEBHOOK_URL) {
@@ -173,10 +173,10 @@
     const payload = { label: rawLabel, from: fromTxt, to: toTxt };
     const bodyStr = JSON.stringify(payload);
 
-    // Attempt #1: no Content-Type header => avoid CORS preflight
+    // *Only run* Attempt #1: no Content-Type header => avoid CORS preflight
     try{
-      srvlog("post_send_try1", { url: WEBHOOK_URL });
-      const r1 = await fetch(WEBHOOK_URL, {
+      srvlog("post_send", { url: WEBHOOK_URL });
+      const rt = await fetch(WEBHOOK_URL, {
         method: "POST",
         mode: "cors",
         credentials: "omit",
@@ -184,40 +184,10 @@
         // no headers -> fetch defaults to text/plain; Flask get_json(force=True) still works
         body: bodyStr
       });
-      srvlog("post_rc_try1", { status: r1.status });
-      if (r1.ok){
-        statusEl.textContent = "⏳ Running analysis…";
-        return;
-      }
+      srvlog("post_rc", { status: rt.status });
+      statusEl.textContent = "⏳ Running analysis…";
     }catch(e){
       srvlog("post_err_try1", { err: (e && e.message) ? e.message : String(e) });
-      // fallthrough to try #2
-    }
-
-    // Attempt #2: explicit JSON header (may cause preflight, but some proxies require it)
-    try{
-      srvlog("post_send_try2", { url: WEBHOOK_URL });
-      const r2 = await fetch(WEBHOOK_URL, {
-        method: "POST",
-        mode: "cors",
-        credentials: "omit",
-        cache: "no-store",
-        headers: {"Content-Type": "application/json"},
-        body: bodyStr
-      });
-      srvlog("post_rc_try2", { status: r2.status });
-      if (r2.ok){
-        statusEl.textContent = "⏳ Running analysis…";
-        return;
-      }
-      statusEl.innerHTML = `❌ Job failed to start (HTTP ${r2.status}).`;
-      bar.style.width = "100%";
-      // Do NOT stop timers; keep polling in case server actually started the job
-    }catch(e){
-      srvlog("post_err_try2", { err: (e && e.message) ? e.message : String(e) });
-      statusEl.textContent = "❌ Could not reach webhook (both attempts).";
-      bar.style.width = "100%";
-      // keep polling; job may still show up if server got the request
     }
   }
 
