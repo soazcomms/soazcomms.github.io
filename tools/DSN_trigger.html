@@ -46,7 +46,7 @@
   </style>
 </head>
 <body>
-  <h1 id="title">🔬 DSN Analysis V.13</h1>
+  <h1 id="title">🔬 DSN Analysis V.14</h1>
   <div id="header" class="muted">⏳ Initializing… <span id="jsBadge" class="badge">JS: starting</span></div>
   <div id="barwrap"><div id="bar"></div></div>
   <div class="row" id="status">Preparing…</div>
@@ -60,6 +60,16 @@
   </div>
 
 <script>
+function closeTab() {
+  try {
+    window.open('', '_self');
+    window.close();
+  } catch (e) {
+    if (document.referrer) location.replace(document.referrer);
+    else if (history.length > 1) history.back();
+    else location.replace('https://soazcomms.grafana.net/');
+  }
+}
 (function(){
   /* ========== PARAMS ========== */
   const qs = new URLSearchParams(location.search || "");
@@ -123,8 +133,8 @@
 
   /* ========== BOOT UI ========== */
   setJS("starting");
-  document.title = "🔬 DSN Analysis V.13";
-  titleEl.textContent = "🔬 DSN Analysis V.13";
+  document.title = "🔬 DSN Analysis V.14";
+  titleEl.textContent = "🔬 DSN Analysis V.14";
   headerEl.textContent = "⏳ Initializing…";
 
   if (!rawLabel || !fromTxt || !toTxt || !WEBHOOK_URL) {
