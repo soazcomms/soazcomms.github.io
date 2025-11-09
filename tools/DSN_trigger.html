@@ -17,12 +17,15 @@
     .btn[disabled]{opacity:.4;pointer-events:none}
     #barwrap{
 	height:10px;
-	width:50%;                 /* ~half-width */
+	width:50%;
 	background:var(--barbg);
 	border-radius:999px;
 	overflow:hidden;
-	margin:12px 0 4px auto; /* center the bar */
-	box-shadow:inset 0 0 0 1px #e2e8f0
+	margin:12px 0 4px 0;
+	box-shadow:inset 0 0 0 1px #e2e8f0;
+	display:block;              /* ensure not inline */
+	margin-left:0;              /* explicit left alignment */
+	margin-right:auto;          /* push right side open */
     }
     #bar{
 	height:100%;
@@ -43,7 +46,7 @@
   </style>
 </head>
 <body>
-  <h1 id="title">🔬 DSN Analysis V.12</h1>
+  <h1 id="title">🔬 DSN Analysis V.13</h1>
   <div id="header" class="muted">⏳ Initializing… <span id="jsBadge" class="badge">JS: starting</span></div>
   <div id="barwrap"><div id="bar"></div></div>
   <div class="row" id="status">Preparing…</div>
@@ -120,8 +123,8 @@
 
   /* ========== BOOT UI ========== */
   setJS("starting");
-  document.title = "🔬 DSN Analysis V.12";
-  titleEl.textContent = "🔬 DSN Analysis V.12";
+  document.title = "🔬 DSN Analysis V.13";
+  titleEl.textContent = "🔬 DSN Analysis V.13";
   headerEl.textContent = "⏳ Initializing…";
 
   if (!rawLabel || !fromTxt || !toTxt || !WEBHOOK_URL) {
