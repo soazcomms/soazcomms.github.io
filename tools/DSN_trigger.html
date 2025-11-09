@@ -239,11 +239,11 @@
     }
     const htmlRel = String(data.html||"").trim();
     // don't stop until both html exists AND phase/done marker visible
-    if (!htmlRel || !/done/i.test(data.phase || "") && !/✅/u.test(data.status || "")) {
+      if (!htmlRel || (!/done/i.test(data.phase || "")
+		       && !/✅/u.test(data.status || ""))) {
       statusEl.innerHTML = data.status || "⏳ Running analysis…";
       return;
     }
-
     // only here we consider it finished
     const href = GH_PAGES_BASE + htmlRel.replace(/^\/+/, "");
     showDone(data.status || "✅ Analysis complete.", href);
