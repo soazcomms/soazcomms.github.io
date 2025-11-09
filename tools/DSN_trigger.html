@@ -49,11 +49,11 @@
   <h1 id="title">🔬 DSN Analysis V.15</h1>
   <div id="header" class="muted">⏳ Initializing… <span id="jsBadge" class="badge">JS: starting</span></div>
   <div id="barwrap"><div id="bar"></div></div>
-  <div class="row" id="status">Preparing…</div>
-  <div class="row">
+  <div class="row" id="timersRow">
     <span id="elapsed">0:00</span>
     <span class="muted"> · Timeout in <span id="timeoutLeft">7:00</span></span>
   </div>
+  <div class="row" id="status">Preparing…</div>
   <div id="controls" class="row">
     <a id="viewBtn" class="btn" href="#" target="_blank" rel="noopener" disabled>📄 View Analysis Result</a>
     <button id="exitBtn" class="btn" type="button" onclick="return closeTab(event)">🔙 Exit</button>
@@ -81,7 +81,7 @@ function closeTab(e){
   const toTxt    = (qs.get("to")    || "").trim();
   const userWebhook = (qs.get("webhook") || "").trim().replace(/\/+$/,"");
   const webhookId   = (qs.get("webhook_id") || "").trim();
-
+  const timersRow = document.getElementById("timersRow");
   // Build base webhook origin
   let WEBHOOK_ORIG = "";
   if (userWebhook) {
@@ -257,8 +257,7 @@ function closeTab(e){
     viewBtn.href = href;
     statusEl.innerHTML = statusText || "✅ Analysis complete.";
     headerEl.textContent = headerEl.textContent + " — DONE";
-    const timeoutWrap = leftEl ? leftEl.parentElement : null;
-    if (timeoutWrap) timeoutWrap.style.display = "none";
+    if (timersRow) timersRow.style.display = "none";
     try { window.stop && window.stop(); } catch(_){}
   }
   async function pollStatus(){
