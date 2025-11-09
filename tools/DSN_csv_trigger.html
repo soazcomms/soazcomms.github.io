@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <meta charset="utf-8" />
-<title>DSN CSV Export V.03</title>
+<title>DSN CSV Export V.04</title>
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <style>
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:20px;line-height:1.45}
@@ -41,7 +41,7 @@
 </style>
 
 <div class="wrap" id="wrap">
-  <h1>DSN CSV Export V.03</h1>
+  <h1>DSN CSV Export V.04</h1>
   <div id="headerText" class="muted">Preparing…</div>
 
   <!-- Progress bar + timer -->
@@ -213,7 +213,7 @@ function closeTab(e){
           barEl.style.width = "100%";
           statusEl.innerHTML = '<span class="ok">✅ CSV downloaded.</span>';
           hintEl.style.display = "block";
-#          hintEl.textContent = "You can close this tab or return to Grafana.";
+//          hintEl.textContent = "You can close this tab or return to Grafana.";
           try { clearInterval(poll); } catch (_) {}
 
           if (new URLSearchParams(location.search).get("close") === "1") {
