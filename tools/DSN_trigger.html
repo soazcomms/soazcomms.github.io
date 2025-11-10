@@ -46,7 +46,7 @@
   </style>
 </head>
 <body>
-  <h1 id="title">🔬 DSN Analysis V.25</h1>
+  <h1 id="title">🔬 DSN Analysis V.26</h1>
   <div id="header" class="muted">⏳ Initializing… <span id="jsBadge" class="badge">JS: starting</span></div>
   <div id="barwrap"><div id="bar"></div></div>
   <div class="row" id="timersRow">
@@ -163,9 +163,8 @@ function closeTab(e){
 
   /* ========== BOOT UI ========== */
   setJS("starting");
-  document.title = "🔬 DSN Analysis V.25";
-    titleEl.textContent = "🔬 DSN Analysis V.25
-";
+  document.title = "🔬 DSN Analysis V.26";
+  titleEl.textContent = "🔬 DSN Analysis V.26";
   headerEl.textContent = "⏳ Initializing…";
 
   if (!rawLabel || !tsPat.test(fromTxt) || !tsPat.test(toTxt) || !wid) {
@@ -261,7 +260,7 @@ function closeTab(e){
       try{
           const url = bust(STATUS_URL);
           const r = await fetch(bust(STATUS_URL), {cache: "no-store"});
-          if (!rt.ok) {
+          if (!r.ok) {
             const txt = await rt.text().catch(()=>"(no body)");
             srvlog("status_rc", { rc: r.status, url });
             srvlog("status_body", { body: txt.slice(0,256) });
@@ -276,27 +275,25 @@ function closeTab(e){
   async function pollStatus(){
     if (DID_DONE) return;  // ignore any stray calls after finish  
     const data = await fetchNewest();
-    if (!data){
-	statusEl.innerHTML = "⏳ Working…";
-	return;
-    }
-    srvlog("ui_phase", { phase: data.phase || "", status: data.status || "" });
-
     // Fallback: if status is missing but the final page is already live, finish anyway
     if (!data){
       const FINAL_PGS = `https://soazcomms.github.io/analysis/${encodeURIComponent(label8)}/${encodeURIComponent(label8)}.analysis.html`;
       if (await headOK(FINAL_PGS)){
         DID_DONE = true;
         stopAllTimers();
+        bar.style.width = "100%";
         const cb = Date.now();
         viewBtn.removeAttribute("disabled");
         viewBtn.href = FINAL_PGS + "?_cb=" + cb;
         statusEl.innerHTML = "✅ Analysis complete.";
         const timersRow = document.getElementById("timersRow");
         if (timersRow) timersRow.style.display = "none";
+      } else {
+        statusEl.innerHTML = "⏳ Working…";
       }
       return;
     }
+    srvlog("ui_phase", { phase: data.phase || "", status: data.status || "" });
     if (/error/i.test(data.phase || "")){
 	stopAllTimers();
 	statusEl.innerHTML = data.status || "❌ Failed.";
