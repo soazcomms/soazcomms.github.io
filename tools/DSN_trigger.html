@@ -40,7 +40,7 @@
   </style>
 </head>
 <body>
-  <h1 id="title">🔬 DSN Analysis V.27</h1>
+  <h1 id="title">🔬 DSN Analysis V.28</h1>
   <div id="header" class="muted">⏳ Initializing… <span id="jsBadge" class="badge">JS: starting</span></div>
   <div id="barwrap"><div id="bar"></div></div>
   <div class="row" id="timersRow">
@@ -159,8 +159,8 @@ function closeTab(e){
 
   /* ========== BOOT UI ========== */
   setJS("starting");
-  document.title = "🔬 DSN Analysis V.27";
-  titleEl.textContent = "🔬 DSN Analysis V.27";
+  document.title = "🔬 DSN Analysis V.28";
+  titleEl.textContent = "🔬 DSN Analysis V.28";
   headerEl.textContent = "⏳ Initializing…";
 
   if (!rawLabel || !tsPat.test(fromTxt) || !tsPat.test(toTxt) || !wid) {
@@ -187,7 +187,6 @@ function closeTab(e){
     if (left===0){ bar.classList.add("timeout"); }
   }
   elapsedTimer = setInterval(tickTime, 1000); tickTime();
-  pollTimer    = setInterval(pollStatus, 1200);
   hardTimeout  = setTimeout(()=>{
     statusEl.innerHTML = "❌ Timed out waiting for analysis.";
     bar.style.width = "100%";
@@ -235,13 +234,17 @@ function closeTab(e){
         const pre = document.createElement("pre");
         pre.textContent = txt;
         (document.getElementById("debug") || document.body).appendChild(pre);
+        stopAllTimers();  
         return;
       }
       statusEl.textContent = "⏳ Running analysis…";
+      if (!pollTimer) { pollTimer = setInterval(pollStatus, 1200); }
+      await pollStatus(); // kick one immediate poll
     }catch(e){
       const msg = (e && e.name === "AbortError") ? "timeout" : (e && e.message) ? e.message : String(e);
       statusEl.innerHTML = `❌ Could not reach webhook (${msg}).`;
       srvlog("post_err", { err: msg });
+      stopAllTimers();  
       return;
     }
   }
