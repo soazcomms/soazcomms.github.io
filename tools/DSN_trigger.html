@@ -46,7 +46,7 @@
   </style>
 </head>
 <body>
-  <h1 id="title">🔬 DSN Analysis V.17</h1>
+  <h1 id="title">🔬 DSN Analysis V.18</h1>
   <div id="header" class="muted">⏳ Initializing… <span id="jsBadge" class="badge">JS: starting</span></div>
   <div id="barwrap"><div id="bar"></div></div>
   <div class="row" id="timersRow">
@@ -90,8 +90,11 @@ function closeTab(e){
   }
 
   const GH_PAGES_BASE = "https://soazcomms.github.io/";
+  const GH_RAW_BASE = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
   const STATUS_DIR    = "status";
-
+  const statusUrls  = [
+    `${GH_RAW_BASE}${STATUS_DIR}/status-${encodeURIComponent(safeShort(rawLabel))}.json`
+  ];
   /* ========== DOM ========== */
   const titleEl   = document.getElementById("title");
   const headerEl  = document.getElementById("header");
@@ -109,8 +112,8 @@ function closeTab(e){
 
   // Final HTML targets (never use index.html)
   const label8 = safeShort(rawLabel);
-  const FINAL_PGS = `${GH_PAGES_BASE}analysis/${encodeURIComponent(label8)}/${encodeURIComponent(label8)}.analysis.html`;
-
+  const FINAL_PGS = `https://soazcomms.github.io/analysis/${encodeURIComponent(label8)}/${encodeURIComponent(label8)}.analysis.html`;
+  const FINAL_RAW = `https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/analysis/${encodeURIComponent(label8)}/${encodeURIComponent(label8)}.analysis.html`;
   // Server-side logger (image beacon)
   function srvlog(msg, fields){
     try {
@@ -133,8 +136,8 @@ function closeTab(e){
 
   /* ========== BOOT UI ========== */
   setJS("starting");
-  document.title = "🔬 DSN Analysis V.17";
-  titleEl.textContent = "🔬 DSN Analysis V.17";
+  document.title = "🔬 DSN Analysis V.18";
+  titleEl.textContent = "🔬 DSN Analysis V.18";
   headerEl.textContent = "⏳ Initializing…";
 
   if (!rawLabel || !fromTxt || !toTxt || !WEBHOOK_URL) {
@@ -215,12 +218,15 @@ function closeTab(e){
   }
 
   /* ========== STATUS POLLING (Pages) ========== */
-  const statusUrls = [
-    `${GH_PAGES_BASE}${STATUS_DIR}/status-${encodeURIComponent(rawLabel)}.json`,
-    `${GH_PAGES_BASE}${STATUS_DIR}/status-${encodeURIComponent(safeShort(rawLabel))}.json`
-  ];
   function bust(u){ return u + (u.includes("?")?"&":"?") + "bust=" + Date.now(); }
-
+  async function headOK(url){
+    try{
+      let r = await fetch(bust(url), { method:"HEAD", cache:"no-store" });
+      if (r.ok) return true;
+      r = await fetch(bust(url), { cache:"no-store", headers:{ "Range":"bytes=0-0" } });
+      return r.ok;
+    }catch(_){ return false; }
+  }
   async function fetchNewest(){
     const found = [];
     for (const u of statusUrls){
@@ -263,15 +269,29 @@ function closeTab(e){
       bar.style.width = "100%";
       return;
     }
+    // when status says publishing/done (server has pushed; Pages may lag)
+    if (/publishing/i.test(data.phase||"")) {
+      statusEl.innerHTML = "🚀 Publishing results…";
+
+      // Try enabling View via RAW while Pages catches up
+      if (await headOK(FINAL_RAW)) {
+        viewBtn.removeAttribute("disabled");
+        viewBtn.href = FINAL_RAW;
+      }
+      return; // keep polling; when Pages is live we'll fall through to 'done'
+    }
 
     const isDone = (/done/i.test(data.phase||"")) || (/✅/u.test(data.status||""));
     if (!isDone){
       statusEl.innerHTML = data.status || "⏳ Running analysis…";
       return;
     }
-
-    // Finished: always use final .analysis.html (never index.html)
-    const href = FINAL_PGS;
+    // Finished: prefer Pages; if not live yet, use RAW
+    let href = FINAL_PGS;
+    if (!(await headOK(FINAL_PGS))) {
+      if (await headOK(FINAL_RAW)) href = FINAL_RAW;
+      else { statusEl.innerHTML = "⏳ Waiting for GitHub Pages…"; return; }
+    }
     showDone(data.status || "✅ Analysis complete.", href);
   }
 
