@@ -33,20 +33,14 @@
       background:linear-gradient(90deg,#69c,#38bdf8 40%,#22c55e 75%,#16a34a 100%);
       transition:width .5s ease
     }
-    #bar.timeout{
-      background:linear-gradient(90deg,#f59e0b,#ef4444)
-    }
+    #bar.timeout{ background:linear-gradient(90deg,#f59e0b,#ef4444) }
     status{margin:8px 0;min-height:2.2em}
     controls a{margin-right:10px}
-    .done{border:1px solid #dcfce7;background:#f0fdf4;border-radius:10px;padding:12px;margin-top:16px}
     .badge{display:inline-block;padding:.15rem .45rem;border-radius:6px;border:1px solid #e5e7eb;background:#f8fafc;font-size:.9rem}
-    details{border:1px solid #e5e7eb;border-radius:8px;padding:.5rem 1rem;background:#fafafa}
-    details pre{white-space:pre-wrap;word-break:break-word;background:#fff;border:1px solid #eee;border-radius:6px;padding:.75rem;max-height:260px;overflow:auto}
-    code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,monospace}
   </style>
 </head>
 <body>
-  <h1 id="title">🔬 DSN Analysis V.26</h1>
+  <h1 id="title">🔬 DSN Analysis V.27</h1>
   <div id="header" class="muted">⏳ Initializing… <span id="jsBadge" class="badge">JS: starting</span></div>
   <div id="barwrap"><div id="bar"></div></div>
   <div class="row" id="timersRow">
@@ -60,19 +54,23 @@
   </div>
 
 <script>
-let DID_DONE = false;      // global guard
-// Loudly surface any runtime error instead of silently stalling
+/* ===== GLOBALS / SAFETY ===== */
+let DID_DONE = false;
+let pollTimer = null;
+let elapsedTimer = null;
+let hardTimeout = null;
+
+function stopAllTimers(){
+  if (pollTimer){ clearInterval(pollTimer); pollTimer = null; }
+  if (elapsedTimer){ clearInterval(elapsedTimer); elapsedTimer = null; }
+  if (hardTimeout){ clearTimeout(hardTimeout); hardTimeout = null; }
+}
+
 window.addEventListener("error", (e)=>{
   const statusEl = document.getElementById("status") || document.body;
   statusEl.innerHTML = "❌ JS error: " + (e && e.message ? e.message : String(e));
 });
-let pollTimer = null;      // if you use setInterval
-let timeoutTimer = null;   // your countdown timer, if any
 
-function stopAllTimers(){
-  if (pollTimer){ clearInterval(pollTimer); pollTimer = null; }
-  if (timeoutTimer){ clearInterval(timeoutTimer); timeoutTimer = null; }
-}
 function closeTab(e){
   if (e) e.preventDefault();
   try { window.close(); return false; } catch (_) {}
@@ -81,52 +79,52 @@ function closeTab(e){
   location.replace('https://soazcomms.grafana.net/');
   return false;
 }
+
 (function(){
   /* ========== PARAMS ========== */
   const qs = new URLSearchParams(location.search || "");
   const rawLabel = (qs.get("label") || "").trim();
+  function safeShort(lbl){ return (lbl||"").split("_")[0].replace(/[^\w.\-]/g,"_"); }
   const label8 = safeShort(rawLabel).slice(0, 8);
   const fromTxt  = (qs.get("from")  || "").trim();
   const toTxt    = (qs.get("to")    || "").trim();
-  const wid   = (qs.get("webhook_id") || "").trim();
+  const wid      = (qs.get("webhook_id") || "").trim();
   const tsPat    = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
-  // send a beacon to server log immediately to see params in logs/debug.log
+
+  // beacon: prove params reached the server
   (new Image()).src =
-  `/log?msg=params&label=${encodeURIComponent(label8)}&lab=${encodeURIComponent(rawLabel)}&from=${encodeURIComponent(fromTxt)}&to=${encodeURIComponent(toTxt)}&wid=${encodeURIComponent(wid)}`;
+    `/log?msg=params&label=${encodeURIComponent(label8)}&lab=${encodeURIComponent(rawLabel)}&from=${encodeURIComponent(fromTxt)}&to=${encodeURIComponent(toTxt)}&wid=${encodeURIComponent(wid)}`;
 
   const userWebhook = (qs.get("webhook") || "").trim().replace(/\/+$/,"");
 
   // Build base webhook origin
   let WEBHOOK_ORIG = "";
   if (userWebhook) WEBHOOK_ORIG = userWebhook;
-  else if (wid) WEBHOOK_ORIG = `https://${wid}.ngrok-free.app`;
+  else if (wid)    WEBHOOK_ORIG = `https://${wid}.ngrok-free.app`;
 
-  // Build actual trigger endpoint (avoid double-append)
+  // Build actual trigger endpoint
   let WEBHOOK_URL = "";
   if (WEBHOOK_ORIG) {
     WEBHOOK_URL = WEBHOOK_ORIG.endsWith("/DSN_trigger") ? WEBHOOK_ORIG
-                  : WEBHOOK_ORIG + "/DSN_trigger";
+                                                        : WEBHOOK_ORIG + "/DSN_trigger";
   }
   if (!WEBHOOK_ORIG || !WEBHOOK_URL) {
     const statusEl = document.getElementById("status") || document.body;
     statusEl.innerHTML = "❌ No webhook configured. Add &webhook_id=<ngrok-subdomain> or &webhook=<full URL>.";
-    // Show what we actually saw for quick debugging
     const pre = document.createElement("pre");
     pre.textContent = `wid='${wid}' userWebhook='${userWebhook}'\nWEBHOOK_ORIG='${WEBHOOK_ORIG}'\nWEBHOOK_URL='${WEBHOOK_URL}'`;
     (document.getElementById("debug") || document.body).appendChild(pre);
     throw new Error("missing webhook");
   }
+
+  /* ========== CONSTANTS / DOM ========== */
   const GH_PAGES_BASE = "https://soazcomms.github.io/";
-  const GH_RAW_BASE = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
-  const STATUS_URL = `${GH_RAW_BASE}status/status-${encodeURIComponent(label8)}.json`;
-  const STATUS_DIR    = "status";
-  const statusUrls  = [
-    `${GH_RAW_BASE}${STATUS_DIR}/status-${encodeURIComponent(safeShort(rawLabel))}.json`
-  ];
-  /* ========== DOM ========== */
+  const GH_RAW_BASE   = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
+  const STATUS_URL    = `${GH_RAW_BASE}status/status-${encodeURIComponent(label8)}.json`;
+
   const titleEl   = document.getElementById("title");
   const headerEl  = document.getElementById("header");
-  const statusEl = document.getElementById("status") || document.body;
+  const statusEl  = document.getElementById("status") || document.body;
   const bar       = document.getElementById("bar");
   const elapsedEl = document.getElementById("elapsed");
   const leftEl    = document.getElementById("timeoutLeft");
@@ -136,11 +134,10 @@ function closeTab(e){
 
   function setJS(x){ if(jsBadge) jsBadge.textContent = "JS: " + x; }
   function onlyDate(s){ if(!s) return s; if(s.includes(" ")) return s.split(" ")[0]; return s.split("T")[0]; }
-  function safeShort(lbl){ return (lbl||"").split("_")[0].replace(/[^\w.\-]/g,"_"); }
 
-  // Final HTML targets (never use index.html)
+  // Final HTML targets (never index.html)
   const FINAL_PGS = `https://soazcomms.github.io/analysis/${encodeURIComponent(label8)}/${encodeURIComponent(label8)}.analysis.html`;
-  const FINAL_RAW = `https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/analysis/${encodeURIComponent(label8)}/${encodeURIComponent(label8)}.analysis.html`;
+
   // Server-side logger (image beacon)
   function srvlog(msg, fields){
     try {
@@ -156,23 +153,22 @@ function closeTab(e){
         }
       }
       p.set("t", Date.now());
-      const i = new Image();
-      i.src = WEBHOOK_ORIG + "/log?" + p.toString();
+      (new Image()).src = WEBHOOK_ORIG + "/log?" + p.toString();
     } catch(_) {}
   }
 
   /* ========== BOOT UI ========== */
   setJS("starting");
-  document.title = "🔬 DSN Analysis V.26";
-  titleEl.textContent = "🔬 DSN Analysis V.26";
+  document.title = "🔬 DSN Analysis V.27";
+  titleEl.textContent = "🔬 DSN Analysis V.27";
   headerEl.textContent = "⏳ Initializing…";
 
   if (!rawLabel || !tsPat.test(fromTxt) || !tsPat.test(toTxt) || !wid) {
-      statusEl.innerHTML = "❌ Missing/invalid params. Expect 'YYYY-MM-DD HH:MM:SS'.";
-      const pre = document.createElement("pre");
-      pre.textContent = `label=${rawLabel}\nfrom=${fromTxt}\nto=${toTxt}\nwebhook_id=${wid}`;
-      (document.getElementById("debug") || document.body).appendChild(pre);
-      throw new Error("bad params"); // STOP here; do not attempt POST
+    statusEl.innerHTML = "❌ Missing/invalid params. Expect 'YYYY-MM-DD HH:MM:SS'.";
+    const pre = document.createElement("pre");
+    pre.textContent = `label=${rawLabel}\nfrom=${fromTxt}\nto=${toTxt}\nwebhook_id=${wid}`;
+    (document.getElementById("debug") || document.body).appendChild(pre);
+    throw new Error("bad params");
   }
   headerEl.textContent = `Site: ${rawLabel} · Range: ${onlyDate(fromTxt)} → ${onlyDate(toTxt)}`;
   setJS("alive");
@@ -181,23 +177,18 @@ function closeTab(e){
   /* ========== TIMERS ========== */
   const START = Date.now();
   const HARD_TIMEOUT_MS = 7*60*1000;
-  let timersActive = true;
-  let timedOut = false;
-  const mmss = (ms)=>{ const s=Math.max(0,Math.floor(ms/1000)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; };
+  function mmss(ms){ const s=Math.max(0,Math.floor(ms/1000)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
   function tickTime(){
     const t = Date.now() - START;
     elapsedEl.textContent = mmss(t);
     const left = Math.max(0, HARD_TIMEOUT_MS - t);
     leftEl.textContent = mmss(left);
     bar.style.width = Math.min(99, Math.floor((t/HARD_TIMEOUT_MS)*100)) + "%";
-    if (left===0 && !timedOut){ timedOut = true; bar.classList.add("timeout"); }
+    if (left===0){ bar.classList.add("timeout"); }
   }
-  const tIv = setInterval(tickTime, 1000); tickTime();
-  const pIv = setInterval(pollStatus, 1200);
-  function stopAllTimers(){ if (!timersActive) return; timersActive=false; clearInterval(tIv); clearInterval(pIv); }
-
-  setTimeout(()=>{
-    if (!timersActive) return;
+  elapsedTimer = setInterval(tickTime, 1000); tickTime();
+  pollTimer    = setInterval(pollStatus, 1200);
+  hardTimeout  = setTimeout(()=>{
     statusEl.innerHTML = "❌ Timed out waiting for analysis.";
     bar.style.width = "100%";
     srvlog("timeout", { elapsed_ms: (Date.now()-START) });
@@ -222,12 +213,11 @@ function closeTab(e){
     }
   })();
 
-  /* ========== START JOB (single POST, no preflight header) ========== */
+  /* ========== START JOB (single POST) ========== */
   let posted = false;
   async function startJobOnce(){
     if (posted) return; posted = true;
     const payload = { label: rawLabel, from: fromTxt, to: toTxt };
-    const bodyStr = JSON.stringify(payload);
     try{
       srvlog("post_send", { url: WEBHOOK_URL });
       const rt = await fetch(WEBHOOK_URL, {
@@ -236,19 +226,27 @@ function closeTab(e){
         credentials: "omit",
         cache: "no-store",
         headers: { "Content-Type": "application/json" },
-        body: bodyStr
+        body: JSON.stringify(payload)
       });
       srvlog("post_rc", { status: rt.status });
+      if (!rt.ok){
+        const txt = await rt.text().catch(()=>"(no body)");
+        statusEl.innerHTML = `❌ Job failed to start (HTTP ${rt.status}).`;
+        const pre = document.createElement("pre");
+        pre.textContent = txt;
+        (document.getElementById("debug") || document.body).appendChild(pre);
+        return;
+      }
       statusEl.textContent = "⏳ Running analysis…";
     }catch(e){
       const msg = (e && e.name === "AbortError") ? "timeout" : (e && e.message) ? e.message : String(e);
       statusEl.innerHTML = `❌ Could not reach webhook (${msg}).`;
       srvlog("post_err", { err: msg });
-      return; // stop; don’t poll when POST didn’t happen
+      return;
     }
   }
 
-  /* ========== STATUS POLLING (Pages) ========== */
+  /* ========== STATUS POLLING (RAW status, Pages HTML) ========== */
   function bust(u){ return u + (u.includes("?")?"&":"?") + "_cb=" + Date.now(); }
   async function headOK(url){
     try{
@@ -256,82 +254,86 @@ function closeTab(e){
       return r.ok;
     }catch{ return false; }
   }
+
   async function fetchNewest(){
-      try{
-          const url = bust(STATUS_URL);
-          const r = await fetch(bust(STATUS_URL), {cache: "no-store"});
-          if (!r.ok) {
-            const txt = await rt.text().catch(()=>"(no body)");
-            srvlog("status_rc", { rc: r.status, url });
-            srvlog("status_body", { body: txt.slice(0,256) });
-            return null;
-          }
-          return await r.json();
-       }catch(e){
-          srvlog("status_err", { err: String(e) });
-	  return null;
+    try{
+      const url = bust(STATUS_URL);
+      const r   = await fetch(url, { cache: "no-store" });
+      if (!r.ok) {
+        const txt = await r.text().catch(()=>"(no body)");
+        srvlog("status_rc",   { rc: r.status, url });
+        srvlog("status_body", { body: txt.slice(0,256) });
+        return null;
       }
+      return await r.json();
+    }catch(e){
+      srvlog("status_err", { err: String(e) });
+      return null;
+    }
   }
+
   async function pollStatus(){
-    if (DID_DONE) return;  // ignore any stray calls after finish  
+    if (DID_DONE) return;
+
     const data = await fetchNewest();
+
     // Fallback: if status is missing but the final page is already live, finish anyway
     if (!data){
-      const FINAL_PGS = `https://soazcomms.github.io/analysis/${encodeURIComponent(label8)}/${encodeURIComponent(label8)}.analysis.html`;
       if (await headOK(FINAL_PGS)){
         DID_DONE = true;
         stopAllTimers();
         bar.style.width = "100%";
-        const cb = Date.now();
         viewBtn.removeAttribute("disabled");
-        viewBtn.href = FINAL_PGS + "?_cb=" + cb;
+        viewBtn.href = FINAL_PGS + "?_cb=" + Date.now();
         statusEl.innerHTML = "✅ Analysis complete.";
-        const timersRow = document.getElementById("timersRow");
         if (timersRow) timersRow.style.display = "none";
       } else {
         statusEl.innerHTML = "⏳ Working…";
       }
       return;
     }
+
+    // log current phase
     srvlog("ui_phase", { phase: data.phase || "", status: data.status || "" });
+
     if (/error/i.test(data.phase || "")){
-	stopAllTimers();
-	statusEl.innerHTML = data.status || "❌ Failed.";
-	bar.style.width = "100%";
-	return;
+      stopAllTimers();
+      statusEl.innerHTML = data.status || "❌ Failed.";
+      bar.style.width = "100%";
+      return;
     }
-    // when status says publishing/done (server has pushed; Pages may lag)
+
+    // Publishing (server pushed; Pages may lag)
     if (/publishing/i.test(data.phase || "")) {
-	statusEl.innerHTML = "🚀 Publishing results…";
-	return; // keep polling; when Pages is live we'll fall through to 'done'
+      statusEl.innerHTML = "🚀 Publishing results…";
+      return; // keep polling; when Pages is live we'll fall through to 'done'
     }
+
     const isDone = (/done/i.test(data.phase||"")) || (/✅/u.test(data.status||""));
     if (!isDone){
       statusEl.innerHTML = data.status || "⏳ Running analysis…";
       return;
     }
+
     // DONE: only enable View when Pages has the HTML
-    if (!(await headOK(FINAL_PGS))){  // headOK helper, or omit and just set href
-	statusEl.innerHTML = "⏳ Waiting for GitHub Pages…";
-	return;
+    if (!(await headOK(FINAL_PGS))){
+      statusEl.innerHTML = "⏳ Waiting for GitHub Pages…";
+      return;
     }
 
-    // Pages is live: finish & enable View (never RAW)
-    DID_DONE = true;          // mark final  
+    DID_DONE = true;
     stopAllTimers();
     bar.style.width = "100%";
     viewBtn.removeAttribute("disabled");
     const cb = (data && data.timestamp) ? data.timestamp : Date.now();
-    viewBtn.href = FINAL_PGS + "?_cb=" + cb;  // bust CDN/browser cache  
+    viewBtn.href = FINAL_PGS + "?_cb=" + cb;  // bust CDN/browser cache
     statusEl.innerHTML = data.status || "✅ Analysis complete.";
     headerEl.textContent = headerEl.textContent + " — DONE";
-//    const timersRow = document.getElementById("timersRow");
-//    if (timersRow) timersRow.style.display = "none";
+    if (timersRow) timersRow.style.display = "none";
   }
 
   /* ========== GO ========== */
   startJobOnce();
-
 })();
 </script>
 </body>
