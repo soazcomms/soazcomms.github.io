@@ -46,7 +46,7 @@
   </style>
 </head>
 <body>
-  <h1 id="title">🔬 DSN Analysis V.23</h1>
+  <h1 id="title">🔬 DSN Analysis V.24</h1>
   <div id="header" class="muted">⏳ Initializing… <span id="jsBadge" class="badge">JS: starting</span></div>
   <div id="barwrap"><div id="bar"></div></div>
   <div class="row" id="timersRow">
@@ -61,6 +61,11 @@
 
 <script>
 let DID_DONE = false;      // global guard
+// Loudly surface any runtime error instead of silently stalling
+window.addEventListener("error", (e)=>{
+  const statusEl = document.getElementById("status") || document.body;
+  statusEl.innerHTML = "❌ JS error: " + (e && e.message ? e.message : String(e));
+});
 let pollTimer = null;      // if you use setInterval
 let timeoutTimer = null;   // your countdown timer, if any
 
@@ -102,7 +107,15 @@ function closeTab(e){
     WEBHOOK_URL = WEBHOOK_ORIG.endsWith("/DSN_trigger") ? WEBHOOK_ORIG
                   : WEBHOOK_ORIG + "/DSN_trigger";
   }
-
+  if (!WEBHOOK_ORIG || !WEBHOOK_URL) {
+    const statusEl = document.getElementById("status") || document.body;
+    statusEl.innerHTML = "❌ No webhook configured. Add &webhook_id=<ngrok-subdomain> or &webhook=<full URL>.";
+    // Show what we actually saw for quick debugging
+    const pre = document.createElement("pre");
+    pre.textContent = `wid='${wid}' userWebhook='${userWebhook}'\nWEBHOOK_ORIG='${WEBHOOK_ORIG}'\nWEBHOOK_URL='${WEBHOOK_URL}'`;
+    (document.getElementById("debug") || document.body).appendChild(pre);
+    throw new Error("missing webhook");
+  }
   const GH_PAGES_BASE = "https://soazcomms.github.io/";
   const GH_RAW_BASE = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
   const STATUS_URL = `${GH_RAW_BASE}status/status-${encodeURIComponent(label8)}.json`;
@@ -150,8 +163,8 @@ function closeTab(e){
 
   /* ========== BOOT UI ========== */
   setJS("starting");
-  document.title = "🔬 DSN Analysis V.23";
-  titleEl.textContent = "🔬 DSN Analysis V.23";
+  document.title = "🔬 DSN Analysis V.24";
+  titleEl.textContent = "🔬 DSN Analysis V.24";
   headerEl.textContent = "⏳ Initializing…";
 
   if (!rawLabel || !tsPat.test(fromTxt) || !tsPat.test(toTxt) || !wid) {
@@ -228,7 +241,10 @@ function closeTab(e){
       srvlog("post_rc", { status: rt.status });
       statusEl.textContent = "⏳ Running analysis…";
     }catch(e){
-      srvlog("post_err", { err: (e && e.message) ? e.message : String(e) });
+      const msg = (e && e.name === "AbortError") ? "timeout" : (e && e.message) ? e.message : String(e);
+      statusEl.innerHTML = `❌ Could not reach webhook (${msg}).`;
+      srvlog("post_err", { err: msg });
+      return; // stop; don’t poll when POST didn’t happen
     }
   }
 
@@ -245,8 +261,15 @@ function closeTab(e){
   async function fetchNewest(){
       try{
 	  const r = await fetch(bust(STATUS_URL), {cache: "no-store"});
-	  if (!r.ok) return null;
-	  return await r.json();
+          if (!rt.ok) {
+            const txt = await rt.text().catch(()=>"(no body)");
+            statusEl.innerHTML = `❌ Job failed to start (HTTP ${rt.status}).`;
+            const pre = document.createElement("pre");
+            pre.textContent = txt;
+            (document.getElementById("debug") || document.body).appendChild(pre);
+            return; // stop; don’t poll
+          }
+          return await r.json();
       }catch(_){
 	  return null;
       }
