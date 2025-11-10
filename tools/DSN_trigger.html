@@ -248,17 +248,6 @@ function closeTab(e){
     return found[0].data;
   }
 
-  function showDone(statusText, href){
-    stopAllTimers();
-    bar.style.width = "100%";
-    viewBtn.removeAttribute("disabled");
-    viewBtn.href = href;
-    statusEl.innerHTML = statusText || "✅ Analysis complete.";
-    headerEl.textContent = headerEl.textContent + " — DONE";
-    if (timersRow) timersRow.style.display = "none";
-    try { window.stop && window.stop(); } catch(_){}
-  }
-
   async function pollStatus(){
     const data = await fetchNewest();
     if (!data){ statusEl.innerHTML = "⏳ Generating plots…"; return; }
@@ -272,12 +261,6 @@ function closeTab(e){
     // when status says publishing/done (server has pushed; Pages may lag)
     if (/publishing/i.test(data.phase||"")) {
       statusEl.innerHTML = "🚀 Publishing results…";
-
-      // Try enabling View via RAW while Pages catches up
-      if (await headOK(FINAL_RAW)) {
-        viewBtn.removeAttribute("disabled");
-        viewBtn.href = FINAL_RAW;
-      }
       return; // keep polling; when Pages is live we'll fall through to 'done'
     }
 
@@ -286,13 +269,23 @@ function closeTab(e){
       statusEl.innerHTML = data.status || "⏳ Running analysis…";
       return;
     }
-    // Finished: prefer Pages; if not live yet, use RAW
-    let href = FINAL_PGS;
-    if (!(await headOK(FINAL_PGS))) {
-      if (await headOK(FINAL_RAW)) href = FINAL_RAW;
-      else { statusEl.innerHTML = "⏳ Waiting for GitHub Pages…"; return; }
+    // Prefer GitHub Pages; only enable View when Pages is actually live
+    const hrefPages = FINAL_PGS + (FINAL_PGS.includes("?") ? "&" : "?") + "_cb=" + Date.now();
+    if (!(await headOK(hrefPages))) {
+      statusEl.innerHTML = "⏳ Waiting for GitHub Pages…";
+      return; // keep polling until Pages is ready
     }
-    showDone(data.status || "✅ Analysis complete.", href);
+
+    // Pages is live: finish & enable View (never RAW)
+    stopAllTimers();
+    bar.style.width = "100%";
+    viewBtn.removeAttribute("disabled");
+    viewBtn.href = hrefPages;            // Pages URL only
+    statusEl.innerHTML = data.status || "✅ Analysis complete.";
+    headerEl.textContent = headerEl.textContent + " — DONE";
+    const timersRow = document.getElementById("timersRow");
+    if (timersRow) timersRow.style.display = "none";
+    return;
   }
 
   /* ========== GO ========== */
