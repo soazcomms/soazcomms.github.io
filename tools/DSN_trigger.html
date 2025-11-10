@@ -46,7 +46,7 @@
   </style>
 </head>
 <body>
-  <h1 id="title">🔬 DSN Analysis V.20</h1>
+  <h1 id="title">🔬 DSN Analysis V.21</h1>
   <div id="header" class="muted">⏳ Initializing… <span id="jsBadge" class="badge">JS: starting</span></div>
   <div id="barwrap"><div id="bar"></div></div>
   <div class="row" id="timersRow">
@@ -72,15 +72,21 @@ function closeTab(e){
   /* ========== PARAMS ========== */
   const qs = new URLSearchParams(location.search || "");
   const rawLabel = (qs.get("label") || "").trim();
+  const label8 = safeShort(rawLabel).slice(0, 8);
   const fromTxt  = (qs.get("from")  || "").trim();
   const toTxt    = (qs.get("to")    || "").trim();
+  const wid   = (qs.get("webhook_id") || "").trim();
+  const tsPat    = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+  // send a beacon to server log immediately to see params in logs/debug.log
+  (new Image()).src =
+  `/log?msg=params&label=${encodeURIComponent(label8)}&lab=${encodeURIComponent(rawLabel)}&from=${encodeURIComponent(fromTxt)}&to=${encodeURIComponent(toTxt)}&wid=${encodeURIComponent(wid)}`;
+
   const userWebhook = (qs.get("webhook") || "").trim().replace(/\/+$/,"");
-  const webhookId   = (qs.get("webhook_id") || "").trim();
 
   // Build base webhook origin
   let WEBHOOK_ORIG = "";
   if (userWebhook) WEBHOOK_ORIG = userWebhook;
-  else if (webhookId) WEBHOOK_ORIG = `https://${webhookId}.ngrok-free.app`;
+  else if (wid) WEBHOOK_ORIG = `https://${wid}.ngrok-free.app`;
 
   // Build actual trigger endpoint (avoid double-append)
   let WEBHOOK_URL = "";
@@ -91,7 +97,7 @@ function closeTab(e){
 
   const GH_PAGES_BASE = "https://soazcomms.github.io/";
   const GH_RAW_BASE = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
-  const STATUS_URL = `${RAW_BASE}status/status-${encodeURIComponent(label8)}.json`;
+  const STATUS_URL = `${GH_RAW_BASE}status/status-${encodeURIComponent(label8)}.json`;
   const STATUS_DIR    = "status";
   const statusUrls  = [
     `${GH_RAW_BASE}${STATUS_DIR}/status-${encodeURIComponent(safeShort(rawLabel))}.json`
@@ -99,7 +105,7 @@ function closeTab(e){
   /* ========== DOM ========== */
   const titleEl   = document.getElementById("title");
   const headerEl  = document.getElementById("header");
-  const statusEl  = document.getElementById("status");
+  const statusEl = document.getElementById("status") || document.body;
   const bar       = document.getElementById("bar");
   const elapsedEl = document.getElementById("elapsed");
   const leftEl    = document.getElementById("timeoutLeft");
@@ -112,7 +118,6 @@ function closeTab(e){
   function safeShort(lbl){ return (lbl||"").split("_")[0].replace(/[^\w.\-]/g,"_"); }
 
   // Final HTML targets (never use index.html)
-  const label8 = safeShort(rawLabel).slice(0, 8);
   const FINAL_PGS = `https://soazcomms.github.io/analysis/${encodeURIComponent(label8)}/${encodeURIComponent(label8)}.analysis.html`;
 
   const FINAL_RAW = `https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/analysis/${encodeURIComponent(label8)}/${encodeURIComponent(label8)}.analysis.html`;
@@ -138,17 +143,17 @@ function closeTab(e){
 
   /* ========== BOOT UI ========== */
   setJS("starting");
-  document.title = "🔬 DSN Analysis V.20";
-  titleEl.textContent = "🔬 DSN Analysis V.20";
+  document.title = "🔬 DSN Analysis V.21";
+  titleEl.textContent = "🔬 DSN Analysis V.21";
   headerEl.textContent = "⏳ Initializing…";
 
-  if (!rawLabel || !fromTxt || !toTxt || !WEBHOOK_URL) {
-    statusEl.innerHTML = "❌ Missing label/from/to/webhook.";
-    setJS("params-missing");
-    srvlog("fatal_params_missing", { label: rawLabel, from: fromTxt, to: toTxt, webhook_set: !!WEBHOOK_URL });
-    return;
+  if (!rawLabel || !tsPat.test(fromTxt) || !tsPat.test(toTxt) || !wid) {
+      statusEl.innerHTML = "❌ Missing/invalid params. Expect 'YYYY-MM-DD HH:MM:SS'.";
+      const pre = document.createElement("pre");
+      pre.textContent = `label=${rawLabel}\nfrom=${fromTxt}\nto=${toTxt}\nwebhook_id=${wid}`;
+      (document.getElementById("debug") || document.body).appendChild(pre);
+      throw new Error("bad params"); // STOP here; do not attempt POST
   }
-
   headerEl.textContent = `Site: ${rawLabel} · Range: ${onlyDate(fromTxt)} → ${onlyDate(toTxt)}`;
   setJS("alive");
   srvlog("boot", { href: location.href });
@@ -210,6 +215,7 @@ function closeTab(e){
         mode: "cors",
         credentials: "omit",
         cache: "no-store",
+        headers: { "Content-Type": "application/json" },
         body: bodyStr
       });
       srvlog("post_rc", { status: rt.status });
