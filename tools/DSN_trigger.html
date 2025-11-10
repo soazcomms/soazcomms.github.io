@@ -91,6 +91,7 @@ function closeTab(e){
 
   const GH_PAGES_BASE = "https://soazcomms.github.io/";
   const GH_RAW_BASE = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
+  const STATUS_URL = `${RAW_BASE}status/status-${encodeURIComponent(label8)}.json`;
   const STATUS_DIR    = "status";
   const statusUrls  = [
     `${GH_RAW_BASE}${STATUS_DIR}/status-${encodeURIComponent(safeShort(rawLabel))}.json`
@@ -111,8 +112,9 @@ function closeTab(e){
   function safeShort(lbl){ return (lbl||"").split("_")[0].replace(/[^\w.\-]/g,"_"); }
 
   // Final HTML targets (never use index.html)
-  const label8 = safeShort(rawLabel);
+  const label8 = safeShort(rawLabel).slice(0, 8);
   const FINAL_PGS = `https://soazcomms.github.io/analysis/${encodeURIComponent(label8)}/${encodeURIComponent(label8)}.analysis.html`;
+
   const FINAL_RAW = `https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/analysis/${encodeURIComponent(label8)}/${encodeURIComponent(label8)}.analysis.html`;
   // Server-side logger (image beacon)
   function srvlog(msg, fields){
@@ -218,7 +220,7 @@ function closeTab(e){
   }
 
   /* ========== STATUS POLLING (Pages) ========== */
-  function bust(u){ return u + (u.includes("?")?"&":"?") + "bust=" + Date.now(); }
+  function bust(u){ return u + (u.includes("?")?"&":"?") + "_cb=" + Date.now(); }
   async function headOK(url){
     try{
       let r = await fetch(bust(url), { method:"HEAD", cache:"no-store" });
@@ -228,64 +230,53 @@ function closeTab(e){
     }catch(_){ return false; }
   }
   async function fetchNewest(){
-    const found = [];
-    for (const u of statusUrls){
       try{
-        srvlog("poll_req", { url: u });
-        const r = await fetch(bust(u), {cache:"no-store"});
-        srvlog("poll_rc", { url: u, status: r.status });
-        if (!r.ok) continue;
-        const j = await r.json();
-        srvlog("poll_json", { url: u, phase: j && j.phase, status: j && j.status });
-        const ts = Number(j.timestamp)||0;
-        found.push({data:j, ts});
-      }catch(e){
-        srvlog("poll_err", { url: u, err: (e && e.message) ? e.message : String(e) });
+	  const r = await fetch(bust(STATUS_URL), {cache: "no-store"});
+	  if (!r.ok) return null;
+	  return await r.json();
+      }catch(_){
+	  return null;
       }
-    }
-    if (!found.length) return null;
-    found.sort((a,b)=> b.ts - a.ts);
-    return found[0].data;
   }
-
   async function pollStatus(){
     const data = await fetchNewest();
-    if (!data){ statusEl.innerHTML = "⏳ Generating plots…"; return; }
+    srvlog("ui_phase", { phase: data.phase || "", status: data.status || "" });
+    if (!data){
+	statusEl.innerHTML = "⏳ Working…";
+	return;
+    }
 
-    if ((data.phase && /error/i.test(data.phase)) || (data.status && /^❌/.test(data.status))){
-      stopAllTimers();
-      statusEl.innerHTML = data.status || "❌ Analysis failed.";
-      bar.style.width = "100%";
-      return;
+    if (/error/i.test(data.phase || "")){
+	stopAllTimers();
+	statusEl.innerHTML = data.status || "❌ Failed.";
+	bar.style.width = "100%";
+	return;
     }
     // when status says publishing/done (server has pushed; Pages may lag)
-    if (/publishing/i.test(data.phase||"")) {
-      statusEl.innerHTML = "🚀 Publishing results…";
-      return; // keep polling; when Pages is live we'll fall through to 'done'
+    if (/publishing/i.test(data.phase || "")) {
+	statusEl.innerHTML = "🚀 Publishing results…";
+	return; // keep polling; when Pages is live we'll fall through to 'done'
     }
-
     const isDone = (/done/i.test(data.phase||"")) || (/✅/u.test(data.status||""));
     if (!isDone){
       statusEl.innerHTML = data.status || "⏳ Running analysis…";
       return;
     }
-    // Prefer GitHub Pages; only enable View when Pages is actually live
-    const hrefPages = FINAL_PGS + (FINAL_PGS.includes("?") ? "&" : "?") + "_cb=" + Date.now();
-    if (!(await headOK(hrefPages))) {
-      statusEl.innerHTML = "⏳ Waiting for GitHub Pages…";
-      return; // keep polling until Pages is ready
+    // DONE: only enable View when Pages has the HTML
+    if (!(await headOK(FINAL_PGS))){  // headOK helper, or omit and just set href
+	statusEl.innerHTML = "⏳ Waiting for GitHub Pages…";
+	return;
     }
 
     // Pages is live: finish & enable View (never RAW)
     stopAllTimers();
     bar.style.width = "100%";
     viewBtn.removeAttribute("disabled");
-    viewBtn.href = hrefPages;            // Pages URL only
+    viewBtn.href = FINAL_PGS;            // Pages URL only
     statusEl.innerHTML = data.status || "✅ Analysis complete.";
     headerEl.textContent = headerEl.textContent + " — DONE";
     const timersRow = document.getElementById("timersRow");
     if (timersRow) timersRow.style.display = "none";
-    return;
   }
 
   /* ========== GO ========== */
