@@ -46,7 +46,7 @@
   </style>
 </head>
 <body>
-  <h1 id="title">🔬 DSN Analysis V.21</h1>
+  <h1 id="title">🔬 DSN Analysis V.22</h1>
   <div id="header" class="muted">⏳ Initializing… <span id="jsBadge" class="badge">JS: starting</span></div>
   <div id="barwrap"><div id="bar"></div></div>
   <div class="row" id="timersRow">
@@ -60,6 +60,14 @@
   </div>
 
 <script>
+let DID_DONE = false;      // global guard
+let pollTimer = null;      // if you use setInterval
+let timeoutTimer = null;   // your countdown timer, if any
+
+function stopAllTimers(){
+  if (pollTimer){ clearInterval(pollTimer); pollTimer = null; }
+  if (timeoutTimer){ clearInterval(timeoutTimer); timeoutTimer = null; }
+}
 function closeTab(e){
   if (e) e.preventDefault();
   try { window.close(); return false; } catch (_) {}
@@ -119,7 +127,10 @@ function closeTab(e){
 
   // Final HTML targets (never use index.html)
   const FINAL_PGS = `https://soazcomms.github.io/analysis/${encodeURIComponent(label8)}/${encodeURIComponent(label8)}.analysis.html`;
-
+  // Use status JSON timestamp as a cache-buster:
+  const cb = (data && data.timestamp) ? data.timestamp : Date.now();
+  viewBtn.removeAttribute("disabled");
+  viewBtn.href = FINAL_PGS + "?_cb=" + cb;
   const FINAL_RAW = `https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/analysis/${encodeURIComponent(label8)}/${encodeURIComponent(label8)}.analysis.html`;
   // Server-side logger (image beacon)
   function srvlog(msg, fields){
@@ -143,8 +154,8 @@ function closeTab(e){
 
   /* ========== BOOT UI ========== */
   setJS("starting");
-  document.title = "🔬 DSN Analysis V.21";
-  titleEl.textContent = "🔬 DSN Analysis V.21";
+  document.title = "🔬 DSN Analysis V.22";
+  titleEl.textContent = "🔬 DSN Analysis V.22";
   headerEl.textContent = "⏳ Initializing…";
 
   if (!rawLabel || !tsPat.test(fromTxt) || !tsPat.test(toTxt) || !wid) {
@@ -245,6 +256,7 @@ function closeTab(e){
       }
   }
   async function pollStatus(){
+    if (DID_DONE) return;  // ignore any stray calls after finish  
     const data = await fetchNewest();
     srvlog("ui_phase", { phase: data.phase || "", status: data.status || "" });
     if (!data){
@@ -275,14 +287,15 @@ function closeTab(e){
     }
 
     // Pages is live: finish & enable View (never RAW)
+    DID_DONE = true;          // mark final  
     stopAllTimers();
     bar.style.width = "100%";
     viewBtn.removeAttribute("disabled");
     viewBtn.href = FINAL_PGS;            // Pages URL only
     statusEl.innerHTML = data.status || "✅ Analysis complete.";
     headerEl.textContent = headerEl.textContent + " — DONE";
-    const timersRow = document.getElementById("timersRow");
-    if (timersRow) timersRow.style.display = "none";
+//    const timersRow = document.getElementById("timersRow");
+//    if (timersRow) timersRow.style.display = "none";
   }
 
   /* ========== GO ========== */
