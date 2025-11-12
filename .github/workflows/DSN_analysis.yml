@@ -124,7 +124,7 @@ jobs:
           cp -f tools/DSN_endpoint.html "analysis/${LABEL8}/index.html"
           echo "Endpoint ready at analysis/${LABEL8}/index.html"
 
-      - name: Write status: publishing and push artifacts
+      - name: "Write status: publishing and push artifacts"
         run: |
           FINAL_REL="analysis/${{ steps.derive.outputs.LABEL8 }}/${{ steps.derive.outputs.LABEL8 }}.analysis.html"
           test -f "${FINAL_REL}" || { echo "Missing ${FINAL_REL}"; exit 1; }
@@ -152,7 +152,7 @@ jobs:
             echo "WARNING: Pages not ready within timeout (will still flip status to done)"
           fi
 
-      - name: Write status: done (status-only push)
+      - name: "Write status: done (status-only push)"
         run: |
           FINAL_REL="analysis/${{ steps.derive.outputs.LABEL8 }}/${{ steps.derive.outputs.LABEL8 }}.analysis.html"
           cat > status/status-${{ steps.derive.outputs.LABEL8 }}.json <<EOF
