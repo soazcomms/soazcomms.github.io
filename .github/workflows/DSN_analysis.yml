@@ -61,7 +61,11 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt || true; fi
 
+<<<<<<< Updated upstream
       - name: Write status: running
+=======
+      - name: "Write status: running"
+>>>>>>> Stashed changes
         run: |
           set -e
           mkdir -p status analysis/${{ steps.derive.outputs.LABEL8 }}
