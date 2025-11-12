@@ -23,11 +23,14 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  analyze:
+  dsn:
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
     env:
+      # Influx config used by both CSV + Analysis scripts
+      INFLUX_URL:   https://us-east-1-1.aws.cloud2.influxdata.com
+      INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
       LABEL: ${{ github.event.inputs.label }}
       FROM:  ${{ github.event.inputs.from }}
       TO:    ${{ github.event.inputs.to }}
@@ -60,7 +63,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt || true; fi
-
       - name: "Write status: running"
         run: |
           set -e
@@ -77,20 +79,16 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Inputs from workflow_dispatch
           LABEL="${{ github.event.inputs.label }}"
           FROM="${{ github.event.inputs.from }}"
           TO="${{ github.event.inputs.to }}"
 
-          # Short form DSN019-S
           LABEL8="${LABEL%%_*}"
           LABEL8="${LABEL8:0:8}"
 
-          # Derived YYYYMMDD pieces
           FROMD="${{ steps.derive.outputs.FROMD }}"
           TOD="${{ steps.derive.outputs.TOD }}"
 
-          # Paths
           OUTDIR="analysis/${LABEL8}"
           CSV="${OUTDIR}/${LABEL}_${FROMD}_${TOD}.csv"
 
@@ -103,27 +101,27 @@ jobs:
           echo "OUTDIR=${OUTDIR}"
           echo "CSV=${CSV}"
           echo "GITHUB_WORKSPACE=${GITHUB_WORKSPACE}"
+          echo "INFLUX_URL=${INFLUX_URL}"
 
-          # Determine if we need a new CSV
           need_csv=1
           if [ -f "${CSV}" ] && [ -s "${CSV}" ]; then
             echo "Reusing existing ${CSV}"
             need_csv=0
           fi
 
-          # Create CSV if needed
           if [ $need_csv -eq 1 ]; then
             echo "Generating CSV -> ${CSV}"
             mkdir -p "${OUTDIR}"
 
-            # Run python safely so errors don’t get swallowed
             set +e
             python DSN_generate_csv.py \
-              --label     "${LABEL}" \
-              --from      "${FROM}" \
-              --to        "${TO}" \
-              --site-repo "${GITHUB_WORKSPACE}" \
-              --out       "${CSV}" \
+              --label        "${LABEL}" \
+              --from         "${FROM}" \
+              --to           "${TO}" \
+              --site-repo    "${GITHUB_WORKSPACE}" \
+              --influx-url   "${INFLUX_URL}" \
+              --influx-token "${INFLUX_TOKEN}" \
+              --out          "${CSV}" \
               > /tmp/dsn_csv.log 2>&1
             rc=$?
             set -e
@@ -144,11 +142,25 @@ jobs:
             fi
           fi
 
-      - name: Run analysis (produces ${LABEL8}.analysis.html + panels)
+      - name: Run analysis (produces HTML and panels)
+        shell: bash
         run: |
+          set -euo pipefail
+          LABEL="${{ github.event.inputs.label }}"
+          FROM="${{ github.event.inputs.from }}"
+          TO="${{ github.event.inputs.to }}"
+
+          LABEL8="${LABEL%%_*}"
+          LABEL8="${LABEL8:0:8}"
+
           python DSN_generate_analysis.py \
-            --label "${LABEL}" --from "${FROM}" --to "${TO}" \
-            --input_dir "analysis/${{ steps.derive.outputs.LABEL8 }}"
+            --label     "${LABEL}" \
+            --from      "${FROM}" \
+            --to        "${TO}" \
+            --input_dir "analysis/${LABEL8}"
+
+          echo "Listing outputs:"
+          ls -l "analysis/${LABEL8}"
 
       - name: Install endpoint HTML (per-label landing page)
         shell: bash
