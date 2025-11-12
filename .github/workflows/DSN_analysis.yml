@@ -72,43 +72,76 @@ jobs:
           git -c user.name="actions" -c user.email="actions@users.noreply.github.com" commit -m "[status] ${{ steps.derive.outputs.LABEL8 }} running" || true
           git push origin HEAD:main
 
-      - name: Clean non-CSV outputs for this label8
-        run: |
-          shopt -s nullglob
-          for f in analysis/${{ steps.derive.outputs.LABEL8 }}/*; do
-            case "$f" in
-              *.csv) : ;;
-              *) rm -f "$f" ;;
-            esac
-          done
-
       - name: Ensure CSV exists (recreate if missing or wrong range)
         shell: bash
         run: |
           set -euo pipefail
-          LABEL8="${{ steps.derive.outputs.LABEL8 }}"
+
+          # Inputs from workflow_dispatch
+          LABEL="${{ github.event.inputs.label }}"
           FROM="${{ github.event.inputs.from }}"
           TO="${{ github.event.inputs.to }}"
+
+          # Short form DSN019-S
+          LABEL8="${LABEL%%_*}"
+          LABEL8="${LABEL8:0:8}"
+
+          # Derived YYYYMMDD pieces
           FROMD="${{ steps.derive.outputs.FROMD }}"
           TOD="${{ steps.derive.outputs.TOD }}"
+
+          # Paths
           OUTDIR="analysis/${LABEL8}"
           CSV="${OUTDIR}/${LABEL}_${FROMD}_${TOD}.csv"
 
+          echo "LABEL=${LABEL}"
+          echo "FROM=${FROM}"
+          echo "TO=${TO}"
+          echo "LABEL8=${LABEL8}"
+          echo "FROMD=${FROMD}"
+          echo "TOD=${TOD}"
+          echo "OUTDIR=${OUTDIR}"
+          echo "CSV=${CSV}"
+          echo "GITHUB_WORKSPACE=${GITHUB_WORKSPACE}"
+
+          # Determine if we need a new CSV
           need_csv=1
           if [ -f "${CSV}" ] && [ -s "${CSV}" ]; then
             echo "Reusing existing ${CSV}"
             need_csv=0
           fi
 
+          # Create CSV if needed
           if [ $need_csv -eq 1 ]; then
             echo "Generating CSV -> ${CSV}"
             mkdir -p "${OUTDIR}"
-            # Your script supports a CSV-only mode per our earlier work
-            python DSN_generate_csv.py \
-              --label "${LABEL}" --from "${FROM}" --to "${TO}" \
-              --site-repo "$GITHUB_WORKSPACE" \
-              --out "${CSV}" 
-            test -s "${CSV}" || { echo "CSV generation failed"; exit 1; }
+
+            # Run python safely so errors don’t get swallowed
+            set +e
+            python .github/DSN_generate_csv.py \
+              --label     "${LABEL}" \
+              --from      "${FROM}" \
+              --to        "${TO}" \
+              --site-repo "${GITHUB_WORKSPACE}" \
+              --out       "${CSV}" \
+              > /tmp/dsn_csv.log 2>&1
+            rc=$?
+            set -e
+
+            echo "DSN_generate_csv.py exit code: $rc"
+            echo "------ /tmp/dsn_csv.log ------"
+            cat /tmp/dsn_csv.log || echo "(no log output)"
+            echo "------------------------------"
+
+            if [ $rc -ne 0 ]; then
+              echo "❌ DSN_generate_csv.py failed; see log above."
+              exit $rc
+            fi
+
+            if [ ! -s "${CSV}" ]; then
+              echo "❌ CSV generation failed: file is empty or missing"
+              exit 1
+            fi
           fi
 
       - name: Run analysis (produces ${LABEL8}.analysis.html + panels)
