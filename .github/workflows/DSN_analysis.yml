@@ -87,6 +87,8 @@ jobs:
         run: |
           set -euo pipefail
           LABEL8="${{ steps.derive.outputs.LABEL8 }}"
+          FROM="${{ github.event.inputs.from }}"
+          TO="${{ github.event.inputs.to }}"
           FROMD="${{ steps.derive.outputs.FROMD }}"
           TOD="${{ steps.derive.outputs.TOD }}"
           OUTDIR="analysis/${LABEL8}"
@@ -104,6 +106,7 @@ jobs:
             # Your script supports a CSV-only mode per our earlier work
             python DSN_generate_csv.py \
               --label "${LABEL}" --from "${FROM}" --to "${TO}" \
+              --site-repo "$GITHUB_WORKSPACE" \
               --out "${CSV}" 
             test -s "${CSV}" || { echo "CSV generation failed"; exit 1; }
           fi
