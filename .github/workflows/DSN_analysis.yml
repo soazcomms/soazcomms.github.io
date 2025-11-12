@@ -102,15 +102,15 @@ jobs:
             echo "Generating CSV -> ${CSV}"
             mkdir -p "${OUTDIR}"
             # Your script supports a CSV-only mode per our earlier work
-            python DSN_generate_analysis.py \
+            python .github/DSN_generate_csv.py \
               --label "${LABEL}" --from "${FROM}" --to "${TO}" \
-              --csv-only --output "${CSV}"
+              --out "${CSV}" 
             test -s "${CSV}" || { echo "CSV generation failed"; exit 1; }
           fi
 
       - name: Run analysis (produces ${LABEL8}.analysis.html + panels)
         run: |
-          python DSN_generate_analysis.py \
+          python .github/DSN_generate_analysis.py \
             --label "${LABEL}" --from "${FROM}" --to "${TO}" \
             --input_dir "analysis/${{ steps.derive.outputs.LABEL8 }}"
 
