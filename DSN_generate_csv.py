@@ -211,10 +211,11 @@ def parse_args():
     ap.add_argument("--out", dest="out")  # optional explicit output under site repo
 
     # NEW: allow explicit Influx creds via CLI (env fallback below)
-    ap.add_argument("--influx-url", dest="influx_url")
+    ap.add_argument("--influx-url", dest="influx_url",
+                    default="https://us-east-1-1.aws.cloud2.influxdata.com")
     ap.add_argument("--influx-token", dest="influx_token")
-    ap.add_argument("--influx-org", dest="influx_org", default=None)
-    ap.add_argument("--influx-bucket", dest="influx_bucket", default=None)
+    ap.add_argument("--influx-org", dest="influx_org", default="DSN")
+    ap.add_argument("--influx-bucket", dest="influx_bucket", default="DSNdata")
 
     # legacy inputs (kept for compatibility; not used if Influx is set)
     ap.add_argument("--source")
