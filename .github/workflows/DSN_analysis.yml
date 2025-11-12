@@ -118,7 +118,7 @@ jobs:
 
             # Run python safely so errors don’t get swallowed
             set +e
-            python .github/DSN_generate_csv.py \
+            python DSN_generate_csv.py \
               --label     "${LABEL}" \
               --from      "${FROM}" \
               --to        "${TO}" \
