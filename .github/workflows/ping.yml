@@ -1,0 +1,11 @@
+name: Ping
+on:
+  workflow_dispatch:
+    inputs:
+      msg:
+        required: false
+jobs:
+  ok:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo PONG
