@@ -76,6 +76,9 @@ jobs:
         run: |
           set -euo pipefail
 
+          FROMD="${{ steps.derive.outputs.FROMD }}"
+          TOD="${{ steps.derive.outputs.TOD }}"
+
           OUTDIR="analysis/${LABEL}"
           CSV="${OUTDIR}/${LABEL}_${FROMD}_${TOD}.csv"
 
