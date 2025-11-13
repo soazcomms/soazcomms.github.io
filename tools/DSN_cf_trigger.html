@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>DSN Analysis – Cloudflare</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #05060a;
+      color: #eee;
+      margin: 0;
+      padding: 1rem 1.5rem;
+    }
+    h1 {
+      font-size: 1.3rem;
+      margin: 0 0 0.25rem 0;
+    }
+    #sub {
+      font-size: 0.95rem;
+      margin-bottom: 0.75rem;
+      color: #bbb;
+    }
+    .bar-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin: 0.5rem 0 0.25rem 0;
+    }
+    .bar {
+      flex: 0 0 50%;
+      height: 0.35rem;
+      border-radius: 999px;
+      background: #222;
+      overflow: hidden;
+    }
+    .bar-inner {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, #2dd, #4a7cff);
+      animation: pulse 1.2s ease-in-out infinite alternate;
+    }
+    @keyframes pulse {
+      from { transform: translateX(-20%); opacity: 0.5; }
+      to   { transform: translateX(0);    opacity: 1;   }
+    }
+    #timerRow {
+      font-size: 0.8rem;
+      color: #aaa;
+      margin-bottom: 0.5rem;
+    }
+    #status {
+      margin: 0.5rem 0 0.75rem 0;
+      font-size: 0.95rem;
+    }
+    .btn-row {
+      margin-top: 0.25rem;
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-block;
+      padding: 0.35rem 0.7rem;
+      border-radius: 999px;
+      border: 1px solid #555;
+      background: #14151c;
+      color: #eee;
+      font-size: 0.85rem;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .btn[disabled] {
+      opacity: 0.45;
+      cursor: default;
+      pointer-events: none;
+    }
+    .btn-primary {
+      border-color: #2dd;
+    }
+    .ok {
+      color: #7CFC00;
+    }
+    .err {
+      color: #ff6b6b;
+    }
+    #debug {
+      margin-top: 0.75rem;
+      font-size: 0.75rem;
+      color: #777;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔬 DSN Analysis – Cloudflare</h1>
+  <div id="sub"></div>
+
+  <div class="bar-wrap" id="barRow">
+    <div class="bar"><div class="bar-inner" id="barInner"></div></div>
+  </div>
+  <div id="timerRow">⏱ <span id="timer">0:00</span> · Timeout in 7:00</div>
+
+  <div id="status">⏳ Initializing…</div>
+
+  <div class="btn-row">
+    <a id="viewBtn" class="btn btn-primary" href="#" target="_blank" disabled>📄 View Analysis Result</a>
+    <button id="exitBtn" class="btn">🔙 Exit</button>
+  </div>
+
+  <div id="debug"></div>
+
+<script>
+(function(){
+
+  const WORKER_URL = "https://dsn-analysis/dsn-analysis.soazcomms.workers.dev/";
+
+  const GH_RAW_BASE = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
+
+  const qs        = new URLSearchParams(location.search || "");
+  const rawLabel  = (qs.get("label") || "").trim();
+  const fromTxt   = (qs.get("from")  || "").trim();
+  const toTxt     = (qs.get("to")    || "").trim();
+  const cb        = (qs.get("_cb")   || "") || String(Date.now());
+
+  const subEl     = document.getElementById("sub");
+  const statusEl  = document.getElementById("status");
+  const timerEl   = document.getElementById("timer");
+  const timerRow  = document.getElementById("timerRow");
+  const viewBtn   = document.getElementById("viewBtn");
+  const exitBtn   = document.getElementById("exitBtn");
+  const debugEl   = document.getElementById("debug");
+  const barRow    = document.getElementById("barRow");
+
+  let startedAt   = Date.now();
+  let timers      = [];
+  let posted      = false;
+
+  function srvlog(msg, extra) {
+    const t = new Date().toISOString().replace("T"," ").replace("Z","");
+    const line = `[JS ${t}] ${msg}` + (extra ? " " + JSON.stringify(extra) : "");
+    console.log(line);
+    if (debugEl) debugEl.textContent = line;
+  }
+
+  function stopAllTimers(){
+    timers.forEach(id => clearInterval(id));
+    timers = [];
+  }
+
+  function bust(url){
+    const u = new URL(url);
+    u.searchParams.set("_cb", String(Date.now()));
+    return u.toString();
+  }
+
+  // derive final URLs (we assume DSN_analysis.yml writes:
+  //   analysis/<LABEL>/<LABEL>.analysis.html
+  //   analysis/<LABEL>/index.html (DSN_endpoint)
+  const FINAL_HTML   = `https://soazcomms.github.io/analysis/${encodeURIComponent(rawLabel)}/${encodeURIComponent(rawLabel)}.analysis.html`;
+  const ENDPOINT_URL = `https://soazcomms.github.io/analysis/${encodeURIComponent(rawLabel)}/`;
+  const STATUS_URL   = `${GH_RAW_BASE}status/status-${encodeURIComponent(rawLabel)}.json`;
+
+  // ---- basic validation ----
+  if (!rawLabel || !fromTxt || !toTxt) {
+    statusEl.innerHTML = '<span class="err">❌ Missing label/from/to.</span>';
+    subEl.textContent  = "No job parameters provided.";
+    if (barRow) barRow.style.display = "none";
+    if (timerRow) timerRow.style.display = "none";
+    viewBtn.setAttribute("disabled", "disabled");
+    return;
+  }
+
+  subEl.textContent = `Site: ${rawLabel} · Range: ${fromTxt.split(" ")[0]} → ${toTxt.split(" ")[0]}`;
+
+  // ---- timer display ----
+  timers.push(setInterval(() => {
+    const dt   = Math.floor((Date.now() - startedAt) / 1000);
+    const m    = Math.floor(dt / 60);
+    const s    = dt % 60;
+    if (timerEl) timerEl.textContent = `${m}:${s.toString().padStart(2,"0")}`;
+  }, 1000));
+
+  // ---- EXIT button ----
+  exitBtn.addEventListener("click", () => {
+    try {
+      window.close();
+    } catch(e) {}
+    // fallback: navigate away
+    window.location.href = "about:blank";
+  });
+
+  // ---- status polling ----
+  async function fetchStatusJSON(){
+    try {
+      const url = bust(STATUS_URL);
+      const r   = await fetch(url, { cache: "no-store" });
+      if (!r.ok) {
+        if (r.status === 404) return null; // not written yet
+        srvlog("status_fetch_error", { code: r.status });
+        return null;
+      }
+      return await r.json();
+    } catch(e) {
+      srvlog("status_fetch_exception", { error: String(e) });
+      return null;
+    }
+  }
+
+  function showDone(msg){
+    if (barRow) barRow.style.display = "none";
+    if (timerRow) timerRow.style.display = "none";
+    statusEl.innerHTML = `<span class="ok">${msg || "✅ Analysis complete."}</span>`;
+    stopAllTimers();
+  }
+
+  async function pollLoop(){
+    while (true) {
+      const data = await fetchStatusJSON();
+      if (!data) {
+        statusEl.textContent = "⏳ Waiting for status from GitHub Actions…";
+        await new Promise(r => setTimeout(r, 5000));
+        continue;
+      }
+
+      const phase  = (data.phase  || "").toLowerCase();
+      const status = data.status || "";
+
+      if (/error/.test(phase) || /error/i.test(status)) {
+        statusEl.innerHTML = `<span class="err">❌ ${status || "Error"}</span>`;
+        stopAllTimers();
+        return;
+      }
+
+      if (phase === "running" || phase === "csv_only" || phase === "analysis") {
+        statusEl.textContent = status || "⏳ Running analysis…";
+      } else if (phase === "publishing") {
+        statusEl.textContent = status || "🚀 Publishing results…";
+      } else if (phase === "done") {
+        // Status JSON should contain final HTML path, but we fall back to ENDPOINT_URL
+        const rel = data.html || `analysis/${rawLabel}/${rawLabel}.analysis.html`;
+        const href = `https://soazcomms.github.io/${rel.replace(/^\/+/,"")}`;
+        viewBtn.removeAttribute("disabled");
+        viewBtn.href = ENDPOINT_URL;  // go to endpoint, which loads the analysis
+        showDone(status || `✅ Analysis complete for ${rawLabel}`);
+        return;
+      }
+
+      await new Promise(r => setTimeout(r, 5000));
+    }
+  }
+
+  // ---- start job via Cloudflare worker ----
+  async function startJob(){
+    if (!WORKER_URL) {
+      statusEl.innerHTML = '<span class="err">❌ Worker URL not configured.</span>';
+      return;
+    }
+    if (posted) return;
+    posted = true;
+
+    const payload = {
+      label: rawLabel,
+      from:  fromTxt,
+      to:    toTxt,
+      _cb:   cb
+    };
+
+    srvlog("worker_post", { url: WORKER_URL, payload });
+
+    try {
+      const resp = await fetch(WORKER_URL, {
+        method: "POST",
+        mode: "cors",
+        cache: "no-store",
+        credentials: "omit",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => "");
+        srvlog("worker_bad_status", { code: resp.status, body: txt });
+        statusEl.innerHTML = `<span class="err">❌ Worker error (${resp.status}).</span>`;
+        stopAllTimers();
+        return;
+      }
+
+      const maybe = await resp.json().catch(() => ({}));
+      srvlog("worker_ok", maybe);
+      statusEl.textContent = "⏳ Running analysis via GitHub Actions…";
+
+      // Start polling GitHub status JSON
+      pollLoop();
+
+    } catch (e) {
+      srvlog("worker_fetch_exception", { error: String(e) });
+      statusEl.innerHTML = `<span class="err">❌ Failed to reach worker.</span>`;
+      stopAllTimers();
+    }
+  }
+
+  // kick things off
+  statusEl.textContent = "⏳ Preparing…";
+  startJob();
+
+})();
+</script>
+</body>
+</html>
