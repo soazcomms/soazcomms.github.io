@@ -30,7 +30,7 @@ args = parser.parse_args()
 
 in_dir = args.input_dir
 label = args.label
-label=label.strip()[:8]  # use DSNnnn-X label only, e.g. DSN019-S
+#label=label.strip()[:8]  # NOT use DSNnnn-X label only, e.g. DSN019-S
 start_time = pd.to_datetime(args.from_time, utc=True)
 end_time = pd.to_datetime(args.to_time, utc=True)
 start_str = start_time.strftime("%y-%m-%d %H:%M:%S")
@@ -47,7 +47,7 @@ sites_df = pd.read_csv("DSNsites.csv", comment='#', header=None,
 # Extract label w/o site name
 sites_df['label_strip'] = sites_df['label'].str.strip().str[:8]
 
-# Lookup site info by label
+# Lookup site info by label_strip
 try:
     site_info = sites_df[sites_df['label_strip'] == label].iloc[0]
     site = site_info['label']
