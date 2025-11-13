@@ -63,25 +63,18 @@ jobs:
       - name: "Write status: running"
         run: |
           set -e
-          mkdir -p status analysis/${{ steps.derive.outputs.LABEL }}
-          cat > status/status-${{ steps.derive.outputs.LABEL }}.json <<EOF
+          mkdir -p status analysis/${LABEL}
+          cat > status/status-${LABEL}.json <<EOF
           {"timestamp": $(date +%s), "phase": "running", "status": "⏳ Running analysis for ${LABEL}...", "raw_label": "${LABEL}"}
           EOF
-          git add status/status-${{ steps.derive.outputs.LABEL }}.json
-          git -c user.name="actions" -c user.email="actions@users.noreply.github.com" commit -m "[status] ${{ steps.derive.outputs.LABEL }} running" || true
+          git add status/status-${LABEL}.json
+          git -c user.name="actions" -c user.email="actions@users.noreply.github.com" commit -m "[status] ${LABEL} running" || true
           git push origin HEAD:main
 
       - name: Ensure CSV exists (recreate if missing or wrong range)
         shell: bash
         run: |
           set -euo pipefail
-
-          LABEL="${{ github.event.inputs.label }}"
-          FROM="${{ github.event.inputs.from }}"
-          TO="${{ github.event.inputs.to }}"
-
-          FROMD="${{ steps.derive.outputs.FROMD }}"
-          TOD="${{ steps.derive.outputs.TOD }}"
 
           OUTDIR="analysis/${LABEL}"
           CSV="${OUTDIR}/${LABEL}_${FROMD}_${TOD}.csv"
@@ -139,10 +132,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          LABEL="${{ github.event.inputs.label }}"
-          FROM="${{ github.event.inputs.from }}"
-          TO="${{ github.event.inputs.to }}"
-
           python DSN_generate_analysis.py \
             --label     "${LABEL}" \
             --from      "${FROM}" \
@@ -156,7 +145,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          LABEL="${{ steps.derive.outputs.LABEL }}"
           mkdir -p "analysis/${LABEL}"
           # Copy uploaded template into the label's folder as index.html
           cp -f tools/DSN_endpoint.html "analysis/${LABEL}/index.html"
@@ -164,19 +152,18 @@ jobs:
 
       - name: "Write status: publishing and push artifacts"
         run: |
-          FINAL_REL="analysis/${{ steps.derive.outputs.LABEL }}/${{ steps.derive.outputs.LABEL }}.analysis.html"
+          FINAL_REL="analysis/${LABEL}/${LABEL}.analysis.html"
           test -f "${FINAL_REL}" || { echo "Missing ${FINAL_REL}"; exit 1; }
-          cat > status/status-${{ steps.derive.outputs.LABEL }}.json <<EOF
+          cat > status/status-${LABEL}.json <<EOF
           {"timestamp": $(date +%s), "phase": "publishing", "status": "🚀 Publishing results to Git for ${LABEL}…", "raw_label": "${LABEL}"}
           EOF
-          git add analysis/${{ steps.derive.outputs.LABEL }} status/status-${{ steps.derive.outputs.LABEL }}.json
-          git -c user.name="actions" -c user.email="actions@users.noreply.github.com" commit -m "[analysis] ${{ steps.derive.outputs.LABEL }} update" || true
+          git add analysis/${LABEL} status/status-${LABEL}.json
+          git -c user.name="actions" -c user.email="actions@users.noreply.github.com" commit -m "[analysis] ${LABEL} update" || true
           git push origin HEAD:main
 
       - name: Wait for GitHub Pages to serve final HTML
         shell: bash
         run: |
-          LABEL="${{ steps.derive.outputs.LABEL }}"
           FINAL="https://soazcomms.github.io/analysis/${LABEL}/${LABEL}.analysis.html"
           echo "Waiting for ${FINAL}"
           end=$((SECONDS+60))
@@ -192,10 +179,10 @@ jobs:
 
       - name: "Write status: done (status-only push)"
         run: |
-          FINAL_REL="analysis/${{ steps.derive.outputs.LABEL }}/${{ steps.derive.outputs.LABEL }}.analysis.html"
-          cat > status/status-${{ steps.derive.outputs.LABEL }}.json <<EOF
+          FINAL_REL="analysis/${LABEL}/${LABEL}.analysis.html"
+          cat > status/status-${LABEL}.json <<EOF
           {"timestamp": $(date +%s), "phase": "done", "status": "✅ Analysis complete for ${LABEL}", "html": "${FINAL_REL}", "raw_label": "${LABEL}"}
           EOF
-          git add status/status-${{ steps.derive.outputs.LABEL }}.json
-          git -c user.name="actions" -c user.email="actions@users.noreply.github.com" commit -m "[status] ${{ steps.derive.outputs.LABEL }} done" || true
+          git add status/status-${LABEL}.json
+          git -c user.name="actions" -c user.email="actions@users.noreply.github.com" commit -m "[status] ${LABEL} done" || true
           git push origin HEAD:main
