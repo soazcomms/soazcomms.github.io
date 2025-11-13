@@ -245,7 +245,6 @@ def main():
     git_identity(repo)
     git_hard_sync(repo)
 
-    label8 = args.label[:8]
     ymd_from = ymd(args.from_date).replace("-","")
     ymd_to   = ymd(args.to_date).replace("-","")
     if args.out:
@@ -262,8 +261,8 @@ def main():
         delete_non_csv(out_dir)
         print(json.dumps({
             "status": f"✅ CSV already present for {args.label} {ymd_from}-{ymd_to}",
-            "csv":     f"https://soazcomms.github.io/analysis/{label8}/{out_csv.name}",
-            "csv_raw": f"https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/analysis/{label8}/{out_csv.name}",
+            "csv":     f"https://soazcomms.github.io/analysis/{label}/{out_csv.name}",
+            "csv_raw": f"https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/analysis/{label}/{out_csv.name}",
             "timestamp": int(time.time())
         }))
         sys.exit(0)
