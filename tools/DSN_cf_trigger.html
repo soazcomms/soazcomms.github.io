@@ -92,7 +92,7 @@
   </style>
 </head>
 <body>
-  <h1>🔬 DSN Analysis V.34</h1>
+  <h1>🔬 DSN Analysis V.35</h1>
   <div id="site" class="site"></div>
 
   <div class="status" id="status">⏳ Initializing…</div>
@@ -109,7 +109,7 @@
 
   <div class="row">
     <a id="viewBtn" class="btn" href="#" target="_blank" rel="noopener" disabled>📄 View Analysis Result</a>
-    <a id="exitBtn" class="btn" href="about:blank">🔙 Exit</a>
+    <a id="exitBtn" class="btn" href="#" onclick="closeTab()">🔙 Exit</a>
   </div>
 
   <div class="note">
@@ -118,6 +118,14 @@
   </div>
 
   <script>
+  // Make this tab script-owned so window.close() will work
+  if (!window.name) {
+    window.name = "dsn_cf_trigger";
+    window.open(window.location.href, "_self");
+  }
+  function closeTab() {
+    window.close();
+  }
   (function() {
     const STATUS_POLL_MS = 8000;   // 8s between polls
     const TIMEOUT_SEC    = 7 * 60; // 7 minutes
