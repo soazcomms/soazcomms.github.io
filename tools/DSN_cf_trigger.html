@@ -114,7 +114,8 @@
 <script>
 (function(){
 
-  const WORKER_URL = "https://dsn-analysis/dsn-analysis.soazcomms.workers.dev/";
+  // ✅ FIXED: correct Cloudflare Worker URL
+  const WORKER_URL = "https://dsn-analysis.dsn-analysis.workers.dev/";
 
   const GH_RAW_BASE = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
 
@@ -155,9 +156,7 @@
     return u.toString();
   }
 
-  // derive final URLs (we assume DSN_analysis.yml writes:
-  //   analysis/<LABEL>/<LABEL>.analysis.html
-  //   analysis/<LABEL>/index.html (DSN_endpoint)
+  // analysis/<LABEL>/<LABEL>.analysis.html + endpoint index.html
   const FINAL_HTML   = `https://soazcomms.github.io/analysis/${encodeURIComponent(rawLabel)}/${encodeURIComponent(rawLabel)}.analysis.html`;
   const ENDPOINT_URL = `https://soazcomms.github.io/analysis/${encodeURIComponent(rawLabel)}/`;
   const STATUS_URL   = `${GH_RAW_BASE}status/status-${encodeURIComponent(rawLabel)}.json`;
@@ -187,7 +186,6 @@
     try {
       window.close();
     } catch(e) {}
-    // fallback: navigate away
     window.location.href = "about:blank";
   });
 
@@ -238,11 +236,11 @@
       } else if (phase === "publishing") {
         statusEl.textContent = status || "🚀 Publishing results…";
       } else if (phase === "done") {
-        // Status JSON should contain final HTML path, but we fall back to ENDPOINT_URL
         const rel = data.html || `analysis/${rawLabel}/${rawLabel}.analysis.html`;
         const href = `https://soazcomms.github.io/${rel.replace(/^\/+/,"")}`;
         viewBtn.removeAttribute("disabled");
-        viewBtn.href = ENDPOINT_URL;  // go to endpoint, which loads the analysis
+        // Endpoint loads the analysis (index.html → DSN_endpoint)
+        viewBtn.href = ENDPOINT_URL;
         showDone(status || `✅ Analysis complete for ${rawLabel}`);
         return;
       }
@@ -290,8 +288,6 @@
       const maybe = await resp.json().catch(() => ({}));
       srvlog("worker_ok", maybe);
       statusEl.textContent = "⏳ Running analysis via GitHub Actions…";
-
-      // Start polling GitHub status JSON
       pollLoop();
 
     } catch (e) {
