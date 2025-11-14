@@ -84,17 +84,10 @@
     .err {
       color: #ff6b6b;
     }
-    #debug {
-      margin-top: 0.75rem;
-      font-size: 0.75rem;
-      color: #777;
-      white-space: pre-wrap;
-      word-break: break-all;
-    }
   </style>
 </head>
 <body>
-  <h1>🔬 DSN Analysis – V.29</h1>
+  <h1>🔬 DSN Analysis V.30</h1>
   <div id="sub"></div>
 
   <div class="bar-wrap" id="barRow">
@@ -109,40 +102,40 @@
     <button id="exitBtn" class="btn">🔙 Exit</button>
   </div>
 
-  <div id="debug"></div>
-
 <script>
 (function(){
 
-  // Cloudflare Worker endpoint
-  const WORKER_URL = "https://dsn-analysis.dsn-analysis.workers.dev/";
+  // ==== constants ====
+  const WORKER_URL   = "https://dsn-analysis.dsn-analysis.workers.dev/";
+  const GH_RAW_BASE  = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
+  const TIMEOUT_SECS = 7 * 60;   // 7 minutes
 
-  const GH_RAW_BASE = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
-
+  // ---- query params ----
   const qs        = new URLSearchParams(location.search || "");
   const rawLabel  = (qs.get("label") || "").trim();
   const fromTxt   = (qs.get("from")  || "").trim();
   const toTxt     = (qs.get("to")    || "").trim();
   const cb        = (qs.get("_cb")   || "") || String(Date.now());
 
+  // ---- DOM hooks ----
   const subEl     = document.getElementById("sub");
   const statusEl  = document.getElementById("status");
   const timerEl   = document.getElementById("timer");
   const timerRow  = document.getElementById("timerRow");
   const viewBtn   = document.getElementById("viewBtn");
   const exitBtn   = document.getElementById("exitBtn");
-  const debugEl   = document.getElementById("debug");
   const barRow    = document.getElementById("barRow");
 
   let startedAt   = Date.now();
   let timers      = [];
   let posted      = false;
+  let timedOut    = false;
 
   function srvlog(msg, extra) {
     const t = new Date().toISOString().replace("T"," ").replace("Z","");
     const line = `[JS ${t}] ${msg}` + (extra ? " " + JSON.stringify(extra) : "");
     console.log(line);
-    if (debugEl) debugEl.textContent = line;
+    // intentionally NOT writing to the page anymore
   }
 
   function stopAllTimers(){
@@ -164,27 +157,36 @@
   if (!rawLabel || !fromTxt || !toTxt) {
     statusEl.innerHTML = '<span class="err">❌ Missing label/from/to.</span>';
     subEl.textContent  = "No job parameters provided.";
-    if (barRow) barRow.style.display = "none";
+    if (barRow)   barRow.style.display   = "none";
     if (timerRow) timerRow.style.display = "none";
     viewBtn.setAttribute("disabled", "disabled");
     return;
   }
 
+  // Small helper: pretty date range
   subEl.textContent = `Site: ${rawLabel} · Range: ${fromTxt.split(" ")[0]} → ${toTxt.split(" ")[0]}`;
 
-  // ---- timer display ----
+  // ---- timer display + timeout ----
   timers.push(setInterval(() => {
-    const dt   = Math.floor((Date.now() - startedAt) / 1000);
-    const m    = Math.floor(dt / 60);
-    const s    = dt % 60;
+    if (timedOut) return;
+
+    const dt = Math.floor((Date.now() - startedAt) / 1000);
+    const m  = Math.floor(dt / 60);
+    const s  = dt % 60;
     if (timerEl) timerEl.textContent = `${m}:${s.toString().padStart(2,"0")}`;
+
+    if (dt >= TIMEOUT_SECS) {
+      timedOut = true;
+      statusEl.innerHTML = '<span class="err">❌ Timed out after 7 minutes. Check GitHub Actions / Cloudflare logs.</span>';
+      if (barRow)   barRow.style.display   = "none";
+      if (timerRow) timerRow.style.display = "none";
+      stopAllTimers();
+    }
   }, 1000));
 
   // ---- EXIT button ----
   exitBtn.addEventListener("click", () => {
-    try {
-      window.close();
-    } catch(e) {}
+    try { window.close(); } catch(e) {}
     window.location.href = "about:blank";
   });
 
@@ -206,7 +208,7 @@
   }
 
   function showDone(msg){
-    if (barRow) barRow.style.display = "none";
+    if (barRow)   barRow.style.display   = "none";
     if (timerRow) timerRow.style.display = "none";
     statusEl.innerHTML = `<span class="ok">${msg || "✅ Analysis complete."}</span>`;
     stopAllTimers();
@@ -214,7 +216,10 @@
 
   async function pollLoop(){
     while (true) {
+      if (timedOut) return;
+
       const data = await fetchStatusJSON();
+
       if (!data) {
         statusEl.textContent = "⏳ Waiting for status from GitHub Actions…";
         await new Promise(r => setTimeout(r, 5000));
@@ -223,6 +228,20 @@
 
       const phase  = (data.phase  || "").toLowerCase();
       const status = data.status || "";
+
+      // If timestamp exists and is clearly older than when we opened the page,
+      // treat this as stale status from a previous run and keep waiting.
+      if (data.timestamp != null) {
+        const tsNum = Number(data.timestamp);
+        if (!Number.isNaN(tsNum)) {
+          const tsMs = tsNum * 1000;
+          if (tsMs < startedAt - 5000) {
+            statusEl.textContent = "⏳ Waiting for new run to start…";
+            await new Promise(r => setTimeout(r, 4000));
+            continue;
+          }
+        }
+      }
 
       if (/error/.test(phase) || /error/i.test(status)) {
         statusEl.innerHTML = `<span class="err">❌ ${status || "Error"}</span>`;
@@ -235,12 +254,11 @@
       } else if (phase === "publishing") {
         statusEl.textContent = status || "🚀 Publishing results…";
       } else if (phase === "done") {
-        // Prefer the HTML path from status JSON; fall back to FINAL_HTML
         const rel  = data.html || `analysis/${rawLabel}/${rawLabel}.analysis.html`;
         const href = `https://soazcomms.github.io/${rel.replace(/^\/+/,"")}`;
 
         viewBtn.removeAttribute("disabled");
-        viewBtn.href = href;   // 👈 THIS is the important fix
+        viewBtn.href = href;
 
         showDone(status || `✅ Analysis complete for ${rawLabel}`);
         return;
