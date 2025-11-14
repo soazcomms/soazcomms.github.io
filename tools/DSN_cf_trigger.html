@@ -78,11 +78,6 @@
       background: linear-gradient(90deg, #60a5fa, #22c55e);
       transition: width 0.3s linear;  /* smooth fill */
     }
-    .note {
-      margin-top: 0.4rem;
-      font-size: 0.8rem;
-      color: #6b7280;
-    }
     .err {
       color: #fecaca;
     }
@@ -92,7 +87,7 @@
   </style>
 </head>
 <body>
-  <h1>🔬 DSN Analysis V.35</h1>
+  <h1>🔬 DSN Analysis V.37</h1>
   <div id="site" class="site"></div>
 
   <div class="status" id="status">⏳ Initializing…</div>
@@ -112,11 +107,6 @@
     <a id="exitBtn" class="btn" href="#" onclick="closeTab()">🔙 Exit</a>
   </div>
 
-  <div class="note">
-    This page triggers a GitHub Actions analysis via Cloudflare Worker, then waits for
-    the result to be published to GitHub Pages.
-  </div>
-
   <script>
   // Make this tab script-owned so window.close() will work
   if (!window.name) {
@@ -126,175 +116,200 @@
   function closeTab() {
     window.close();
   }
-  (function() {
-    const STATUS_POLL_MS = 8000;   // 8s between polls
-    const TIMEOUT_SEC    = 7 * 60; // 7 minutes
+  </script>
+<script>
+(function () {
+  // ---- DOM refs ----
+  const statusEl = document.getElementById("status");
+  const timerEl  = document.getElementById("timer");
+  const viewBtn  = document.getElementById("viewBtn");
 
-    const GH_PAGES_BASE = "https://soazcomms.github.io/";
-    const GH_RAW_BASE   = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
+  // ---- Query params ----
+  const params   = new URLSearchParams(window.location.search);
+  const rawLabel = (params.get("label") || "").trim();
+  const fromTxt  = (params.get("from")  || "").trim();
+  const toTxt    = (params.get("to")    || "").trim();
 
-    const siteEl   = document.getElementById("site");
-    const statusEl = document.getElementById("status");
-    const elapsedEl   = document.getElementById("elapsed");
-    const remainingEl = document.getElementById("remaining");
-    const barRow   = document.getElementById("barRow");
-    const timerRow = document.getElementById("timerRow");
-    const viewBtn  = document.getElementById("viewBtn");
+  // ---- Constants ----
+  const WORKER_URL    = "https://dsn-analysis.dsn-analysis.workers.dev/";
+  const GH_RAW_BASE   = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
+  const GH_PAGES_BASE = "https://soazcomms.github.io/";
 
-    let timers = [];
-    function startTimer() {
-      const start = Date.now();
-      const total = TIMEOUT_SEC;
-      function update() {
-        const now   = Date.now();
-        const delta = Math.floor((now - start) / 1000);
-        const left  = Math.max(0, total - delta);
+  // status file: status/status-<label>.json
+  const STATUS_URL =
+    `${GH_RAW_BASE}status/status-${encodeURIComponent(rawLabel)}.json`;
 
-        const mm = Math.floor(delta / 60);
-        const ss = delta % 60;
-        elapsedEl.textContent = `${mm}:${ss.toString().padStart(2, "0")}`;
+  // default final HTML if status.html is missing
+  const DEFAULT_FINAL_HTML =
+    `${GH_PAGES_BASE}analysis/${encodeURIComponent(rawLabel)}/${encodeURIComponent(rawLabel)}.analysis.html`;
 
-        const rm = Math.floor(left / 60);
-        const rs = left % 60;
-        remainingEl.textContent = `${rm}:${rs.toString().padStart(2, "0")}`;
-      }
-      update();
-      timers.push(setInterval(update, 1000));
+  // ---- timers & state ----
+  let startedAt      = Date.now();
+  let pollTimerId    = null;
+  let elapsedTimerId = null;
+  let firstStatusSeen = false;
+  let finished       = false;
+  const TIMEOUT_MS   = 7 * 60 * 1000; // 7 minutes
+
+  function stopAllTimers() {
+    if (pollTimerId) {
+      clearTimeout(pollTimerId);
+      pollTimerId = null;
     }
-    function stopAllTimers() {
-      for (const t of timers) clearInterval(t);
-      timers = [];
+    if (elapsedTimerId) {
+      clearInterval(elapsedTimerId);
+      elapsedTimerId = null;
     }
+  }
 
-    const params = new URLSearchParams(window.location.search);
-    const rawLabel = (params.get("label") || "").trim();
-    const fromTxt  = (params.get("from")  || "").trim();
-    const toTxt    = (params.get("to")    || "").trim();
+  function startElapsedTimer() {
+    if (!timerEl) return;
+    elapsedTimerId = setInterval(() => {
+      const delta = Date.now() - startedAt;
+      const secs  = Math.floor(delta / 1000);
+      const mm    = String(Math.floor(secs / 60)).padStart(1, "0");
+      const ss    = String(secs % 60).padStart(2, "0");
+      const remain = Math.max(0, TIMEOUT_MS - delta);
+      const rsecs   = Math.floor(remain / 1000);
+      const rmm     = String(Math.floor(rsecs / 60)).padStart(1, "0");
+      const rss     = String(rsecs % 60).padStart(2, "0");
+      timerEl.textContent = `⏱ ${mm}:${ss} · Timeout in ${rmm}:${rss}`;
+    }, 1000);
+  }
 
-    if (!rawLabel || !fromTxt || !toTxt) {
-      statusEl.innerHTML = "<span class='err'>❌ Missing label/from/to.</span>";
-      if (barRow)   barRow.style.display   = "none";
-      if (timerRow) timerRow.style.display = "none";
+  function setStatus(msg) {
+    if (statusEl) statusEl.textContent = msg;
+  }
+
+  function showDone(msg, href) {
+    finished = true;
+    const m = msg || `✅ Analysis complete for ${rawLabel}`;
+    setStatus(m);
+    if (viewBtn) {
+      viewBtn.removeAttribute("disabled");
+      viewBtn.href = href || DEFAULT_FINAL_HTML;
+    }
+    stopAllTimers();
+  }
+
+  function handleError(msg) {
+    setStatus(msg || "❌ Analysis failed.");
+    stopAllTimers();
+  }
+
+  function isTimedOut() {
+    return (Date.now() - startedAt) > TIMEOUT_MS;
+  }
+
+  async function pollStatus() {
+    if (finished) return;
+
+    if (isTimedOut()) {
+      handleError("⏰ Timed out waiting for analysis.");
       return;
     }
 
-    siteEl.textContent = `Site: ${rawLabel} · Range: ${fromTxt.slice(0,10)} → ${toTxt.slice(0,10)}`;
+    try {
+      const bustUrl = STATUS_URL + `?_cb=${Date.now()}`;
+      const r = await fetch(bustUrl, { cache: "no-store" });
 
-    function bust(url) {
-      const u = new URL(url);
-      u.searchParams.set("_cb", Date.now().toString());
-      return u.toString();
-    }
-
-    // status JSON + final HTML
-    const STATUS_URL = `${GH_RAW_BASE}status/status-${encodeURIComponent(rawLabel)}.json`;
-    const FINAL_HTML = `${GH_PAGES_BASE}analysis/${encodeURIComponent(rawLabel)}/${encodeURIComponent(rawLabel)}.analysis.html`;
-
-    function showDone(msg, href) {
-      statusEl.innerHTML = msg || "✅ Analysis complete.";
-      if (viewBtn && href) {
-        viewBtn.removeAttribute("disabled");
-        viewBtn.href = href;
-      }
-      stopAllTimers();
-      // NOTE: we NO LONGER hide the timer row here so the timer stays visible after finish.
-    }
-
-    async function fetchStatusJSON() {
-      const resp = await fetch(bust(STATUS_URL), { cache: "no-store" });
-      if (!resp.ok) {
-        if (resp.status === 404) return null;
-        throw new Error(`status fetch HTTP ${resp.status}`);
-      }
-      return await resp.json();
-    }
-
-    async function pollLoop(startMs) {
-      while (true) {
-        const ageSec = (Date.now() - startMs) / 1000;
-        if (ageSec > TIMEOUT_SEC) {
-          statusEl.innerHTML = "<span class='err'>⏱ Timed out waiting for analysis.</span>";
-          stopAllTimers();
-          return;
-        }
-
-        try {
-          const data = await fetchStatusJSON();
-          if (data && data.phase) {
-            if (/error/i.test(data.phase)) {
-              statusEl.innerHTML = `<span class="err">${data.status || "❌ Error from workflow."}</span>`;
-              stopAllTimers();
-              return;
-            }
-            if (/done/i.test(data.phase)) {
-              const href = `${GH_PAGES_BASE}${data.html || ("analysis/" + encodeURIComponent(rawLabel) + "/" + encodeURIComponent(rawLabel) + ".analysis.html")}`;
-              showDone(data.status || "✅ Analysis complete.", href);
-              return;
-            }
-            if (/publishing/i.test(data.phase)) {
-              statusEl.textContent = "🚀 Publishing results to GitHub Pages…";
-            } else if (/running/i.test(data.phase)) {
-              statusEl.textContent = data.status || "⏳ Running analysis…";
-            } else {
-              statusEl.textContent = data.status || "⏳ Working…";
-            }
-          } else {
-            statusEl.textContent = "⏳ Waiting for status JSON…";
-          }
-        } catch (e) {
-          statusEl.innerHTML = `<span class="err">⚠️ Status check failed; retrying…</span>`;
-        }
-
-        await new Promise(r => setTimeout(r, STATUS_POLL_MS));
-      }
-    }
-
-    async function triggerWorker() {
-      const workerUrl = "https://dsn-analysis.dsn-analysis.workers.dev/";
-      const body = {
-        label: rawLabel,
-        from:  fromTxt,
-        to:    toTxt
-      };
-
-      const resp = await fetch(workerUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      if (!resp.ok) {
-        throw new Error(`worker HTTP ${resp.status}`);
-      }
-      const js = await resp.json();
-      if (!js.ok) {
-        throw new Error(`worker error: ${js.error || "unknown"}`);
-      }
-      return js;
-    }
-
-    async function startJob() {
-      const startMs = Date.now();
-      startTimer();
-      statusEl.textContent = "⏳ Starting GitHub Actions workflow via Cloudflare…";
-
-      try {
-        await triggerWorker();
-        statusEl.textContent = "⏳ Running analysis via GitHub Actions…";
-      } catch (e) {
-        statusEl.innerHTML = `<span class="err">❌ Failed to reach worker.</span>`;
-        stopAllTimers();
+      if (!r.ok) {
+        // before first status file exists, just keep "Initializing…"
+        // after first status, keep whatever last message we had
+        pollTimerId = setTimeout(pollStatus, 5000);
         return;
       }
 
-      // Only now start polling for the Pages-published status
-      pollLoop(startMs);
+      const data = await r.json();
+      firstStatusSeen = true;
+
+      const phase = (data.phase || "").toLowerCase();
+      const msg   = data.status || "";
+
+      // Ignore obviously stale status (older than when we clicked RUN)
+      if (typeof data.timestamp === "number") {
+        const tsMs = data.timestamp * 1000;
+        if (tsMs < (startedAt - 5000)) {
+          // stale status from a previous run, ignore and keep polling
+          pollTimerId = setTimeout(pollStatus, 5000);
+          return;
+        }
+      }
+
+      if (/error|fail/.test(phase)) {
+        handleError(msg || "❌ Analysis error.");
+        return;
+      }
+
+      if (/publish/.test(phase)) {
+        setStatus(msg || "🚀 Publishing results…");
+        pollTimerId = setTimeout(pollStatus, 4000);
+        return;
+      }
+
+      if (/done|complete/.test(phase)) {
+        // Build final HTML URL: use data.html if present, else default
+        let htmlPath = data.html || `analysis/${rawLabel}/${rawLabel}.analysis.html`;
+        // if htmlPath is relative (most likely), prefix GH_PAGES_BASE
+        let href = htmlPath;
+        if (!/^https?:\/\//i.test(htmlPath)) {
+          href = GH_PAGES_BASE + htmlPath.replace(/^\/+/, "");
+        }
+        showDone(msg || "✅ Analysis complete.", href);
+        return;
+      }
+
+      // Anything else => running
+      setStatus(msg || "⏳ Running analysis…");
+      pollTimerId = setTimeout(pollStatus, 4000);
+    } catch (e) {
+      // Network flakiness: keep trying
+      pollTimerId = setTimeout(pollStatus, 5000);
+    }
+  }
+
+  async function startJob() {
+    if (!rawLabel || !fromTxt || !toTxt) {
+      handleError("❌ Missing label/from/to in URL.");
+      return;
     }
 
-    statusEl.textContent = "⏳ Preparing…";
-    startJob();
+    startedAt = Date.now();
+    setStatus("⏳ Initializing…");
 
-  })();
-  </script>
-</body>
+    if (viewBtn) {
+      viewBtn.setAttribute("disabled", "disabled");
+      viewBtn.removeAttribute("href");
+    }
+
+    startElapsedTimer();
+
+    try {
+      const payload = { label: rawLabel, from: fromTxt, to: toTxt };
+      const r = await fetch(WORKER_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!r.ok) {
+        handleError("❌ Failed to start analysis (worker error).");
+        return;
+      }
+
+      // We don't *need* the body, but parse once for validation
+      // If the worker returns `{ok:true, triggered:{...}}` we just trust it.
+      await r.json().catch(() => {});
+
+      // Worker accepted the job, now we poll status
+      setStatus("⏳ Running analysis…");
+      pollStatus();
+    } catch (e) {
+      handleError("❌ Failed to reach worker.");
+    }
+  }
+
+  window.addEventListener("load", startJob);
+})();
+</script></body>
 </html>
