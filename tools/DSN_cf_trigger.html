@@ -83,7 +83,7 @@
   </style>
 </head>
 <body>
-  <h1>🔬 DSN Analysis V.31</h1>
+  <h1>🔬 DSN Analysis V.32</h1>
   <div id="sub"></div>
 
   <div class="bar-wrap" id="barRow">
@@ -145,10 +145,10 @@
     u.searchParams.set("_cb", String(Date.now()));
     return u.toString();
   }
-
-  // analysis/<LABEL>/<LABEL>.analysis.html
-  const FINAL_HTML  = `https://soazcomms.github.io/analysis/${encodeURIComponent(rawLabel)}/${encodeURIComponent(rawLabel)}.analysis.html`;
-  const STATUS_URL  = `${GH_RAW_BASE}status/status-${encodeURIComponent(rawLabel)}.json`;
+    
+  // status JSON + final HTML
+    const STATUS_URL = `${GH_RAW_BASE}status/${encodeURIComponent(rawLabel)}.json`;
+    const FINAL_HTML = `${GH_PAGES_BASE}analysis/${encodeURIComponent(rawLabel)}/${encodeURIComponent(rawLabel)}.analysis.html`;
 
   // ---- basic validation ----
   if (!rawLabel || !fromTxt || !toTxt) {
@@ -208,9 +208,13 @@
   }
 
   function showDone(msg){
-    if (barInner) barInner.style.width = "100%";
-    statusEl.innerHTML = `<span class="ok">${msg || "✅ Analysis complete."}</span>`;
-    stopAllTimers();  // timer stays, frozen at final time
+    statusEl.innerHTML = msg || "✅ Analysis complete.";
+    if (viewBtn && href) {
+      viewBtn.removeAttribute("disabled");
+      viewBtn.href = href;
+    }
+    stopAllTimers();
+  // NOTE: NO LONGER hide the timer row, the timer stays visible after finish.
   }
 
   async function pollLoop(){
@@ -235,7 +239,7 @@
         if (!Number.isNaN(tsNum)) {
           const tsMs = tsNum * 1000;
           if (tsMs < startedAt - 5000) {
-            statusEl.textContent = "⏳ Waiting Processing…";
+            statusEl.textContent = "⏳ Waiting for Processing…";
             await new Promise(r => setTimeout(r, 4000));
             continue;
           }
