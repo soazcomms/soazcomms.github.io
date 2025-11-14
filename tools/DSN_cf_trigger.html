@@ -35,14 +35,10 @@
       overflow: hidden;
     }
     .bar-inner {
-      width: 100%;
+      width: 0%;
       height: 100%;
       background: linear-gradient(90deg, #2dd, #4a7cff);
-      animation: pulse 1.2s ease-in-out infinite alternate;
-    }
-    @keyframes pulse {
-      from { transform: translateX(-20%); opacity: 0.5; }
-      to   { transform: translateX(0);    opacity: 1;   }
+      transition: width 0.3s ease-out;
     }
     #timerRow {
       font-size: 0.8rem;
@@ -87,7 +83,7 @@
   </style>
 </head>
 <body>
-  <h1>🔬 DSN Analysis V.30</h1>
+  <h1>🔬 DSN Analysis V.31</h1>
   <div id="sub"></div>
 
   <div class="bar-wrap" id="barRow">
@@ -125,6 +121,7 @@
   const viewBtn   = document.getElementById("viewBtn");
   const exitBtn   = document.getElementById("exitBtn");
   const barRow    = document.getElementById("barRow");
+  const barInner  = document.getElementById("barInner");
 
   let startedAt   = Date.now();
   let timers      = [];
@@ -135,7 +132,7 @@
     const t = new Date().toISOString().replace("T"," ").replace("Z","");
     const line = `[JS ${t}] ${msg}` + (extra ? " " + JSON.stringify(extra) : "");
     console.log(line);
-    // intentionally NOT writing to the page anymore
+    // Not writing to DOM – console only.
   }
 
   function stopAllTimers(){
@@ -157,8 +154,6 @@
   if (!rawLabel || !fromTxt || !toTxt) {
     statusEl.innerHTML = '<span class="err">❌ Missing label/from/to.</span>';
     subEl.textContent  = "No job parameters provided.";
-    if (barRow)   barRow.style.display   = "none";
-    if (timerRow) timerRow.style.display = "none";
     viewBtn.setAttribute("disabled", "disabled");
     return;
   }
@@ -166,7 +161,7 @@
   // Small helper: pretty date range
   subEl.textContent = `Site: ${rawLabel} · Range: ${fromTxt.split(" ")[0]} → ${toTxt.split(" ")[0]}`;
 
-  // ---- timer display + timeout ----
+  // ---- timer display + timeout + progress bar ----
   timers.push(setInterval(() => {
     if (timedOut) return;
 
@@ -175,12 +170,17 @@
     const s  = dt % 60;
     if (timerEl) timerEl.textContent = `${m}:${s.toString().padStart(2,"0")}`;
 
+    // progress is purely time-based: 0 → 100% over TIMEOUT_SECS
+    const frac = Math.min(1, dt / TIMEOUT_SECS);
+    if (barInner) {
+      barInner.style.width = (frac * 100).toFixed(1) + "%";
+    }
+
     if (dt >= TIMEOUT_SECS) {
       timedOut = true;
       statusEl.innerHTML = '<span class="err">❌ Timed out after 7 minutes. Check GitHub Actions / Cloudflare logs.</span>';
-      if (barRow)   barRow.style.display   = "none";
-      if (timerRow) timerRow.style.display = "none";
-      stopAllTimers();
+      if (barInner) barInner.style.width = "100%";
+      stopAllTimers();  // leave timer + bar visible, frozen
     }
   }, 1000));
 
@@ -208,10 +208,9 @@
   }
 
   function showDone(msg){
-    if (barRow)   barRow.style.display   = "none";
-    if (timerRow) timerRow.style.display = "none";
+    if (barInner) barInner.style.width = "100%";
     statusEl.innerHTML = `<span class="ok">${msg || "✅ Analysis complete."}</span>`;
-    stopAllTimers();
+    stopAllTimers();  // timer stays, frozen at final time
   }
 
   async function pollLoop(){
@@ -221,7 +220,7 @@
       const data = await fetchStatusJSON();
 
       if (!data) {
-        statusEl.textContent = "⏳ Waiting for status from GitHub Actions…";
+        statusEl.textContent = "⏳ Waiting for GitHub…";
         await new Promise(r => setTimeout(r, 5000));
         continue;
       }
@@ -236,7 +235,7 @@
         if (!Number.isNaN(tsNum)) {
           const tsMs = tsNum * 1000;
           if (tsMs < startedAt - 5000) {
-            statusEl.textContent = "⏳ Waiting for new run to start…";
+            statusEl.textContent = "⏳ Waiting Processing…";
             await new Promise(r => setTimeout(r, 4000));
             continue;
           }
@@ -245,7 +244,7 @@
 
       if (/error/.test(phase) || /error/i.test(status)) {
         statusEl.innerHTML = `<span class="err">❌ ${status || "Error"}</span>`;
-        stopAllTimers();
+        stopAllTimers();   // leave timer+bar as-is
         return;
       }
 
@@ -260,7 +259,7 @@
         viewBtn.removeAttribute("disabled");
         viewBtn.href = href;
 
-        showDone(status || `✅ Analysis complete for ${rawLabel}`);
+        showDone(status || `✅ Analysis complete!`);
         return;
       }
 
