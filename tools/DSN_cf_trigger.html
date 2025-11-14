@@ -114,7 +114,7 @@
 <script>
 (function(){
 
-  // ✅ FIXED: correct Cloudflare Worker URL
+  // Cloudflare Worker endpoint
   const WORKER_URL = "https://dsn-analysis.dsn-analysis.workers.dev/";
 
   const GH_RAW_BASE = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
@@ -156,10 +156,9 @@
     return u.toString();
   }
 
-  // analysis/<LABEL>/<LABEL>.analysis.html + endpoint index.html
-  const FINAL_HTML   = `https://soazcomms.github.io/analysis/${encodeURIComponent(rawLabel)}/${encodeURIComponent(rawLabel)}.analysis.html`;
-  const ENDPOINT_URL = `https://soazcomms.github.io/analysis/${encodeURIComponent(rawLabel)}/`;
-  const STATUS_URL   = `${GH_RAW_BASE}status/status-${encodeURIComponent(rawLabel)}.json`;
+  // analysis/<LABEL>/<LABEL>.analysis.html
+  const FINAL_HTML  = `https://soazcomms.github.io/analysis/${encodeURIComponent(rawLabel)}/${encodeURIComponent(rawLabel)}.analysis.html`;
+  const STATUS_URL  = `${GH_RAW_BASE}status/status-${encodeURIComponent(rawLabel)}.json`;
 
   // ---- basic validation ----
   if (!rawLabel || !fromTxt || !toTxt) {
@@ -236,11 +235,13 @@
       } else if (phase === "publishing") {
         statusEl.textContent = status || "🚀 Publishing results…";
       } else if (phase === "done") {
-        const rel = data.html || `analysis/${rawLabel}/${rawLabel}.analysis.html`;
+        // Prefer the HTML path from status JSON; fall back to FINAL_HTML
+        const rel  = data.html || `analysis/${rawLabel}/${rawLabel}.analysis.html`;
         const href = `https://soazcomms.github.io/${rel.replace(/^\/+/,"")}`;
+
         viewBtn.removeAttribute("disabled");
-        // Endpoint loads the analysis (index.html → DSN_endpoint)
-        viewBtn.href = ENDPOINT_URL;
+        viewBtn.href = href;   // 👈 THIS is the important fix
+
         showDone(status || `✅ Analysis complete for ${rawLabel}`);
         return;
       }
