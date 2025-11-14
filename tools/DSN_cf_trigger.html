@@ -87,7 +87,7 @@
   </style>
 </head>
 <body>
-  <h1>🔬 DSN Analysis V.37</h1>
+  <h1>🔬 DSN Analysis V.38</h1>
   <div id="site" class="site"></div>
 
   <div class="status" id="status">⏳ Initializing…</div>
@@ -129,21 +129,24 @@
   const rawLabel = (params.get("label") || "").trim();
   const fromTxt  = (params.get("from")  || "").trim();
   const toTxt    = (params.get("to")    || "").trim();
-
+  // Epoch seconds when this run was triggered (for stale-status detection)
+  const startedAt = Math.floor(Date.now() / 1000);
   // ---- Constants ----
   const WORKER_URL    = "https://dsn-analysis.dsn-analysis.workers.dev/";
   const GH_RAW_BASE   = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
   const GH_PAGES_BASE = "https://soazcomms.github.io/";
 
   // status file: status/status-<label>.json
-  const STATUS_URL =
-    `${GH_RAW_BASE}status/status-${encodeURIComponent(rawLabel)}.json`;
-
+  const STATUS_URL =`${GH_RAW_BASE}status/status-${encodeURIComponent(rawLabel)}.json`;
   // default final HTML if status.html is missing
   const DEFAULT_FINAL_HTML =
     `${GH_PAGES_BASE}analysis/${encodeURIComponent(rawLabel)}/${encodeURIComponent(rawLabel)}.analysis.html`;
 
   // ---- timers & state ----
+  let statusTimerId = null;
+  let timeoutTimerId = null;
+  let barTimerId    = null;
+  let startEpoch    = 0;   // seconds since epoch when we started THIS run
   let startedAt      = Date.now();
   let pollTimerId    = null;
   let elapsedTimerId = null;
@@ -151,15 +154,23 @@
   let finished       = false;
   const TIMEOUT_MS   = 7 * 60 * 1000; // 7 minutes
 
+  function startAllTimers() {
+    startEpoch = Math.floor(Date.now() / 1000); // mark “start” for this run
+    if (!timerSpan) return;
+    timerSpan.textContent = "0:00";
+    const start = Date.now();
+    statusTimerId = setInterval(() => {
+      const diff = Math.floor((Date.now() - start) / 1000);
+      const m    = Math.floor(diff / 60);
+      const s    = diff % 60;
+      timerSpan.textContent = `${m}:${s.toString().padStart(2, "0")}`;
+    }, 1000);
+  }
+
   function stopAllTimers() {
-    if (pollTimerId) {
-      clearTimeout(pollTimerId);
-      pollTimerId = null;
-    }
-    if (elapsedTimerId) {
-      clearInterval(elapsedTimerId);
-      elapsedTimerId = null;
-    }
+    if (statusTimerId) { clearInterval(statusTimerId); statusTimerId = null; }
+    if (timeoutTimerId){ clearTimeout(timeoutTimerId);  timeoutTimerId = null; }
+    if (barTimerId)    { clearInterval(barTimerId);     barTimerId    = null; }
   }
 
   function startElapsedTimer() {
@@ -182,16 +193,16 @@
   }
 
   function showDone(msg, href) {
-    finished = true;
-    const m = msg || `✅ Analysis complete for ${rawLabel}`;
-    setStatus(m);
-    if (viewBtn) {
+    statusEl.textContent = msg || "✅ Analysis complete.";
+    if (viewBtn && href) {
       viewBtn.removeAttribute("disabled");
-      viewBtn.href = href || DEFAULT_FINAL_HTML;
+      viewBtn.href = href;
     }
+    // We *do* stop the timers, but we DO NOT hide the timer row,
+    // so the elapsed time stays on screen.
     stopAllTimers();
   }
-
+ 
   function handleError(msg) {
     setStatus(msg || "❌ Analysis failed.");
     stopAllTimers();
@@ -201,114 +212,123 @@
     return (Date.now() - startedAt) > TIMEOUT_MS;
   }
 
-  async function pollStatus() {
-    if (finished) return;
-
-    if (isTimedOut()) {
-      handleError("⏰ Timed out waiting for analysis.");
-      return;
-    }
-
+  async function fetchStatusJSON() {
     try {
-      const bustUrl = STATUS_URL + `?_cb=${Date.now()}`;
-      const r = await fetch(bustUrl, { cache: "no-store" });
-
+      const url = `${STATUS_URL}?_cb=${Date.now()}`;
+      const r   = await fetch(url, { cache: "no-store" });
       if (!r.ok) {
-        // before first status file exists, just keep "Initializing…"
-        // after first status, keep whatever last message we had
-        pollTimerId = setTimeout(pollStatus, 5000);
-        return;
+        console.log("status_fetch_not_ok", r.status);
+        return null;
       }
-
-      const data = await r.json();
-      firstStatusSeen = true;
-
-      const phase = (data.phase || "").toLowerCase();
-      const msg   = data.status || "";
-
-      // Ignore obviously stale status (older than when we clicked RUN)
-      if (typeof data.timestamp === "number") {
-        const tsMs = data.timestamp * 1000;
-        if (tsMs < (startedAt - 5000)) {
-          // stale status from a previous run, ignore and keep polling
-          pollTimerId = setTimeout(pollStatus, 5000);
-          return;
-        }
-      }
-
-      if (/error|fail/.test(phase)) {
-        handleError(msg || "❌ Analysis error.");
-        return;
-      }
-
-      if (/publish/.test(phase)) {
-        setStatus(msg || "🚀 Publishing results…");
-        pollTimerId = setTimeout(pollStatus, 4000);
-        return;
-      }
-
-      if (/done|complete/.test(phase)) {
-        // Build final HTML URL: use data.html if present, else default
-        let htmlPath = data.html || `analysis/${rawLabel}/${rawLabel}.analysis.html`;
-        // if htmlPath is relative (most likely), prefix GH_PAGES_BASE
-        let href = htmlPath;
-        if (!/^https?:\/\//i.test(htmlPath)) {
-          href = GH_PAGES_BASE + htmlPath.replace(/^\/+/, "");
-        }
-        showDone(msg || "✅ Analysis complete.", href);
-        return;
-      }
-
-      // Anything else => running
-      setStatus(msg || "⏳ Running analysis…");
-      pollTimerId = setTimeout(pollStatus, 4000);
+      return await r.json();
     } catch (e) {
-      // Network flakiness: keep trying
-      pollTimerId = setTimeout(pollStatus, 5000);
+      console.log("status_fetch_error", e);
+      return null;
     }
   }
 
-  async function startJob() {
-    if (!rawLabel || !fromTxt || !toTxt) {
-      handleError("❌ Missing label/from/to in URL.");
+  async function pollStatus() {
+    if (!startEpoch) {
+      // We haven’t started this run yet – nothing to do.
       return;
     }
 
-    startedAt = Date.now();
-    setStatus("⏳ Initializing…");
-
-    if (viewBtn) {
-      viewBtn.setAttribute("disabled", "disabled");
-      viewBtn.removeAttribute("href");
+    const data = await fetchStatusJSON();
+    if (!data) {
+      // Couldn’t read JSON (or 404) – keep waiting.
+      statusEl.textContent = "⏳ Initializing…";
+      return;
     }
 
-    startElapsedTimer();
+    const phase  = (data.phase  || "").toLowerCase();
+    const status = (data.status || "").trim();
+    const ts     = typeof data.timestamp === "number" ? data.timestamp : 0;
+
+    // --------- STALENESS GUARD (CRITICAL) ----------
+    // If the status file timestamp is older than when THIS tab started
+    // (with a small 5s slack), treat it as stale from a previous run.
+    if (ts && ts < (startEpoch - 5)) {
+      // This is an old “done” (or whatever) from an earlier run.
+      statusEl.textContent = "⏳ Waiting for fresh status…";
+      return;
+    }
+    // ------------------------------------------------
+
+    // No phase yet → still coming up
+    if (!phase) {
+      statusEl.textContent = "⏳ Initializing…";
+      return;
+    }
+
+    if (phase.includes("publish")) {
+      statusEl.textContent = "🚀 Publishing results…";
+      return;
+    }
+
+    if (phase.includes("run")) {
+      statusEl.textContent = "⏳ Running analysis…";
+      return;
+    }
+
+    if (phase.includes("done") || phase.includes("complete")) {
+      const href = data.html
+        ? `${GH_PAGES_BASE}${data.html}`
+        : FINAL_HTML;
+
+      // This will:
+      //  - set the ✅ message
+      //  - enable and wire up the View button
+      showDone(status || `✅ Analysis complete for ${rawLabel}`, href);
+
+      // Freeze the timers at the final value, but keep 0:SS visible.
+      stopAllTimers();
+      return;
+    }
+
+    // Fallback – some other phase text
+    statusEl.textContent = status || "⏳ Working…";
+  }
+ 
+  async function startJob(label, fromTxt, toTxt) {
+    statusEl.textContent = "⏳ Initializing…";
+    viewBtn.setAttribute("disabled", "true");
+    viewBtn.removeAttribute("href");
+
+    startAllTimers();
 
     try {
-      const payload = { label: rawLabel, from: fromTxt, to: toTxt };
-      const r = await fetch(WORKER_URL, {
+      const resp = await fetch(WORKER_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ label, from: fromTxt, to: toTxt }),
       });
-
-      if (!r.ok) {
-        handleError("❌ Failed to start analysis (worker error).");
-        return;
+  
+      if (!resp.ok) {
+        statusEl.textContent = `❌ Worker error (${resp.status})`;
+        stopAllTimers();
+      return;
       }
 
-      // We don't *need* the body, but parse once for validation
-      // If the worker returns `{ok:true, triggered:{...}}` we just trust it.
-      await r.json().catch(() => {});
-
-      // Worker accepted the job, now we poll status
-      setStatus("⏳ Running analysis…");
-      pollStatus();
+      const js = await resp.json();
+      if (!js.ok) {
+        statusEl.textContent = "❌ Worker refused job.";
+        stopAllTimers();
+        return;
+      }
+  
+      // Worker accepted – now we poll GitHub status JSON
+      statusEl.textContent = "⏳ Running analysis…";
+  
+      // Start the polling loop
+      pollStatus(); // first hit immediately
+      statusTimerId = setInterval(pollStatus, 5000);
+  
     } catch (e) {
-      handleError("❌ Failed to reach worker.");
+      console.log("worker_fetch_exception", e);
+      statusEl.textContent = "❌ Failed to reach worker.";
+      stopAllTimers();
     }
   }
-
   window.addEventListener("load", startJob);
 })();
 </script></body>
