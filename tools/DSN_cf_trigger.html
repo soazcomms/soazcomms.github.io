@@ -98,7 +98,7 @@
   </style>
 </head>
 <body>
-  <h1>🔬 DSN Analysis V.32</h1>
+  <h1>🔬 DSN Analysis V.33</h1>
   <div id="site" class="site"></div>
 
   <div class="status" id="status">⏳ Initializing…</div>
@@ -185,7 +185,7 @@
     }
 
     // status JSON + final HTML
-    const STATUS_URL = `${GH_RAW_BASE}status/${encodeURIComponent(rawLabel)}.json`;
+    const STATUS_URL = `${GH_RAW_BASE}status/status-${encodeURIComponent(rawLabel)}.json`;
     const FINAL_HTML = `${GH_PAGES_BASE}analysis/${encodeURIComponent(rawLabel)}/${encodeURIComponent(rawLabel)}.analysis.html`;
 
     function showDone(msg, href) {
