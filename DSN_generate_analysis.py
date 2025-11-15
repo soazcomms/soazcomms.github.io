@@ -495,5 +495,5 @@ print(f"🧾 Found {num_files} individual plot HTML files.")
 #
 output_path=out_dir / f"files_{ymd_from}_{ymd_to}"
 with open(output_path, "w", encoding="utf-8") as f:
-    f.write(str(num_files+" files")
+    f.write(str(num_files+" files"))
     f.close()
