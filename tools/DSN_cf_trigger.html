@@ -113,7 +113,7 @@
 </head>
 <body>
   <main class="card">
-    <h1>🔬 DSN Analysis V.43</h1>
+    <h1>🔬 DSN Analysis V.44</h1>
     <div id="siteLine" class="muted">Initializing…</div>
     <div id="status">⏳ Preparing…</div>
 
@@ -136,7 +136,7 @@
     // ---------- CONSTANTS ----------
     const WORKER_URL       = "https://dsn-analysis.dsn-analysis.workers.dev/";
     const GH_RAW_BASE      = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
-    const TIMEOUT_SECONDS  = 7 * 60;
+    const TIMEOUT_SECONDS  = 7 * 60;      // bump if your job needs more time
     const POLL_INTERVAL_MS = 5000;
 
     // ---------- DOM ----------
@@ -147,14 +147,13 @@
     const viewBtn    = document.getElementById("viewBtn");
 
     // ---------- STATE ----------
-    let elapsedSec      = 0;
-    let timerId         = null;
-    let pollId          = null;
-    let workerTriggered = false;
-    let done            = false;
-    let rawLabel        = "";
-    let fromStr         = "";
-    let toStr           = "";
+    let elapsedSec = 0;
+    let timerId    = null;
+    let pollId     = null;
+    let done       = false;
+    let rawLabel   = "";
+    let fromStr    = "";
+    let toStr      = "";
 
     // ---------- HELPERS ----------
     function parseParams(){
@@ -213,25 +212,18 @@
     }
 
     function buildStatusUrl(label){
-      // status/status-<raw_label>.json
       return GH_RAW_BASE + "status/status-" + encodeURIComponent(label) +
              ".json?ts=" + Date.now();
     }
 
-    // IMPORTANT: Always turn html field into an ABSOLUTE URL.
-    // - If it starts with http(s), return as-is.
-    // - Otherwise, treat it as a path from site root.
+    // Ensure html -> absolute URL
     function buildHtmlHref(htmlField){
       if (!htmlField) return null;
       let s = String(htmlField).trim();
       if (!s) return null;
-
-      // Full URL already?
       if (s.startsWith("http://") || s.startsWith("https://")) {
         return s;
       }
-
-      // Force root-relative path
       if (!s.startsWith("/")) {
         s = "/" + s;
       }
@@ -251,12 +243,13 @@
 
     // ---------- POLLING ----------
     async function pollStatus(){
-      if (!workerTriggered || done || !rawLabel) return;
+      if (done || !rawLabel) return;
 
       const url = buildStatusUrl(rawLabel);
       try {
         const r = await fetch(url, { cache: "no-store" });
         if (r.status === 404) {
+          // No status file yet -> likely queued or just starting
           statusMsg("⏳ Running analysis…");
           return;
         }
@@ -272,12 +265,12 @@
 
         console.log("status JSON", data);
 
-        if (phase.indexOf("publishing") !== -1) {
+        if (phase.includes("publishing")) {
           statusMsg("🚀 Publishing results…");
           return;
         }
 
-        if (phase.indexOf("done") !== -1) {
+        if (phase.includes("done")) {
           const href = buildHtmlHref(html);
           const msg  = stat || "<span class='ok'>✅ Analysis complete.</span>";
           showDone(msg, href);
@@ -287,7 +280,7 @@
         statusMsg(stat || "⏳ Running analysis…");
       } catch (err) {
         console.log("pollStatus error", err);
-        // do not change status text; we'll try again on next tick
+        // ignore and try again on next tick
       }
     }
 
@@ -315,11 +308,13 @@
       statusMsg("⏳ Triggering worker…");
       startTimers();
 
-      const payload = {
-        label: rawLabel,
-        from:  fromStr,
-        to:    toStr
-      };
+      // Start polling immediately, regardless of worker fetch result
+      if (!pollId) {
+        pollId = window.setInterval(pollStatus, POLL_INTERVAL_MS);
+        pollStatus();
+      }
+
+      const payload = { label: rawLabel, from: fromStr, to: toStr };
 
       try {
         const r = await fetch(WORKER_URL, {
@@ -332,11 +327,6 @@
           console.log("worker HTTP error", r.status);
           statusEl.innerHTML =
             "<span class='err'>⚠️ Could not confirm worker (HTTP " + r.status + "). Still watching for results…</span>";
-          workerTriggered = true;
-          if (!pollId) {
-            pollId = window.setInterval(pollStatus, POLL_INTERVAL_MS);
-            pollStatus();
-          }
           return;
         }
 
@@ -344,22 +334,12 @@
         try { body = await r.json(); } catch (_) {}
         console.log("worker response", body);
 
-        workerTriggered = true;
         statusMsg("⏳ Running analysis…");
-
-        // start polling loop
-        pollId = window.setInterval(pollStatus, POLL_INTERVAL_MS);
-        pollStatus();
 
       } catch (err) {
         console.log("worker fetch error", err);
         statusEl.innerHTML =
           "<span class='err'>⚠️ Could not reach worker (network error). Still watching for results…</span>";
-        workerTriggered = true;
-        if (!pollId) {
-          pollId = window.setInterval(pollStatus, POLL_INTERVAL_MS);
-          pollStatus();
-        }
       }
     }
 
