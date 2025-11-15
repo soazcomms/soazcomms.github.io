@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>DSN Analysis – Cloudflare Trigger</title>
+  <title>DSN Analysis</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     :root {
@@ -218,10 +218,24 @@
              ".json?ts=" + Date.now();
     }
 
-    // html field in JSON is now a *full public URL*; just return it as-is.
+    // IMPORTANT: Always turn html field into an ABSOLUTE URL.
+    // - If it starts with http(s), return as-is.
+    // - Otherwise, treat it as a path from site root.
     function buildHtmlHref(htmlField){
       if (!htmlField) return null;
-      return String(htmlField);
+      let s = String(htmlField).trim();
+      if (!s) return null;
+
+      // Full URL already?
+      if (s.startsWith("http://") || s.startsWith("https://")) {
+        return s;
+      }
+
+      // Force root-relative path
+      if (!s.startsWith("/")) {
+        s = "/" + s;
+      }
+      return window.location.origin + s;
     }
 
     function showDone(text, href){
@@ -315,7 +329,6 @@
         });
 
         if (!r.ok) {
-          // HTTP-level failure – treat as soft failure but still poll
           console.log("worker HTTP error", r.status);
           statusEl.innerHTML =
             "<span class='err'>⚠️ Could not confirm worker (HTTP " + r.status + "). Still watching for results…</span>";
@@ -340,8 +353,6 @@
 
       } catch (err) {
         console.log("worker fetch error", err);
-        // Network / CORS / DNS failure – can't confirm worker,
-        // but still watch for a run that might have started some other way.
         statusEl.innerHTML =
           "<span class='err'>⚠️ Could not reach worker (network error). Still watching for results…</span>";
         workerTriggered = true;
