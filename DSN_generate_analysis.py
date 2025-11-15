@@ -20,6 +20,9 @@ def altsun1(tlat,tlong,tele,utc):
     altaz = AltAz(obstime=sun_time, location=loc)
     alt_ang = get_sun(sun_time).transform_to(altaz).alt.degree
     return alt_ang
+def ymd(d: str) -> str:
+    # Accept YYYY-MM-DD (from Grafana) and return YYYYMMDD
+    return d.split(" ")[0].replace("-", "")
 #
 parser = argparse.ArgumentParser()
 parser.add_argument('--input_dir', required=True)
@@ -35,6 +38,8 @@ start_time = pd.to_datetime(args.from_time, utc=True)
 end_time = pd.to_datetime(args.to_time, utc=True)
 start_str = start_time.strftime("%y-%m-%d %H:%M:%S")
 end_str = end_time.strftime("%y-%m-%d %H:%M:%S")
+ymd_from = ymd(start_time)
+ymd_to   = ymd(end_time)
 #
 #outdir = Path("analysis") / label
 outdir = Path(in_dir)
@@ -61,7 +66,8 @@ all_files = [f for f in os.listdir(in_dir) if f.startswith(label) and f.endswith
 if not all_files:
     raise FileNotFoundError(f"No files matching {label}_*.csv found in {in_dir}")
 
-print(f"📄 Found {len(all_files)} files: {all_files}")
+num_files=len(all_files)
+print(f"📄 Found {num_files)} files: {all_files}")
 
 df_list = []
 for file in all_files:
@@ -479,8 +485,15 @@ main_html += "</body></html>"
 output_path = outdir / f"{label}.analysis.html"
 with open(output_path, "w", encoding="utf-8") as f:
     f.write(main_html)
+    f.close()
 print(f"✅ Wrote main HTML to {output_path}")
+
 outdir = Path(outdir).resolve()    
-existing = sorted(outdir.glob(f"{label}_*.html")) 
-print(f"🧾 Found {len(existing)} individual plot HTML files.")
-# don't write status-{label}.json here
+existing = sorted(outdir.glob(f"{label}_*.html"))
+num_files=len(existing)
+print(f"🧾 Found {num_files} individual plot HTML files.")
+#
+output_path=out_dir / f"files_{ymd_from}_{ymd_to}"
+with open(output_path, "w", encoding="utf-8") as f:
+    f.write(str(num_files+" files")
+    f.close()
