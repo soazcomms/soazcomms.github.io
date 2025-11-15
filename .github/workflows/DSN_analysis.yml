@@ -23,21 +23,14 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-<<<<<<< Updated upstream
   dsn:
-=======
-  analyze:
->>>>>>> Stashed changes
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
     env:
-<<<<<<< Updated upstream
       # Influx config used by both CSV + Analysis scripts
       INFLUX_URL:   https://us-east-1-1.aws.cloud2.influxdata.com
       INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
-=======
->>>>>>> Stashed changes
       LABEL: ${{ github.event.inputs.label }}
       FROM:  ${{ github.event.inputs.from }}
       TO:    ${{ github.event.inputs.to }}
@@ -48,31 +41,16 @@ jobs:
         uses: actions/checkout@v4
         with: { fetch-depth: 0 }
 
-<<<<<<< Updated upstream
       - name: Derive date yyyymmdd
-=======
-      - name: Derive LABEL8 and date yyyymmdd
->>>>>>> Stashed changes
         id: derive
         shell: bash
         run: |
           set -euo pipefail
-<<<<<<< Updated upstream
           FROMD="$(date -d "${FROM}" +%Y%m%d)"
           TOD="$(date -d "${TO}" +%Y%m%d)"
           echo "FROMD=${FROMD}"   >> $GITHUB_OUTPUT
           echo "TOD=${TOD}"       >> $GITHUB_OUTPUT
           echo "Label: $LABEL ($FROMD..$TOD)"
-=======
-          RAW_LABEL="${LABEL}"
-          LABEL8="$(printf "%s" "${RAW_LABEL%%_*}" | cut -c1-8)"
-          FROMD="$(date -d "${FROM}" +%Y%m%d)"
-          TOD="$(date -d "${TO}" +%Y%m%d)"
-          echo "LABEL8=${LABEL8}" >> $GITHUB_OUTPUT
-          echo "FROMD=${FROMD}"   >> $GITHUB_OUTPUT
-          echo "TOD=${TOD}"       >> $GITHUB_OUTPUT
-          echo "Label: $RAW_LABEL -> $LABEL8 ($FROMD..$TOD)"
->>>>>>> Stashed changes
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -86,7 +64,6 @@ jobs:
       - name: "Write status: running"
         run: |
           set -e
-<<<<<<< Updated upstream
           mkdir -p status analysis/"${LABEL}"
 
           STATUS_FILE="status/status-${LABEL}.json"
@@ -171,63 +148,11 @@ jobs:
 
           echo "Listing outputs:"
           ls -l "analysis/${LABEL}"
-=======
-          mkdir -p status analysis/${{ steps.derive.outputs.LABEL8 }}
-          cat > status/status-${{ steps.derive.outputs.LABEL8 }}.json <<EOF
-          {"timestamp": $(date +%s), "phase": "running", "status": "⏳ Running analysis for ${LABEL}...", "raw_label": "${LABEL}"}
-          EOF
-          git add status/status-${{ steps.derive.outputs.LABEL8 }}.json
-          git -c user.name="actions" -c user.email="actions@users.noreply.github.com" commit -m "[status] ${{ steps.derive.outputs.LABEL8 }} running" || true
-          git push origin HEAD:main
-
-      - name: Clean non-CSV outputs for this label8
-        run: |
-          shopt -s nullglob
-          for f in analysis/${{ steps.derive.outputs.LABEL8 }}/*; do
-            case "$f" in
-              *.csv) : ;;
-              *) rm -f "$f" ;;
-            esac
-          done
-
-      - name: Ensure CSV exists (recreate if missing or wrong range)
-        shell: bash
-        run: |
-          set -euo pipefail
-          LABEL8="${{ steps.derive.outputs.LABEL8 }}"
-          FROMD="${{ steps.derive.outputs.FROMD }}"
-          TOD="${{ steps.derive.outputs.TOD }}"
-          OUTDIR="analysis/${LABEL8}"
-          CSV="${OUTDIR}/${LABEL}_${FROMD}_${TOD}.csv"
-
-          need_csv=1
-          if [ -f "${CSV}" ] && [ -s "${CSV}" ]; then
-            echo "Reusing existing ${CSV}"
-            need_csv=0
-          fi
-
-          if [ $need_csv -eq 1 ]; then
-            echo "Generating CSV -> ${CSV}"
-            mkdir -p "${OUTDIR}"
-            # Your script supports a CSV-only mode per our earlier work
-            python DSN_generate_analysis.py \
-              --label "${LABEL}" --from "${FROM}" --to "${TO}" \
-              --csv-only --output "${CSV}"
-            test -s "${CSV}" || { echo "CSV generation failed"; exit 1; }
-          fi
-
-      - name: Run analysis (produces ${LABEL8}.analysis.html + panels)
-        run: |
-          python DSN_generate_analysis.py \
-            --label "${LABEL}" --from "${FROM}" --to "${TO}" \
-            --input_dir "analysis/${{ steps.derive.outputs.LABEL8 }}"
->>>>>>> Stashed changes
 
       - name: Install endpoint HTML (per-label landing page)
         shell: bash
         run: |
           set -euo pipefail
-<<<<<<< Updated upstream
           mkdir -p "analysis/${LABEL}"
           # Copy uploaded template into the label's folder as index.html
           cp -f tools/DSN_endpoint.html "analysis/${LABEL}/index.html"
@@ -257,8 +182,7 @@ jobs:
            mkdir -p status analysis/"${LABEL}"
 
            FINAL_REL="analysis/${LABEL}/${LABEL}.analysis.html"
-           PUBLIC_URL="https://soazcomms.github.io/${FINAL_REL}"
-
+           PUBLIC_PATH="/analysis/${LABEL}/${LABEL}.analysis.html"
            test -f "${FINAL_REL}" || { echo "Missing ${FINAL_REL}"; exit 1; }
 
            STATUS_FILE="status/status-${LABEL}.json"
@@ -268,7 +192,7 @@ jobs:
            "  \"timestamp\": $(date +%s)," \
            "  \"phase\": \"done\"," \
            "  \"status\": \"✅ Analysis complete for ${LABEL}\"," \
-           "  \"html\": \"${PUBLIC_URL}\"," \
+           "  \"html\": \"${PUBLIC_PATH}\"," \
            "  \"raw_label\": \"${LABEL}\"" \
            "}" > "${STATUS_FILE}"
 
@@ -281,38 +205,13 @@ jobs:
            else
              echo "No changes to commit."
            fi
-=======
-          LABEL8="${{ steps.derive.outputs.LABEL8 }}"
-          mkdir -p "analysis/${LABEL8}"
-          # Copy your uploaded template into the label's folder as index.html
-          cp -f tools/DSN_endpoint.html "analysis/${LABEL8}/index.html"
-          echo "Endpoint ready at analysis/${LABEL8}/index.html"
-
-      - name: Write status: publishing and push artifacts
-        run: |
-          FINAL_REL="analysis/${{ steps.derive.outputs.LABEL8 }}/${{ steps.derive.outputs.LABEL8 }}.analysis.html"
-          test -f "${FINAL_REL}" || { echo "Missing ${FINAL_REL}"; exit 1; }
-          cat > status/status-${{ steps.derive.outputs.LABEL8 }}.json <<EOF
-          {"timestamp": $(date +%s), "phase": "publishing", "status": "🚀 Publishing results to Git for ${LABEL}…", "raw_label": "${LABEL}"}
-          EOF
-          git add analysis/${{ steps.derive.outputs.LABEL8 }} status/status-${{ steps.derive.outputs.LABEL8 }}.json
-          git -c user.name="actions" -c user.email="actions@users.noreply.github.com" commit -m "[analysis] ${{ steps.derive.outputs.LABEL8 }} update" || true
-          git push origin HEAD:main
->>>>>>> Stashed changes
 
       - name: Wait for GitHub Pages to serve final HTML
         shell: bash
         run: |
-<<<<<<< Updated upstream
           FINAL="https://soazcomms.github.io/analysis/${LABEL}/${LABEL}.analysis.html"
           echo "Waiting for ${FINAL}"
           end=$((SECONDS+60))
-=======
-          LABEL8="${{ steps.derive.outputs.LABEL8 }}"
-          FINAL="https://soazcomms.github.io/analysis/${LABEL8}/${LABEL8}.analysis.html"
-          echo "Waiting for ${FINAL}"
-          end=$((SECONDS+90))
->>>>>>> Stashed changes
           ok=0
           while [ $SECONDS -lt $end ]; do
             code=$(curl -s -o /dev/null -w "%{http_code}" -H "Cache-Control: no-cache" -I "${FINAL}?_cb=$(date +%s%3N)")
@@ -320,20 +219,5 @@ jobs:
             sleep 1
           done
           if [ $ok -ne 1 ]; then
-<<<<<<< Updated upstream
             echo "WARNING: Pages not ready within timeout (status is already 'done')."
           fi
-=======
-            echo "WARNING: Pages not ready within timeout (will still flip status to done)"
-          fi
-
-      - name: Write status: done (status-only push)
-        run: |
-          FINAL_REL="analysis/${{ steps.derive.outputs.LABEL8 }}/${{ steps.derive.outputs.LABEL8 }}.analysis.html"
-          cat > status/status-${{ steps.derive.outputs.LABEL8 }}.json <<EOF
-          {"timestamp": $(date +%s), "phase": "done", "status": "✅ Analysis complete for ${LABEL}", "html": "${FINAL_REL}", "raw_label": "${LABEL}"}
-          EOF
-          git add status/status-${{ steps.derive.outputs.LABEL8 }}.json
-          git -c user.name="actions" -c user.email="actions@users.noreply.github.com" commit -m "[status] ${{ steps.derive.outputs.LABEL8 }} done" || true
-          git push origin HEAD:main
->>>>>>> Stashed changes
