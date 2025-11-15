@@ -38,8 +38,8 @@ start_time = pd.to_datetime(args.from_time, utc=True)
 end_time = pd.to_datetime(args.to_time, utc=True)
 start_str = start_time.strftime("%y-%m-%d %H:%M:%S")
 end_str = end_time.strftime("%y-%m-%d %H:%M:%S")
-ymd_from = ymd(start_time)
-ymd_to   = ymd(end_time)
+ymd_from = ymd(args.from_time)
+ymd_to   = ymd(args.to_time)
 #
 #outdir = Path("analysis") / label
 outdir = Path(in_dir)
@@ -493,7 +493,7 @@ existing = sorted(outdir.glob(f"{label}_*.html"))
 num_files=len(existing)
 print(f"🧾 Found {num_files} individual plot HTML files.")
 #
-output_path=out_dir / f"files_{ymd_from}_{ymd_to}"
+output_path=outdir / f"files_{ymd_from}_{ymd_to}"
 with open(output_path, "w", encoding="utf-8") as f:
-    f.write(str(num_files+" files"))
+    f.write(str(num_files)+" files\n")
     f.close()
