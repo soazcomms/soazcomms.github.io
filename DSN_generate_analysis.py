@@ -67,7 +67,7 @@ if not all_files:
     raise FileNotFoundError(f"No files matching {label}_*.csv found in {in_dir}")
 
 num_files=len(all_files)
-print(f"📄 Found {num_files)} files: {all_files}")
+print(f"📄 Found {num_files} files: {all_files}")
 
 df_list = []
 for file in all_files:
