@@ -113,7 +113,7 @@
 </head>
 <body>
   <main class="card">
-    <h1>🔬 DSN Analysis V.39</h1>
+    <h1>🔬 DSN Analysis V.41</h1>
     <div id="siteLine" class="muted">Initializing…</div>
     <div id="status">⏳ Preparing…</div>
 
@@ -134,9 +134,11 @@
   <script>
   (function(){
     // ---------- CONSTANTS ----------
-    const TIMEOUT_SECONDS   = 7 * 60;  // 7 minutes
-    const POLL_INTERVAL_MS  = 5000;    // poll status every 5s
-    const WORKER_URL        = "https://dsn-analysis.dsn-analysis.workers.dev/";
+    const WORKER_URL       = "https://dsn-analysis.dsn-analysis.workers.dev/";
+    const GH_RAW_BASE      = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
+    const GH_PAGES_BASE    = "https://soazcomms.github.io/";
+    const TIMEOUT_SECONDS  = 7 * 60;
+    const POLL_INTERVAL_MS = 5000;
 
     // ---------- DOM ----------
     const statusEl   = document.getElementById("status");
@@ -146,11 +148,14 @@
     const viewBtn    = document.getElementById("viewBtn");
 
     // ---------- STATE ----------
-    let elapsedSec       = 0;
-    let timerId          = null;
-    let pollId           = null;
-    let workerTriggered  = false;
-    let done             = false;
+    let elapsedSec      = 0;
+    let timerId         = null;
+    let pollId          = null;
+    let workerTriggered = false;
+    let done            = false;
+    let rawLabel        = "";
+    let fromStr         = "";
+    let toStr           = "";
 
     // ---------- HELPERS ----------
     function parseParams(){
@@ -174,87 +179,78 @@
       return m + ":" + String(s).padStart(2, "0");
     }
 
-    function updateTimer(){
-      if (done) return;  // freeze timer after completion
-      elapsedSec += 1;
-      const remaining = Math.max(0, TIMEOUT_SECONDS - elapsedSec);
-
-      timersRow.textContent =
-        "⏱ " + mmss(elapsedSec) +
-        " · Timeout in " + mmss(remaining);
-
-      const pct = Math.max(0, Math.min(100, (elapsedSec / TIMEOUT_SECONDS) * 100));
-      barFill.style.width = pct.toFixed(1) + "%";
-
-      if (remaining <= 0 && !done) {
-        statusEl.innerHTML = "<span class='err'>❌ Timed out waiting for analysis.</span>";
-        stopAllTimers();
-      }
+    function statusMsg(msg) {
+      statusEl.textContent = msg;
     }
 
     function startTimers(){
       elapsedSec = 0;
-      timersRow.textContent =
-        "⏱ 0:00 · Timeout in " + mmss(TIMEOUT_SECONDS);
+      timersRow.textContent = "⏱ 0:00 · Timeout in " + mmss(TIMEOUT_SECONDS);
       barFill.style.width = "0%";
-      timerId = window.setInterval(updateTimer, 1000);
+      timerId = window.setInterval(function(){
+        if (done) return;
+        elapsedSec += 1;
+        const remaining = Math.max(0, TIMEOUT_SECONDS - elapsedSec);
+        timersRow.textContent =
+          "⏱ " + mmss(elapsedSec) + " · Timeout in " + mmss(remaining);
+        const pct = Math.max(0, Math.min(100, (elapsedSec / TIMEOUT_SECONDS) * 100));
+        barFill.style.width = pct.toFixed(1) + "%";
+        if (remaining <= 0 && !done) {
+          statusEl.innerHTML = "<span class='err'>❌ Timed out waiting for analysis.</span>";
+          stopAllTimers();
+        }
+      }, 1000);
     }
 
     function stopAllTimers(){
       if (timerId) {
-        window.clearInterval(timerId);
+        clearInterval(timerId);
         timerId = null;
       }
       if (pollId) {
-        window.clearInterval(pollId);
+        clearInterval(pollId);
         pollId = null;
       }
     }
 
     function buildStatusUrl(label){
-      const base = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
-      const encoded = encodeURIComponent(label);
       // status/status-<raw_label>.json
-      return base + "status/status-" + encoded + ".json?ts=" + Date.now();
+      return GH_RAW_BASE + "status/status-" + encodeURIComponent(label) +
+             ".json?ts=" + Date.now();
     }
 
     function buildHtmlHref(htmlField){
       if (!htmlField) return null;
-      if (/^https?:\\/\\//i.test(htmlField)) return htmlField;
-      // html is relative to repo root (e.g. "analysis/DSN019-S_MtLemmon/DSN019-S_MtLemmon.analysis.html")
-      return "https://soazcomms.github.io/" + htmlField.replace(/^\\/+/, "");
+      if (/^https?:\/\//i.test(htmlField)) return htmlField;
+      return GH_PAGES_BASE + htmlField.replace(/^\/+/, "");
     }
 
-    function showDone(msg, href){
+    function showDone(text, href){
       done = true;
-      statusEl.innerHTML = msg || "<span class='ok'>✅ Analysis complete.</span>";
       barFill.style.width = "100%";
+      statusEl.innerHTML = text || "<span class='ok'>✅ Analysis complete.</span>";
       if (viewBtn && href) {
         viewBtn.removeAttribute("disabled");
         viewBtn.href = href;
       }
-      // stop timers & polling, but keep final timer text visible
+      // keep final timer display, but stop updating / polling
       stopAllTimers();
     }
 
     // ---------- POLLING ----------
-    async function pollStatus(label){
-      if (!workerTriggered || done) return;
+    async function pollStatus(){
+      if (!workerTriggered || done || !rawLabel) return;
 
-      const url = buildStatusUrl(label);
+      const url = buildStatusUrl(rawLabel);
       try {
         const r = await fetch(url, { cache: "no-store" });
-
         if (r.status === 404) {
-          // status JSON not present yet => still running
-          if (!done) {
-            statusEl.textContent = "⏳ Running analysis…";
-          }
+          // not written yet => still running
+          statusMsg("⏳ Running analysis…");
           return;
         }
-
         if (!r.ok) {
-          // transient error – keep previous status, try again later
+          // transient error; keep previous status
           return;
         }
 
@@ -263,40 +259,57 @@
         const stat   = data.status || "";
         const html   = data.html   || "";
 
-        if (phase.includes("publishing")) {
-          statusEl.textContent = "🚀 Publishing results…";
+        console.log("status JSON", data);
+
+        if (phase.indexOf("publishing") !== -1) {
+          statusMsg("🚀 Publishing results…");
           return;
         }
 
-        if (phase.includes("done")) {
+        if (phase.indexOf("done") !== -1) {
           const href = buildHtmlHref(html);
-          showDone(stat || "<span class='ok'>✅ Analysis complete.</span>", href);
+          const msg  = stat || "<span class='ok'>✅ Analysis complete.</span>";
+          showDone(msg, href);
           return;
         }
 
-        // Any other phase – treat as "running", show repo-provided status if present
-        statusEl.textContent = stat || "⏳ Running analysis…";
+        // any other phase: treat as "running"
+        statusMsg(stat || "⏳ Running analysis…");
       } catch (err) {
-        // Network/CORS hiccup – keep previous status
         console.log("pollStatus error", err);
+        // do not change status text; we'll try again on next tick
       }
     }
 
-    // ---------- MAIN FLOW ----------
+    // ---------- MAIN ----------
     async function startJob(){
-      const { label, from, to } = parseParams();
-      if (!label || !from || !to) {
-        statusEl.innerHTML = "<span class='err'>❌ Missing label/from/to parameters.</span>";
+      console.log("JS startJob()");
+
+      const p = parseParams();
+      rawLabel = p.label;
+      fromStr  = p.from;
+      toStr    = p.to;
+
+      if (!rawLabel || !fromStr || !toStr) {
+        statusEl.innerHTML =
+          "<span class='err'>❌ Missing label/from/to parameters.</span>";
+        console.log("Missing params", p);
         return;
       }
 
       siteLineEl.textContent =
-        "Site: " + label + " · Range: " + justDate(from) + " → " + justDate(to);
+        "Site: " + rawLabel +
+        " · Range: " + justDate(fromStr) +
+        " → " + justDate(toStr);
 
-      statusEl.textContent = "⏳ Initializing…";
+      statusMsg("⏳ Triggering worker…");
       startTimers();
 
-      const payload = { label, from, to };
+      const payload = {
+        label: rawLabel,
+        from:  fromStr,
+        to:    toStr
+      };
 
       try {
         const r = await fetch(WORKER_URL, {
@@ -308,22 +321,23 @@
         if (!r.ok) {
           statusEl.innerHTML =
             "<span class='err'>❌ Failed to reach worker (HTTP " + r.status + ").</span>";
+          console.log("worker HTTP error", r.status);
           stopAllTimers();
           return;
         }
 
-        // We only care that the worker accepted the trigger; body is for console debug only
         let body = {};
         try { body = await r.json(); } catch (_) {}
         console.log("worker response", body);
 
         workerTriggered = true;
-        statusEl.textContent = "⏳ Running analysis…";
+        statusMsg("⏳ Running analysis…");
 
-        // Start polling GH raw status JSON
-        pollId = window.setInterval(function(){ pollStatus(label); }, POLL_INTERVAL_MS);
-        // Kick one immediate poll (catches very fast runs)
-        pollStatus(label);
+        // start polling loop
+        pollId = window.setInterval(pollStatus, POLL_INTERVAL_MS);
+        // initial immediate poll
+        pollStatus();
+
       } catch (err) {
         console.log("worker fetch error", err);
         statusEl.innerHTML =
