@@ -60,16 +60,21 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt || true; fi
+
       - name: "Write status: running"
         run: |
           set -e
-          mkdir -p status analysis/${LABEL}
-          cat > status/status-${LABEL}.json <<EOF
-          {"timestamp": $(date +%s), "phase": "running", "status": "⏳ Running analysis for ${LABEL}...", "raw_label": "${LABEL}"}
-          EOF
-          git add status/status-${LABEL}.json
-          git -c user.name="actions" -c user.email="actions@users.noreply.github.com" commit -m "[status] ${LABEL} running" || true
-          git push origin HEAD:main
+          mkdir -p status analysis/"${LABEL}"
+
+          STATUS_FILE="status/status-${LABEL}.json"
+
+          printf '%s\n' \
+          "{" \
+          "  \"timestamp\": $(date +%s)," \
+          "  \"phase\": \"running\"," \
+          "  \"status\": \"⏳ Running analysis for ${LABEL}...\"," \
+          "  \"raw_label\": \"${LABEL}\"" \
+          "}" > "${STATUS_FILE}"
 
       - name: Ensure CSV exists (recreate if missing or wrong range)
         shell: bash
@@ -153,16 +158,54 @@ jobs:
           cp -f tools/DSN_endpoint.html "analysis/${LABEL}/index.html"
           echo "Endpoint ready at analysis/${LABEL}/index.html"
 
-      - name: "Write status: publishing and push artifacts"
+      - name: "Write status: publishing"
         run: |
+          set -e
+          mkdir -p status analysis/"${LABEL}"
+
           FINAL_REL="analysis/${LABEL}/${LABEL}.analysis.html"
           test -f "${FINAL_REL}" || { echo "Missing ${FINAL_REL}"; exit 1; }
-          cat > status/status-${LABEL}.json <<EOF
-          {"timestamp": $(date +%s), "phase": "publishing", "status": "🚀 Publishing results to Git for ${LABEL}…", "raw_label": "${LABEL}"}
-          EOF
-          git add analysis/${LABEL} status/status-${LABEL}.json
-          git -c user.name="actions" -c user.email="actions@users.noreply.github.com" commit -m "[analysis] ${LABEL} update" || true
-          git push origin HEAD:main
+
+          STATUS_FILE="status/status-${LABEL}.json"
+
+          printf '%s\n' \
+          "{" \
+          "  \"timestamp\": $(date +%s)," \
+          "  \"phase\": \"publishing\"," \
+          "  \"status\": \"🚀 Publishing results for ${LABEL}...\"," \
+          "  \"raw_label\": \"${LABEL}\"" \
+          "}" > "${STATUS_FILE}"
+
+       - name: "Write status: done and push"
+         run: |
+           set -e
+           mkdir -p status analysis/"${LABEL}"
+
+           FINAL_REL="analysis/${LABEL}/${LABEL}.analysis.html"
+           PUBLIC_URL="https://soazcomms.github.io/${FINAL_REL}"
+
+           test -f "${FINAL_REL}" || { echo "Missing ${FINAL_REL}"; exit 1; }
+
+           STATUS_FILE="status/status-${LABEL}.json"
+
+           printf '%s\n' \
+           "{" \
+           "  \"timestamp\": $(date +%s)," \
+           "  \"phase\": \"done\"," \
+           "  \"status\": \"✅ Analysis complete for ${LABEL}\"," \
+           "  \"html\": \"${PUBLIC_URL}\"," \
+           "  \"raw_label\": \"${LABEL}\"" \
+           "}" > "${STATUS_FILE}"
+
+           git add "${STATUS_FILE}" "analysis/${LABEL}"
+
+           if ! git diff --cached --quiet; then
+             git -c user.name="actions" -c user.email="actions@users.noreply.github.com" \
+               commit -m "[analysis] ${LABEL} complete"
+             git push origin HEAD:main
+           else
+             echo "No changes to commit."
+           fi
 
       - name: Wait for GitHub Pages to serve final HTML
         shell: bash
@@ -177,15 +220,5 @@ jobs:
             sleep 1
           done
           if [ $ok -ne 1 ]; then
-            echo "WARNING: Pages not ready within timeout (will still flip status to done)"
+            echo "WARNING: Pages not ready within timeout (status is already 'done')."
           fi
-
-      - name: "Write status: done (status-only push)"
-        run: |
-          FINAL_REL="analysis/${LABEL}/${LABEL}.analysis.html"
-          cat > status/status-${LABEL}.json <<EOF
-          {"timestamp": $(date +%s), "phase": "done", "status": "✅ Analysis complete for ${LABEL}", "html": "${FINAL_REL}", "raw_label": "${LABEL}"}
-          EOF
-          git add status/status-${LABEL}.json
-          git -c user.name="actions" -c user.email="actions@users.noreply.github.com" commit -m "[status] ${LABEL} done" || true
-          git push origin HEAD:main
