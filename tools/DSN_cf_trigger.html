@@ -113,7 +113,7 @@
 </head>
 <body>
   <main class="card">
-    <h1>🔬 DSN Analysis V.41</h1>
+    <h1>🔬 DSN Analysis V.42</h1>
     <div id="siteLine" class="muted">Initializing…</div>
     <div id="status">⏳ Preparing…</div>
 
@@ -136,7 +136,6 @@
     // ---------- CONSTANTS ----------
     const WORKER_URL       = "https://dsn-analysis.dsn-analysis.workers.dev/";
     const GH_RAW_BASE      = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
-    const GH_PAGES_BASE    = "https://soazcomms.github.io/";
     const TIMEOUT_SECONDS  = 7 * 60;
     const POLL_INTERVAL_MS = 5000;
 
@@ -219,10 +218,11 @@
              ".json?ts=" + Date.now();
     }
 
+    // NEW: the backend now supplies html as a *full public URL* in status JSON,
+    // so we just trust and return it directly if present.
     function buildHtmlHref(htmlField){
       if (!htmlField) return null;
-      if (/^https?:\/\//i.test(htmlField)) return htmlField;
-      return GH_PAGES_BASE + htmlField.replace(/^\/+/, "");
+      return String(htmlField);
     }
 
     function showDone(text, href){
