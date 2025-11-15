@@ -236,7 +236,7 @@ def delete_non_csv(out_dir: Path):
     if removed: debug_log(f"[clean] removed {removed} non-CSV files")
 def main():
     args = parse_args()
-
+    label = args.label
     repo = Path(args.site_repo).expanduser().resolve()
     if not repo.exists():
         print(f"ERROR: site repo not found: {repo}", file=sys.stderr)
@@ -245,22 +245,22 @@ def main():
     git_identity(repo)
     git_hard_sync(repo)
 
-    ymd_from = ymd(args.from_date).replace("-","")
-    ymd_to   = ymd(args.to_date).replace("-","")
+    ymd_from = ymd(args.from_date)
+    ymd_to   = ymd(args.to_date)
     if args.out:
         # Respect the directory from --out, but normalize the filename
         out_dir = Path(args.out).expanduser().resolve().parent
-        out_csv = out_dir / f"{args.label}_{ymd_from}_{ymd_to}.csv"
+        out_csv = out_dir / f"{label}_{ymd_from}_{ymd_to}.csv"
     else:
         out_dir = Path(args.site_repo).expanduser().resolve() / "analysis" / label[:8]
-        out_csv = out_dir / f"{args.label}_{ymd_from}_{ymd_to}.csv"
+        out_csv = out_dir / f"{label}_{ymd_from}_{ymd_to}.csv"
 
     # Early exit if csv exists       
     if out_csv.exists() and out_csv.stat().st_size > 0:
         # usual status line so the HTML unblocks immediately
         delete_non_csv(out_dir)
         print(json.dumps({
-            "status": f"✅ CSV already present for {args.label} {ymd_from}-{ymd_to}",
+            "status": f"✅ CSV already present for {label} {ymd_from}-{ymd_to}",
             "csv":     f"https://soazcomms.github.io/analysis/{label}/{out_csv.name}",
             "csv_raw": f"https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/analysis/{label}/{out_csv.name}",
             "timestamp": int(time.time())
@@ -303,8 +303,8 @@ def main():
         return 2
 
     # Fetch real CSV from Influx for Grafana window
-#    site = site_from_label(args.label)
-    meas = measurement_from_label(args.label)  # e.g., DSN019S_MtLemmon
+#    site = site_from_label(label)
+    meas = measurement_from_label(label)  # e.g., DSN019S_MtLemmon
 
     start_iso, stop_iso = iso_range(args.from_date, args.to_date)
     try:
@@ -319,12 +319,12 @@ def main():
 
     # commit & push
     rel = out_csv.relative_to(repo)
-    git_commit_push(repo, f"Publish CSV for {args.label} {ymd_from}..{ymd_to}")
+    git_commit_push(repo, f"Publish CSV for {label} {ymd_from}..{ymd_to}")
 
     csv_pages = f"https://soazcomms.github.io/{str(rel).replace(os.sep,'/')}"
     csv_raw   = f"https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/{str(rel).replace(os.sep,'/')}"
     print(json.dumps({
-        "status": f"✅ CSV ready for {args.label} {ymd_from}-{ymd_to}",
+        "status": f"✅ CSV ready for {label} {ymd_from}-{ymd_to}",
         "csv": csv_pages,
         "csv_raw": csv_raw,
         "timestamp": int(time.time())
