@@ -62,7 +62,7 @@
       height: 100%;
       border-radius: inherit;
       background: linear-gradient(90deg, #60a5fa, #22c55e);
-      transition: width 0.35s linear;  /* smooth linear fill */
+      transition: width 0.35s linear;
     }
     #timersRow {
       font-size: 0.8rem;
@@ -113,7 +113,7 @@
 </head>
 <body>
   <main class="card">
-    <h1>🔬 DSN Analysis V.42</h1>
+    <h1>🔬 DSN Analysis V.43</h1>
     <div id="siteLine" class="muted">Initializing…</div>
     <div id="status">⏳ Preparing…</div>
 
@@ -218,8 +218,7 @@
              ".json?ts=" + Date.now();
     }
 
-    // NEW: the backend now supplies html as a *full public URL* in status JSON,
-    // so we just trust and return it directly if present.
+    // html field in JSON is now a *full public URL*; just return it as-is.
     function buildHtmlHref(htmlField){
       if (!htmlField) return null;
       return String(htmlField);
@@ -233,7 +232,6 @@
         viewBtn.removeAttribute("disabled");
         viewBtn.href = href;
       }
-      // keep final timer display, but stop updating / polling
       stopAllTimers();
     }
 
@@ -245,7 +243,6 @@
       try {
         const r = await fetch(url, { cache: "no-store" });
         if (r.status === 404) {
-          // not written yet => still running
           statusMsg("⏳ Running analysis…");
           return;
         }
@@ -273,7 +270,6 @@
           return;
         }
 
-        // any other phase: treat as "running"
         statusMsg(stat || "⏳ Running analysis…");
       } catch (err) {
         console.log("pollStatus error", err);
@@ -319,10 +315,15 @@
         });
 
         if (!r.ok) {
-          statusEl.innerHTML =
-            "<span class='err'>❌ Failed to reach worker (HTTP " + r.status + ").</span>";
+          // HTTP-level failure – treat as soft failure but still poll
           console.log("worker HTTP error", r.status);
-          stopAllTimers();
+          statusEl.innerHTML =
+            "<span class='err'>⚠️ Could not confirm worker (HTTP " + r.status + "). Still watching for results…</span>";
+          workerTriggered = true;
+          if (!pollId) {
+            pollId = window.setInterval(pollStatus, POLL_INTERVAL_MS);
+            pollStatus();
+          }
           return;
         }
 
@@ -335,14 +336,19 @@
 
         // start polling loop
         pollId = window.setInterval(pollStatus, POLL_INTERVAL_MS);
-        // initial immediate poll
         pollStatus();
 
       } catch (err) {
         console.log("worker fetch error", err);
+        // Network / CORS / DNS failure – can't confirm worker,
+        // but still watch for a run that might have started some other way.
         statusEl.innerHTML =
-          "<span class='err'>❌ Failed to reach worker (network error).</span>";
-        stopAllTimers();
+          "<span class='err'>⚠️ Could not reach worker (network error). Still watching for results…</span>";
+        workerTriggered = true;
+        if (!pollId) {
+          pollId = window.setInterval(pollStatus, POLL_INTERVAL_MS);
+          pollStatus();
+        }
       }
     }
 
