@@ -113,7 +113,7 @@
 </head>
 <body>
   <main class="card">
-    <h1>🔬 DSN Analysis V.44</h1>
+    <h1>🔬 DSN Analysis V.46</h1>
     <div id="siteLine" class="muted">Initializing…</div>
     <div id="status">⏳ Preparing…</div>
 
@@ -136,7 +136,7 @@
     // ---------- CONSTANTS ----------
     const WORKER_URL       = "https://dsn-analysis.dsn-analysis.workers.dev/";
     const GH_RAW_BASE      = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
-    const TIMEOUT_SECONDS  = 7 * 60;      // bump if your job needs more time
+    const TIMEOUT_SECONDS  = 7 * 60;
     const POLL_INTERVAL_MS = 5000;
 
     // ---------- DOM ----------
@@ -154,6 +154,8 @@
     let rawLabel   = "";
     let fromStr    = "";
     let toStr      = "";
+    let markerUrl  = null;  // /analysis/<LABEL>/files_YYMMDD_YYMMDD
+    const sessionStartTs = Math.floor(Date.now() / 1000); // for stale JSON detection
 
     // ---------- HELPERS ----------
     function parseParams(){
@@ -216,6 +218,19 @@
              ".json?ts=" + Date.now();
     }
 
+    // Turn "YYYY-MM-DD ..." into "YYMMDD" (e.g. 2025-03-31 -> 250331)
+    function toYYMMDD(dateTime){
+      if (!dateTime) return "";
+      const d = dateTime.split(" ")[0];      // "YYYY-MM-DD"
+      const parts = d.split("-");
+      if (parts.length !== 3) return "";
+      const y = parts[0];
+      const m = parts[1].padStart(2, "0");
+      const day = parts[2].padStart(2, "0");
+      const yy = y.slice(-2);
+      return yy + m + day;
+    }
+
     // Ensure html -> absolute URL
     function buildHtmlHref(htmlField){
       if (!htmlField) return null;
@@ -245,42 +260,81 @@
     async function pollStatus(){
       if (done || !rawLabel) return;
 
+      let showedStatus = false;
+      let jsonHtml = "";
+      let jsonStat = "";
+
+      // 1) Try status JSON
       const url = buildStatusUrl(rawLabel);
       try {
         const r = await fetch(url, { cache: "no-store" });
         if (r.status === 404) {
-          // No status file yet -> likely queued or just starting
-          statusMsg("⏳ Running analysis…");
-          return;
+          // status file not yet written -> fall through to marker check
+        } else if (r.ok) {
+          const data = await r.json();
+          const phase  = String(data.phase || "").toLowerCase();
+          const stat   = data.status || "";
+          const html   = data.html   || "";
+          const tsRaw  = data.timestamp;
+          const ts     = typeof tsRaw === "number" ? tsRaw : Number(tsRaw || 0);
+
+          jsonHtml = html;
+          jsonStat = stat;
+
+          console.log("status JSON", data);
+
+          // Ignore stale "done"/"publishing" from previous runs
+          const isStale = ts && ts < (sessionStartTs - 5);
+
+          if (phase.includes("publishing") && !isStale) {
+            statusMsg("🚀 Publishing results…");
+            showedStatus = true;
+            return;
+          }
+
+          if (phase.includes("done") && !isStale) {
+            const href = buildHtmlHref(html || ("/analysis/" + rawLabel + "/" + rawLabel + ".analysis.html"));
+            const msg  = stat || "<span class='ok'>✅ Analysis complete.</span>";
+            showDone(msg, href);
+            return;
+          }
+
+          if (!isStale && stat) {
+            statusMsg(stat);
+            showedStatus = true;
+          }
+        } else {
+          // non-404, non-OK: ignore and fall through
         }
-        if (!r.ok) {
-          // transient error; keep previous status
-          return;
-        }
-
-        const data = await r.json();
-        const phase  = String(data.phase || "").toLowerCase();
-        const stat   = data.status || "";
-        const html   = data.html   || "";
-
-        console.log("status JSON", data);
-
-        if (phase.includes("publishing")) {
-          statusMsg("🚀 Publishing results…");
-          return;
-        }
-
-        if (phase.includes("done")) {
-          const href = buildHtmlHref(html);
-          const msg  = stat || "<span class='ok'>✅ Analysis complete.</span>";
-          showDone(msg, href);
-          return;
-        }
-
-        statusMsg(stat || "⏳ Running analysis…");
       } catch (err) {
-        console.log("pollStatus error", err);
-        // ignore and try again on next tick
+        console.log("pollStatus JSON error", err);
+      }
+
+      // 2) files_* marker fallback (DSN_generate_analysis.py writes this on success)
+      if (!done && markerUrl) {
+        try {
+          const fullMarker = window.location.origin + markerUrl;
+          const mr = await fetch(fullMarker, {
+            method: "HEAD",
+            cache: "no-store"
+          });
+          if (mr.ok) {
+            // Marker exists => treat as done, even if JSON is missing or stale
+            const href = buildHtmlHref(
+              jsonHtml || ("/analysis/" + rawLabel + "/" + rawLabel + ".analysis.html")
+            );
+            const msg = jsonStat || "✅ Analysis complete (files marker found).";
+            showDone(msg, href);
+            return;
+          }
+        } catch (err) {
+          console.log("pollStatus marker error", err);
+        }
+      }
+
+      // 3) If we didn't show anything this tick, keep the "running" message
+      if (!done && !showedStatus) {
+        statusMsg("⏳ Running analysis…");
       }
     }
 
@@ -305,10 +359,20 @@
         " · Range: " + justDate(fromStr) +
         " → " + justDate(toStr);
 
+      // Precompute files_* marker path for this range (if possible)
+      const fromCode = toYYMMDD(fromStr);
+      const toCode   = toYYMMDD(toStr);
+      if (fromCode && toCode) {
+        markerUrl = "/analysis/" + encodeURIComponent(rawLabel) +
+                    "/files_" + fromCode + "_" + toCode;
+      } else {
+        markerUrl = null;
+      }
+
       statusMsg("⏳ Triggering worker…");
       startTimers();
 
-      // Start polling immediately, regardless of worker fetch result
+      // Start polling immediately, regardless of worker outcome
       if (!pollId) {
         pollId = window.setInterval(pollStatus, POLL_INTERVAL_MS);
         pollStatus();
