@@ -113,7 +113,7 @@
 </head>
 <body>
   <main class="card">
-    <h1>🔬 DSN Analysis V.54</h1>
+    <h1>🔬 DSN Analysis V.55</h1>
     <div id="siteLine" class="muted">Initializing…</div>
     <div id="status">⏳ Preparing…</div>
 
@@ -280,46 +280,12 @@
       return false;
     }
 
-    // SLOW PATH: poll JSON status until phase includes "done"
+    // SLOW PATH: poll JSON for status text, but ONLY marker controls "done"
     async function pollStatus(){
       if (done || !rawLabel) return;
 
-      let showedStatus = false;
-      const url = buildStatusUrl(rawLabel);
-
-      try {
-        const r = await fetch(url, { cache: "no-store" });
-        if (r.status !== 404 && r.ok) {
-          const data  = await r.json();
-          const phase = String(data.phase || "").toLowerCase();
-          const stat  = data.status || "";
-          const html  = data.html   || "";
-
-          console.log("status JSON", data);
-
-          if (phase.includes("done")) {
-            const href = buildHtmlHref(
-              html || analysisPath || ("/analysis/" + rawLabel + "/" + rawLabel + ".analysis.html")
-            );
-            const msg  = stat || "<span class='ok'>✅ Analysis complete.</span>";
-            showDone(msg, href);
-            return;
-          }
-
-          if (phase.includes("publishing")) {
-            statusMsg("🚀 Publishing results…");
-            showedStatus = true;
-          } else if (stat) {
-            statusMsg(stat);
-            showedStatus = true;
-          }
-        }
-      } catch (err) {
-        console.log("pollStatus JSON error", err);
-      }
-
-      // As a backup, if JSON hasn't flipped yet but the marker got created, treat that as done too.
-      if (!done && markerRawUrl) {
+      // 1) Check marker for THIS range; if present, we're done.
+      if (markerRawUrl) {
         try {
           const mr = await fetch(markerRawUrl + "?ts=" + Date.now(), {
             method: "HEAD",
@@ -331,8 +297,33 @@
             return;
           }
         } catch (err) {
-          console.log("pollStatus marker backup error", err);
+          console.log("pollStatus marker check error", err);
         }
+      }
+
+      // 2) Use JSON only for intermediate messages (not for deciding "done")
+      let showedStatus = false;
+      const url = buildStatusUrl(rawLabel);
+
+      try {
+        const r = await fetch(url, { cache: "no-store" });
+        if (r.status !== 404 && r.ok) {
+          const data  = await r.json();
+          const phase = String(data.phase || "").toLowerCase();
+          const stat  = data.status || "";
+
+          console.log("status JSON", data);
+
+          if (phase.includes("publishing")) {
+            statusMsg("🚀 Publishing results…");
+            showedStatus = true;
+          } else if (stat) {
+            statusMsg(stat);
+            showedStatus = true;
+          }
+        }
+      } catch (err) {
+        console.log("pollStatus JSON error", err);
       }
 
       if (!done && !showedStatus) {
@@ -385,7 +376,7 @@
         }
       }
 
-      // 2) SLOW PATH: trigger worker and poll JSON status until phase:"done"
+      // 2) SLOW PATH: trigger worker and poll JSON for status text; marker decides "done".
       statusMsg("⏳ Triggering analysis…");
       startTimers();
 
@@ -406,7 +397,7 @@
 
         if (!r.ok) {
           console.log("worker HTTP error", r.status);
-          // Don't scare the user; just keep watching for completion.
+          // Don't scare the user; just keep watching for marker.
           statusMsg("⏳ Running analysis…");
           return;
         }
