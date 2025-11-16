@@ -113,7 +113,7 @@
 </head>
 <body>
   <main class="card">
-    <h1>🔬 DSN Analysis V.51</h1>
+    <h1>🔬 DSN Analysis V.52</h1>
     <div id="siteLine" class="muted">Initializing…</div>
     <div id="status">⏳ Preparing…</div>
 
@@ -138,12 +138,11 @@
   <script>
   (function(){
     // ---------- CONSTANTS ----------
-    const WORKER_URL    = "https://dsn-analysis.dsn-analysis.workers.dev/";
-    const GH_RAW_BASE   = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
-    const GH_API_BASE   = "https://api.github.com/repos/soazcomms/soazcomms.github.io/contents/";
-    const PAGES_BASE    = "https://soazcomms.github.io";
-    const TIMEOUT_SECS  = 7 * 60;
-    const POLL_INTERVAL = 5000;
+    const WORKER_URL      = "https://dsn-analysis.dsn-analysis.workers.dev/";
+    const REPO_RAW_BASE   = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
+    const PAGES_BASE      = "https://soazcomms.github.io";
+    const TIMEOUT_SECONDS = 7 * 60;
+    const POLL_INTERVAL   = 5000;
 
     // ---------- DOM ----------
     const statusEl   = document.getElementById("status");
@@ -153,15 +152,15 @@
     const viewBtn    = document.getElementById("viewBtn");
 
     // ---------- STATE ----------
-    let elapsedSec  = 0;
-    let timerId     = null;
-    let pollId      = null;
-    let done        = false;
-    let rawLabel    = "";
-    let fromStr     = "";
-    let toStr       = "";
-    let analysisPath = "";
-    const sessionStartTs = Math.floor(Date.now() / 1000);
+    let elapsedSec   = 0;
+    let timerId      = null;
+    let pollId       = null;
+    let done         = false;
+    let rawLabel     = "";
+    let fromStr      = "";
+    let toStr        = "";
+    let markerRawUrl = null;  // raw GH URL for files_YYMMDD_YYMMDD
+    let analysisPath = "";    // /analysis/<LABEL>/<LABEL>.analysis.html
 
     // ---------- HELPERS ----------
     function parseParams(){
@@ -175,7 +174,7 @@
 
     function justDate(s){
       if (!s) return "";
-      return s.slice(0, 10); // YYYY-MM-DD
+      return s.slice(0, 10);   // "YYYY-MM-DD"
     }
 
     function mmss(sec){
@@ -191,15 +190,15 @@
 
     function startTimers(){
       elapsedSec = 0;
-      timersRow.textContent = "⏱ 0:00 · Timeout in " + mmss(TIMEOUT_SECS);
+      timersRow.textContent = "⏱ 0:00 · Timeout in " + mmss(TIMEOUT_SECONDS);
       barFill.style.width = "0%";
       timerId = window.setInterval(function(){
         if (done) return;
         elapsedSec += 1;
-        const remaining = Math.max(0, TIMEOUT_SECS - elapsedSec);
+        const remaining = Math.max(0, TIMEOUT_SECONDS - elapsedSec);
         timersRow.textContent =
           "⏱ " + mmss(elapsedSec) + " · Timeout in " + mmss(remaining);
-        const pct = Math.max(0, Math.min(100, (elapsedSec / TIMEOUT_SECS) * 100));
+        const pct = Math.max(0, Math.min(100, (elapsedSec / TIMEOUT_SECONDS) * 100));
         barFill.style.width = pct.toFixed(1) + "%";
         if (remaining <= 0 && !done) {
           statusEl.innerHTML = "<span class='err'>❌ Timed out waiting for analysis.</span>";
@@ -222,7 +221,7 @@
     // "YYYY-MM-DD..." -> "YYMMDD"
     function toYYMMDD(s){
       if (!s) return "";
-      const d = s.slice(0, 10);
+      const d = s.slice(0, 10); // first 10 chars: YYYY-MM-DD
       const parts = d.split("-");
       if (parts.length !== 3) return "";
       const y  = parts[0];
@@ -244,7 +243,7 @@
     }
 
     function buildStatusUrl(label){
-      return GH_RAW_BASE + "status/status-" + encodeURIComponent(label) +
+      return REPO_RAW_BASE + "status/status-" + encodeURIComponent(label) +
              ".json?ts=" + Date.now();
     }
 
@@ -259,42 +258,32 @@
       stopAllTimers();
     }
 
-    // ---- files_* matching via GitHub API ----
-    async function hasMatchingFilesMarker(label, fromCode, toCode){
+    // FAST PATH: check if marker file for this exact range already exists
+    async function checkMarkerFast(){
+      if (!markerRawUrl) return false;
       try {
-        const url = GH_API_BASE + "analysis/" + encodeURIComponent(label);
-        const r = await fetch(url, {
-          headers: { "Accept": "application/vnd.github.v3+json" },
+        const r = await fetch(markerRawUrl + "?ts=" + Date.now(), {
+          method: "HEAD",
           cache: "no-store"
         });
-        if (!r.ok) {
-          console.log("GH API dir list error", r.status);
-          return false;
-        }
-        const entries = await r.json();
-        if (!Array.isArray(entries)) return false;
-
-        for (const e of entries) {
-          const name = e.name || "";
-          const m = /^files_(\d{6})_(\d{6})$/.exec(name);
-          if (m && m[1] === fromCode && m[2] === toCode) {
-            console.log("Found matching files_* marker:", name);
-            return true;
-          }
+        if (r.ok) {
+          const href = buildHtmlHref(analysisPath);
+          showDone("✅ Analysis already available for this range.", href);
+          return true;
         }
       } catch (err) {
-        console.log("hasMatchingFilesMarker error", err);
+        console.log("checkMarkerFast error", err);
       }
       return false;
     }
 
-    // ---- JSON polling for phase:"done" when range doesn't already match files_* ----
+    // SLOW PATH: poll JSON status until phase includes "done"
     async function pollStatus(){
       if (done || !rawLabel) return;
 
       let showedStatus = false;
-
       const url = buildStatusUrl(rawLabel);
+
       try {
         const r = await fetch(url, { cache: "no-store" });
         if (r.status !== 404 && r.ok) {
@@ -302,19 +291,10 @@
           const phase = String(data.phase || "").toLowerCase();
           const stat  = data.status || "";
           const html  = data.html   || "";
-          const tsRaw = data.timestamp;
-          const ts    = typeof tsRaw === "number" ? tsRaw : Number(tsRaw || 0);
 
           console.log("status JSON", data);
 
-          const isStale = ts && ts < sessionStartTs; // only accept statuses newer than this page
-
-          if (phase.includes("publishing") && !isStale) {
-            statusMsg("🚀 Publishing results…");
-            showedStatus = true;
-          }
-
-          if (phase.includes("done") && !isStale) {
+          if (phase.includes("done")) {
             const href = buildHtmlHref(
               html || analysisPath || ("/analysis/" + rawLabel + "/" + rawLabel + ".analysis.html")
             );
@@ -323,13 +303,33 @@
             return;
           }
 
-          if (!isStale && stat && !showedStatus) {
+          if (phase.includes("publishing")) {
+            statusMsg("🚀 Publishing results…");
+            showedStatus = true;
+          } else if (stat) {
             statusMsg(stat);
             showedStatus = true;
           }
         }
       } catch (err) {
         console.log("pollStatus JSON error", err);
+      }
+
+      // As a backup, if JSON hasn't flipped yet but the marker got created, treat that as done too.
+      if (!done && markerRawUrl) {
+        try {
+          const mr = await fetch(markerRawUrl + "?ts=" + Date.now(), {
+            method: "HEAD",
+            cache: "no-store"
+          });
+          if (mr.ok) {
+            const href = buildHtmlHref(analysisPath);
+            showDone("✅ Analysis complete for this range.", href);
+            return;
+          }
+        } catch (err) {
+          console.log("pollStatus marker backup error", err);
+        }
       }
 
       if (!done && !showedStatus) {
@@ -358,23 +358,30 @@
         " · Range: " + justDate(fromStr) +
         " → " + justDate(toStr);
 
+      // Final HTML path (deterministic)
       analysisPath = "/analysis/" + rawLabel + "/" + rawLabel + ".analysis.html";
 
-      const fromCode = toYYMMDD(fromStr); // YYMMDD
-      const toCode   = toYYMMDD(toStr);   // YYMMDD
+      // Build marker filename from fromStr/toStr (YYMMDD_YYMMDD)
+      const fromCode = toYYMMDD(fromStr);
+      const toCode   = toYYMMDD(toStr);
 
-      // 1) QUICK PATH: do fromStr/toStr match any existing files_YYYYMMDD_YYYYMMDD ?
       if (fromCode && toCode) {
+        const relPath = "analysis/" + rawLabel + "/files_" + fromCode + "_" + toCode;
+        markerRawUrl  = REPO_RAW_BASE + relPath;
+      } else {
+        markerRawUrl = null;
+      }
+
+      // 1) FAST PATH: if this exact range's files_* marker already exists, we're done.
+      if (markerRawUrl) {
         statusMsg("⏳ Checking existing results…");
-        const haveMatch = await hasMatchingFilesMarker(rawLabel, fromCode, toCode);
-        if (haveMatch) {
-          const href = buildHtmlHref(analysisPath);
-          showDone("✅ Analysis already available for this range.", href);
-          return; // do NOT start worker or timers
+        const haveMarker = await checkMarkerFast();
+        if (haveMarker) {
+          return; // showDone already called
         }
       }
 
-      // 2) SLOW PATH: ranges don't match existing files_*; poll for JSON phase:"done".
+      // 2) SLOW PATH: trigger worker and poll JSON status until phase:"done"
       statusMsg("⏳ Triggering analysis…");
       startTimers();
 
@@ -385,7 +392,6 @@
 
       const payload = { label: rawLabel, from: fromStr, to: toStr };
 
-      // Fire worker, but UI no longer depends on worker success.
       try {
         const r = await fetch(WORKER_URL, {
           method: "POST",
