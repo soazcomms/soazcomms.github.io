@@ -252,7 +252,7 @@ def main():
         out_dir = Path(args.out).expanduser().resolve().parent
         out_csv = out_dir / f"{label}_{ymd_from}_{ymd_to}.csv"
     else:
-        out_dir = Path(args.site_repo).expanduser().resolve() / "analysis" / label[:8]
+        out_dir = Path(args.site_repo).expanduser().resolve() / "analysis" / label
         out_csv = out_dir / f"{label}_{ymd_from}_{ymd_to}.csv"
 
     # Early exit if csv exists       
