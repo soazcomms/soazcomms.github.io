@@ -113,7 +113,7 @@
 </head>
 <body>
   <main class="card">
-    <h1>🔬 DSN Analysis V.47</h1>
+    <h1>🔬 DSN Analysis V.48</h1>
     <div id="siteLine" class="muted">Initializing…</div>
     <div id="status">⏳ Preparing…</div>
 
@@ -154,8 +154,8 @@
     let rawLabel   = "";
     let fromStr    = "";
     let toStr      = "";
-    let markerUrl  = null;  // /analysis/<LABEL>/files_YYMMDD_YYMMDD
-    let csvUrl     = null;  // /analysis/<LABEL>/<LABEL>_YYYYMMDD_YYYYMMDD.csv
+    let markerRawUrl = null;  // raw GH URL for files_YYMMDD_YYMMDD
+    let csvRawUrl    = null;  // raw GH URL for LABEL_YYYYMMDD_YYYYMMDD.csv
     const sessionStartTs = Math.floor(Date.now() / 1000);
 
     // ---------- HELPERS ----------
@@ -170,7 +170,7 @@
 
     function justDate(s){
       if (!s) return "";
-      return s.split(" ")[0];
+      return s.slice(0, 10);   // always YYYY-MM-DD
     }
 
     function mmss(sec){
@@ -219,9 +219,15 @@
              ".json?ts=" + Date.now();
     }
 
-    function toYYMMDD(dateTime){
+    // dateTime -> "YYYY-MM-DD"
+    function datePrefix(dateTime) {
       if (!dateTime) return "";
-      const d = dateTime.split(" ")[0];      // "YYYY-MM-DD"
+      return dateTime.slice(0, 10); // robust for "YYYY-MM-DD ..." or "YYYY-MM-DDT..."
+    }
+
+    // "YYYY-MM-DD" -> "YYMMDD"
+    function toYYMMDD(dateTime){
+      const d = datePrefix(dateTime);
       const parts = d.split("-");
       if (parts.length !== 3) return "";
       const y = parts[0];
@@ -231,9 +237,9 @@
       return yy + m + day;
     }
 
+    // "YYYY-MM-DD" -> "YYYYMMDD"
     function toYYYYMMDD(dateTime){
-      if (!dateTime) return "";
-      const d = dateTime.split(" ")[0];      // "YYYY-MM-DD"
+      const d = datePrefix(dateTime);
       const parts = d.split("-");
       if (parts.length !== 3) return "";
       const y = parts[0];
@@ -316,15 +322,15 @@
         console.log("pollStatus JSON error", err);
       }
 
-      // 2) files_* + CSV fallback (authoritative for this range)
-      if (!done && markerUrl && csvUrl) {
+      // 2) files_* + CSV fallback via raw.githubusercontent.com
+      if (!done && markerRawUrl && csvRawUrl) {
         try {
-          const base = window.location.origin;
           const [mr, cr] = await Promise.all([
-            fetch(base + markerUrl + "?ts=" + Date.now(), { cache: "no-store" }),
-            fetch(base + csvUrl    + "?ts=" + Date.now(), { method: "HEAD", cache: "no-store" })
+            fetch(markerRawUrl + "?ts=" + Date.now(), { method: "HEAD", cache: "no-store" }),
+            fetch(csvRawUrl    + "?ts=" + Date.now(), { method: "HEAD", cache: "no-store" })
           ]);
 
+          // If BOTH exist in the repo, treat this as done for this range
           if (mr.ok && cr.ok) {
             const href = buildHtmlHref(
               jsonHtml || ("/analysis/" + rawLabel + "/" + rawLabel + ".analysis.html")
@@ -369,18 +375,21 @@
       const FROMD    = toYYYYMMDD(fromStr);   // e.g. 20250331
       const TOD      = toYYYYMMDD(toStr);     // e.g. 20251130
 
+      // Build raw.githubusercontent.com URLs for marker and CSV
       if (fromCode && toCode) {
-        markerUrl = "/analysis/" + encodeURIComponent(rawLabel) +
-                    "/files_" + fromCode + "_" + toCode;
+        markerRawUrl = GH_RAW_BASE +
+          "analysis/" + encodeURIComponent(rawLabel) +
+          "/files_" + fromCode + "_" + toCode;
       } else {
-        markerUrl = null;
+        markerRawUrl = null;
       }
 
       if (FROMD && TOD) {
-        csvUrl = "/analysis/" + encodeURIComponent(rawLabel) +
-                 "/" + rawLabel + "_" + FROMD + "_" + TOD + ".csv";
+        csvRawUrl = GH_RAW_BASE +
+          "analysis/" + encodeURIComponent(rawLabel) +
+          "/" + rawLabel + "_" + FROMD + "_" + TOD + ".csv";
       } else {
-        csvUrl = null;
+        csvRawUrl = null;
       }
 
       statusMsg("⏳ Triggering worker…");
