@@ -61,6 +61,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: "requirements.txt"
 
       - name: Install Python deps (best effort)
         run: |
@@ -136,7 +138,7 @@ jobs:
             if [ $rc -ne 0 ]; then
               echo "❌ DSN_generate_csv.py failed; see log above."
               exit $rc
-            fi
+            }
 
             if [ ! -s "${CSV}" ]; then
               echo "❌ CSV generation failed: file is empty or missing"
