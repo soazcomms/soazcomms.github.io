@@ -113,7 +113,7 @@
 </head>
 <body>
   <main class="card">
-    <h1>🔬 DSN Analysis V.56</h1>
+    <h1>🔬 DSN Analysis V.57</h1>
     <div id="siteLine" class="muted">Initializing…</div>
     <div id="status">⏳ Preparing…</div>
 
@@ -139,6 +139,7 @@
   (function(){
     const WORKER_URL      = "https://dsn-analysis.dsn-analysis.workers.dev/";
     const REPO_RAW_BASE   = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
+    const GH_API_BASE     = "https://api.github.com/repos/soazcomms/soazcomms.github.io/contents/";
     const PAGES_BASE      = "https://soazcomms.github.io";
     const TIMEOUT_SECONDS = 7 * 60;
     const POLL_INTERVAL   = 5000;
@@ -156,7 +157,8 @@
     let rawLabel     = "";
     let fromStr      = "";
     let toStr        = "";
-    let markerRawUrl = null;
+    let fromCode     = "";
+    let toCode       = "";
     let analysisPath = "";
 
     function parseParams(){
@@ -215,6 +217,7 @@
       }
     }
 
+    // "YYYY-MM-DD..." -> "YYMMDD"
     function toYYMMDD(s){
       if (!s) return "";
       const d = s.slice(0, 10);
@@ -254,46 +257,50 @@
       stopAllTimers();
     }
 
-    async function checkMarkerFast(){
-      if (!markerRawUrl) return false;
+    // List analysis/<LABEL>/ and look for files_YYMMDD_YYMMDD[.ext]
+    async function hasMatchingFilesMarker(){
+      if (!rawLabel || !fromCode || !toCode) return false;
+      const url = GH_API_BASE + "analysis/" + encodeURIComponent(rawLabel);
       try {
-        const r = await fetch(markerRawUrl + "?ts=" + Date.now(), {
-          method: "HEAD",
+        const r = await fetch(url, {
+          headers: { "Accept": "application/vnd.github.v3+json" },
           cache: "no-store"
         });
-        if (r.ok) {
-          const href = buildHtmlHref(analysisPath);
-          console.log("Fast-path marker found:", markerRawUrl);
-          showDone("✅ Analysis already available for this range.", href);
-          return true;
+        if (!r.ok) {
+          console.log("GH API dir list error", r.status);
+          return false;
+        }
+        const entries = await r.json();
+        if (!Array.isArray(entries)) return false;
+
+        const re = /^files_(\d{6})_(\d{6})(\..*)?$/;
+        for (const e of entries) {
+          const name = e.name || "";
+          const m = re.exec(name);
+          if (m && m[1] === fromCode && m[2] === toCode) {
+            console.log("Found matching files_* marker:", name);
+            return true;
+          }
         }
       } catch (err) {
-        console.log("checkMarkerFast error", err);
+        console.log("hasMatchingFilesMarker error", err);
       }
       return false;
     }
 
+    // Poll status: first check marker, then JSON for intermediate messages
     async function pollStatus(){
       if (done || !rawLabel) return;
 
-      // 1) Marker for THIS range decides completion
-      if (markerRawUrl) {
-        try {
-          const mr = await fetch(markerRawUrl + "?ts=" + Date.now(), {
-            method: "HEAD",
-            cache: "no-store"
-          });
-          if (mr.ok) {
-            const href = buildHtmlHref(analysisPath);
-            showDone("✅ Analysis complete for this range.", href);
-            return;
-          }
-        } catch (err) {
-          console.log("pollStatus marker check error", err);
-        }
+      // 1) Marker is the ONLY completion signal
+      const markerOk = await hasMatchingFilesMarker();
+      if (markerOk) {
+        const href = buildHtmlHref(analysisPath);
+        showDone("✅ Analysis complete for this range.", href);
+        return;
       }
 
-      // 2) JSON only for intermediate messages; ignore "done"
+      // 2) JSON only for intermediate text; never for "done"
       let showedStatus = false;
       const url = buildStatusUrl(rawLabel);
 
@@ -307,8 +314,8 @@
           console.log("status JSON", data);
 
           if (phase.includes("done")) {
-            // DO NOT show "complete" from JSON; we only trust marker for completion.
-            showedStatus = true; // prevents fallback "Running..." flicker if you prefer
+            // Ignore JSON "done" for completion; marker decides that.
+            showedStatus = true;
           } else if (phase.includes("publishing")) {
             statusMsg("🚀 Publishing results…");
             showedStatus = true;
@@ -345,27 +352,21 @@
         " → " + justDate(toStr);
 
       analysisPath = "/analysis/" + rawLabel + "/" + rawLabel + ".analysis.html";
+      fromCode = toYYMMDD(fromStr);
+      toCode   = toYYMMDD(toStr);
 
-      const fromCode = toYYMMDD(fromStr);
-      const toCode   = toYYMMDD(toStr);
-
+      // 1) FAST PATH: if files_* for this range already exists, finish immediately
       if (fromCode && toCode) {
-        const relPath = "analysis/" + rawLabel + "/files_" + fromCode + "_" + toCode;
-        markerRawUrl  = REPO_RAW_BASE + relPath;
-      } else {
-        markerRawUrl = null;
-      }
-
-      // Fast path
-      if (markerRawUrl) {
         statusMsg("⏳ Checking existing results…");
-        const haveMarker = await checkMarkerFast();
+        const haveMarker = await hasMatchingFilesMarker();
         if (haveMarker) {
+          const href = buildHtmlHref(analysisPath);
+          showDone("✅ Analysis already available for this range.", href);
           return;
         }
       }
 
-      // Slow path
+      // 2) SLOW PATH: trigger worker + poll marker/JSON
       statusMsg("⏳ Triggering analysis…");
       startTimers();
 
@@ -376,6 +377,7 @@
 
       const payload = { label: rawLabel, from: fromStr, to: toStr };
 
+      // Fire worker best-effort; UI does not depend on its success.
       try {
         const r = await fetch(WORKER_URL, {
           method: "POST",
