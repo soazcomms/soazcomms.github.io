@@ -113,7 +113,7 @@
 </head>
 <body>
   <main class="card">
-    <h1>🔬 DSN Analysis V.55</h1>
+    <h1>🔬 DSN Analysis V.56</h1>
     <div id="siteLine" class="muted">Initializing…</div>
     <div id="status">⏳ Preparing…</div>
 
@@ -137,21 +137,18 @@
 
   <script>
   (function(){
-    // ---------- CONSTANTS ----------
     const WORKER_URL      = "https://dsn-analysis.dsn-analysis.workers.dev/";
     const REPO_RAW_BASE   = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
     const PAGES_BASE      = "https://soazcomms.github.io";
     const TIMEOUT_SECONDS = 7 * 60;
     const POLL_INTERVAL   = 5000;
 
-    // ---------- DOM ----------
     const statusEl   = document.getElementById("status");
     const siteLineEl = document.getElementById("siteLine");
     const barFill    = document.getElementById("barFill");
     const timersRow  = document.getElementById("timersRow");
     const viewBtn    = document.getElementById("viewBtn");
 
-    // ---------- STATE ----------
     let elapsedSec   = 0;
     let timerId      = null;
     let pollId       = null;
@@ -159,10 +156,9 @@
     let rawLabel     = "";
     let fromStr      = "";
     let toStr        = "";
-    let markerRawUrl = null;  // raw GH URL for files_YYMMDD_YYMMDD
-    let analysisPath = "";    // /analysis/<LABEL>/<LABEL>.analysis.html
+    let markerRawUrl = null;
+    let analysisPath = "";
 
-    // ---------- HELPERS ----------
     function parseParams(){
       const u = new URL(window.location.href);
       const sp = u.searchParams;
@@ -174,7 +170,7 @@
 
     function justDate(s){
       if (!s) return "";
-      return s.slice(0, 10);   // "YYYY-MM-DD"
+      return s.slice(0, 10);
     }
 
     function mmss(sec){
@@ -185,7 +181,6 @@
     }
 
     function statusMsg(msg) {
-      // Once we're done, never overwrite the final status line
       if (done) return;
       statusEl.textContent = msg;
     }
@@ -220,7 +215,6 @@
       }
     }
 
-    // "YYYY-MM-DD..." -> "YYMMDD"
     function toYYMMDD(s){
       if (!s) return "";
       const d = s.slice(0, 10);
@@ -260,7 +254,6 @@
       stopAllTimers();
     }
 
-    // FAST PATH: check if marker file for this exact range already exists
     async function checkMarkerFast(){
       if (!markerRawUrl) return false;
       try {
@@ -280,11 +273,10 @@
       return false;
     }
 
-    // SLOW PATH: poll JSON for status text, but ONLY marker controls "done"
     async function pollStatus(){
       if (done || !rawLabel) return;
 
-      // 1) Check marker for THIS range; if present, we're done.
+      // 1) Marker for THIS range decides completion
       if (markerRawUrl) {
         try {
           const mr = await fetch(markerRawUrl + "?ts=" + Date.now(), {
@@ -301,7 +293,7 @@
         }
       }
 
-      // 2) Use JSON only for intermediate messages (not for deciding "done")
+      // 2) JSON only for intermediate messages; ignore "done"
       let showedStatus = false;
       const url = buildStatusUrl(rawLabel);
 
@@ -314,7 +306,10 @@
 
           console.log("status JSON", data);
 
-          if (phase.includes("publishing")) {
+          if (phase.includes("done")) {
+            // DO NOT show "complete" from JSON; we only trust marker for completion.
+            showedStatus = true; // prevents fallback "Running..." flicker if you prefer
+          } else if (phase.includes("publishing")) {
             statusMsg("🚀 Publishing results…");
             showedStatus = true;
           } else if (stat) {
@@ -331,10 +326,7 @@
       }
     }
 
-    // ---------- MAIN ----------
     async function startJob(){
-      console.log("JS startJob()");
-
       const p = parseParams();
       rawLabel = p.label;
       fromStr  = p.from;
@@ -352,10 +344,8 @@
         " · Range: " + justDate(fromStr) +
         " → " + justDate(toStr);
 
-      // Final HTML path (deterministic)
       analysisPath = "/analysis/" + rawLabel + "/" + rawLabel + ".analysis.html";
 
-      // Build marker filename from fromStr/toStr (YYMMDD_YYMMDD)
       const fromCode = toYYMMDD(fromStr);
       const toCode   = toYYMMDD(toStr);
 
@@ -366,17 +356,16 @@
         markerRawUrl = null;
       }
 
-      // 1) FAST PATH: if this exact range's files_* marker already exists, we're done.
+      // Fast path
       if (markerRawUrl) {
         statusMsg("⏳ Checking existing results…");
         const haveMarker = await checkMarkerFast();
         if (haveMarker) {
-          // showDone has already been called; do NOT touch status again
           return;
         }
       }
 
-      // 2) SLOW PATH: trigger worker and poll JSON for status text; marker decides "done".
+      // Slow path
       statusMsg("⏳ Triggering analysis…");
       startTimers();
 
@@ -387,7 +376,6 @@
 
       const payload = { label: rawLabel, from: fromStr, to: toStr };
 
-      // Fire worker best-effort; UI does not depend on success.
       try {
         const r = await fetch(WORKER_URL, {
           method: "POST",
@@ -397,7 +385,6 @@
 
         if (!r.ok) {
           console.log("worker HTTP error", r.status);
-          // Don't scare the user; just keep watching for marker.
           statusMsg("⏳ Running analysis…");
           return;
         }
@@ -410,7 +397,6 @@
 
       } catch (err) {
         console.log("worker fetch error", err);
-        // Again, don't change the UX; just keep watching.
         statusMsg("⏳ Running analysis…");
       }
     }
