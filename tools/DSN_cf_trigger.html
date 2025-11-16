@@ -62,7 +62,7 @@
       height: 100%;
       border-radius: inherit;
       background: linear-gradient(90deg, #60a5fa, #22c55e);
-      transition: width 0.35s linear;
+      transition: width 0.25s linear;
     }
     #timersRow {
       font-size: 0.8rem;
@@ -113,7 +113,7 @@
 </head>
 <body>
   <main class="card">
-    <h1>🔬 DSN Analysis V.58</h1>
+    <h1>🔬 DSN Analysis V.62</h1>
     <div id="siteLine" class="muted">Initializing…</div>
     <div id="status">⏳ Preparing…</div>
 
@@ -153,6 +153,7 @@
     let timerId      = null;
     let pollId       = null;
     let done         = false;
+    let started      = false;  // guard against double start
     let rawLabel     = "";
     let fromStr      = "";
     let toStr        = "";
@@ -181,38 +182,47 @@
     }
 
     function statusMsg(msg) {
-      if (done) return;
+      if (done) return;   // once done, never overwrite final message
       statusEl.textContent = msg;
+    }
+
+    function stopAllTimers(){
+      if (timerId !== null) {
+        clearInterval(timerId);
+        timerId = null;
+      }
+      if (pollId !== null) {
+        clearInterval(pollId);
+        pollId = null;
+      }
     }
 
     function startTimers(){
       elapsedSec = 0;
       timersRow.textContent = "⏱ 0:00 · Timeout in " + mmss(TIMEOUT_SECONDS);
       barFill.style.width = "0%";
+
+      // Timer loop
       timerId = window.setInterval(function(){
-        if (done) return;
+        if (done) {
+          // extra safety: kill timer immediately if somehow still running
+          clearInterval(timerId);
+          timerId = null;
+          return;
+        }
         elapsedSec += 1;
         const remaining = Math.max(0, TIMEOUT_SECONDS - elapsedSec);
         timersRow.textContent =
           "⏱ " + mmss(elapsedSec) + " · Timeout in " + mmss(remaining);
         const pct = Math.max(0, Math.min(100, (elapsedSec / TIMEOUT_SECONDS) * 100));
         barFill.style.width = pct.toFixed(1) + "%";
-        if (remaining <= 0 && !done) {
+
+        if (remaining <= 0) {
+          done = true;
           statusEl.innerHTML = "<span class='err'>❌ Timed out waiting for analysis.</span>";
           stopAllTimers();
         }
       }, 1000);
-    }
-
-    function stopAllTimers(){
-      if (timerId) {
-        clearInterval(timerId);
-        timerId = null;
-      }
-      if (pollId) {
-        clearInterval(pollId);
-        pollId = null;
-      }
     }
 
     // "YYYY-MM-DD..." -> "YYMMDD"
@@ -245,13 +255,22 @@
     }
 
     function showDone(text, href){
+      if (done) return; // don't double-finish
       done = true;
+
+      // freeze bar and timers
       barFill.style.width = "100%";
+      const elapsed = mmss(elapsedSec);
+      timersRow.textContent = "⏱ " + elapsed + " · Done";
+
       statusEl.innerHTML = text || "<span class='ok'>✅ Analysis complete.</span>";
+
       if (viewBtn && href) {
         viewBtn.removeAttribute("disabled");
         viewBtn.href = href;
       }
+
+      // absolutely kill all loops
       stopAllTimers();
     }
 
@@ -313,6 +332,12 @@
     }
 
     async function startJob(){
+      if (started) {
+        console.log("startJob() called twice; ignoring second call.");
+        return;
+      }
+      started = true;
+
       const p = parseParams();
       rawLabel = p.label;
       fromStr  = p.from;
@@ -363,6 +388,7 @@
 
       if (!pollId) {
         pollId = window.setInterval(pollStatus, POLL_INTERVAL);
+        // also fire once immediately
         pollStatus();
       }
 
