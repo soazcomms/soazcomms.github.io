@@ -113,7 +113,7 @@
 </head>
 <body>
   <main class="card">
-    <h1>🔬 DSN Analysis V.48</h1>
+    <h1>🔬 DSN Analysis V.49</h1>
     <div id="siteLine" class="muted">Initializing…</div>
     <div id="status">⏳ Preparing…</div>
 
@@ -126,8 +126,12 @@
     <div id="timersRow">⏱ 0:00 · Timeout in 7:00</div>
 
     <div class="btn-row">
-      <a id="viewBtn" class="btn" href="#" target="_blank" rel="noopener" disabled>📄 View Analysis Result</a>
-      <a id="exitBtn" class="btn secondary" href="#" onclick="window.close(); return false;">🔙 Exit</a>
+      <a id="viewBtn" class="btn" href="#" target="_blank" rel="noopener" disabled>
+        📄 View Analysis Result
+      </a>
+      <a id="exitBtn" class="btn secondary" href="#" onclick="window.close(); return false;">
+        🔙 Exit
+      </a>
     </div>
   </main>
 
@@ -136,6 +140,7 @@
     // ---------- CONSTANTS ----------
     const WORKER_URL       = "https://dsn-analysis.dsn-analysis.workers.dev/";
     const GH_RAW_BASE      = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
+    const PAGES_BASE       = "https://soazcomms.github.io";
     const TIMEOUT_SECONDS  = 7 * 60;
     const POLL_INTERVAL_MS = 5000;
 
@@ -154,8 +159,7 @@
     let rawLabel   = "";
     let fromStr    = "";
     let toStr      = "";
-    let markerRawUrl = null;  // raw GH URL for files_YYMMDD_YYMMDD
-    let csvRawUrl    = null;  // raw GH URL for LABEL_YYYYMMDD_YYYYMMDD.csv
+    let analysisPath = "";  // /analysis/<LABEL>/<LABEL>.analysis.html
     const sessionStartTs = Math.floor(Date.now() / 1000);
 
     // ---------- HELPERS ----------
@@ -170,7 +174,7 @@
 
     function justDate(s){
       if (!s) return "";
-      return s.slice(0, 10);   // always YYYY-MM-DD
+      return s.slice(0, 10);   // YYYY-MM-DD
     }
 
     function mmss(sec){
@@ -219,46 +223,15 @@
              ".json?ts=" + Date.now();
     }
 
-    // dateTime -> "YYYY-MM-DD"
-    function datePrefix(dateTime) {
-      if (!dateTime) return "";
-      return dateTime.slice(0, 10); // robust for "YYYY-MM-DD ..." or "YYYY-MM-DDT..."
-    }
-
-    // "YYYY-MM-DD" -> "YYMMDD"
-    function toYYMMDD(dateTime){
-      const d = datePrefix(dateTime);
-      const parts = d.split("-");
-      if (parts.length !== 3) return "";
-      const y = parts[0];
-      const m = parts[1].padStart(2, "0");
-      const day = parts[2].padStart(2, "0");
-      const yy = y.slice(-2);
-      return yy + m + day;
-    }
-
-    // "YYYY-MM-DD" -> "YYYYMMDD"
-    function toYYYYMMDD(dateTime){
-      const d = datePrefix(dateTime);
-      const parts = d.split("-");
-      if (parts.length !== 3) return "";
-      const y = parts[0];
-      const m = parts[1].padStart(2, "0");
-      const day = parts[2].padStart(2, "0");
-      return y + m + day;
-    }
-
-    function buildHtmlHref(htmlField){
-      if (!htmlField) return null;
-      let s = String(htmlField).trim();
-      if (!s) return null;
-      if (s.startsWith("http://") || s.startsWith("https://")) {
-        return s;
+    function buildHtmlHref(path){
+      if (!path) return null;
+      if (path.startsWith("http://") || path.startsWith("https://")) {
+        return path;
       }
-      if (!s.startsWith("/")) {
-        s = "/" + s;
+      if (!path.startsWith("/")) {
+        path = "/" + path;
       }
-      return window.location.origin + s;
+      return PAGES_BASE + path;
     }
 
     function showDone(text, href){
@@ -272,15 +245,31 @@
       stopAllTimers();
     }
 
-    // ---------- POLLING ----------
+    // Quick path: if the final HTML already exists on GitHub Pages, finish immediately
+    async function quickCheckExistingHtml(){
+      if (!analysisPath) return false;
+      const url = buildHtmlHref(analysisPath);
+      try {
+        const r = await fetch(url + "?ts=" + Date.now(), {
+          method: "HEAD",
+          cache: "no-store"
+        });
+        if (r.ok) {
+          showDone("✅ Analysis already available.", url);
+          return true;
+        }
+      } catch (err) {
+        console.log("quickCheckExistingHtml error", err);
+      }
+      return false;
+    }
+
+    // Slow path polling: status JSON
     async function pollStatus(){
       if (done || !rawLabel) return;
 
-      let jsonHtml = "";
-      let jsonStat = "";
       let showedStatus = false;
 
-      // 1) Status JSON (primary)
       const url = buildStatusUrl(rawLabel);
       try {
         const r = await fetch(url, { cache: "no-store" });
@@ -291,9 +280,6 @@
           const html   = data.html   || "";
           const tsRaw  = data.timestamp;
           const ts     = typeof tsRaw === "number" ? tsRaw : Number(tsRaw || 0);
-
-          jsonHtml = html;
-          jsonStat = stat;
 
           console.log("status JSON", data);
 
@@ -306,7 +292,7 @@
 
           if (phase.includes("done") && !isStale) {
             const href = buildHtmlHref(
-              html || ("/analysis/" + rawLabel + "/" + rawLabel + ".analysis.html")
+              html || analysisPath || ("/analysis/" + rawLabel + "/" + rawLabel + ".analysis.html")
             );
             const msg  = stat || "<span class='ok'>✅ Analysis complete.</span>";
             showDone(msg, href);
@@ -320,28 +306,6 @@
         }
       } catch (err) {
         console.log("pollStatus JSON error", err);
-      }
-
-      // 2) files_* + CSV fallback via raw.githubusercontent.com
-      if (!done && markerRawUrl && csvRawUrl) {
-        try {
-          const [mr, cr] = await Promise.all([
-            fetch(markerRawUrl + "?ts=" + Date.now(), { method: "HEAD", cache: "no-store" }),
-            fetch(csvRawUrl    + "?ts=" + Date.now(), { method: "HEAD", cache: "no-store" })
-          ]);
-
-          // If BOTH exist in the repo, treat this as done for this range
-          if (mr.ok && cr.ok) {
-            const href = buildHtmlHref(
-              jsonHtml || ("/analysis/" + rawLabel + "/" + rawLabel + ".analysis.html")
-            );
-            const msg = jsonStat || "✅ Analysis complete (files+CSV present).";
-            showDone(msg, href);
-            return;
-          }
-        } catch (err) {
-          console.log("pollStatus files/CSV error", err);
-        }
       }
 
       if (!done && !showedStatus) {
@@ -370,28 +334,16 @@
         " · Range: " + justDate(fromStr) +
         " → " + justDate(toStr);
 
-      const fromCode = toYYMMDD(fromStr);     // e.g. 250331
-      const toCode   = toYYMMDD(toStr);       // e.g. 251130
-      const FROMD    = toYYYYMMDD(fromStr);   // e.g. 20250331
-      const TOD      = toYYYYMMDD(toStr);     // e.g. 20251130
+      // Final HTML path is deterministic
+      analysisPath = "/analysis/" + rawLabel + "/" + rawLabel + ".analysis.html";
 
-      // Build raw.githubusercontent.com URLs for marker and CSV
-      if (fromCode && toCode) {
-        markerRawUrl = GH_RAW_BASE +
-          "analysis/" + encodeURIComponent(rawLabel) +
-          "/files_" + fromCode + "_" + toCode;
-      } else {
-        markerRawUrl = null;
+      // FAST PATH: if HTML already exists, don't even start the workflow UI
+      const already = await quickCheckExistingHtml();
+      if (already) {
+        return;
       }
 
-      if (FROMD && TOD) {
-        csvRawUrl = GH_RAW_BASE +
-          "analysis/" + encodeURIComponent(rawLabel) +
-          "/" + rawLabel + "_" + FROMD + "_" + TOD + ".csv";
-      } else {
-        csvRawUrl = null;
-      }
-
+      // SLOW PATH: trigger worker + poll status
       statusMsg("⏳ Triggering worker…");
       startTimers();
 
