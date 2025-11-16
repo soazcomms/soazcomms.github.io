@@ -42,6 +42,10 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: "Remove stale status file (no commit yet)"
+        run: |
+          rm -f status/status-${LABEL}.json || true
+
       - name: Derive date yyyymmdd
         id: derive
         shell: bash
