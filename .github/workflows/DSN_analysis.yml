@@ -204,12 +204,34 @@ jobs:
           "  \"raw_label\": \"${LABEL}\"" \
           "}" > "${STATUS_FILE}"
 
+          # Make sure we're based on the latest origin/main to avoid non-fast-forward pushes
+          git fetch origin main
+          git reset --soft origin/main || true
+
           git add "${STATUS_FILE}" "analysis/${LABEL}"
 
           if ! git diff --cached --quiet; then
             git -c user.name="actions" -c user.email="actions@users.noreply.github.com" \
               commit -m "[analysis] ${LABEL} complete"
-            git push origin HEAD:main
+
+            # Retry push a few times in case main moved between fetch and push
+            max_tries=3
+            n=1
+            while [ $n -le $max_tries ]; do
+              if git push origin HEAD:main; then
+                echo "Push succeeded."
+                break
+              fi
+              echo "Push failed (attempt $n); fetching latest origin/main and retrying..."
+              git fetch origin main || true
+              git reset --soft origin/main || true
+              n=$((n+1))
+            done
+
+            if [ $n -gt $max_tries ]; then
+              echo "ERROR: Failed to push after ${max_tries} attempts."
+              exit 1
+            fi
           else
             echo "No changes to commit."
           fi
