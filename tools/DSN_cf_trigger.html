@@ -113,7 +113,7 @@
 </head>
 <body>
   <main class="card">
-    <h1>🔬 DSN Analysis V.52</h1>
+    <h1>🔬 DSN Analysis V.53</h1>
     <div id="siteLine" class="muted">Initializing…</div>
     <div id="status">⏳ Preparing…</div>
 
@@ -185,6 +185,8 @@
     }
 
     function statusMsg(msg) {
+      // CRITICAL: once we're done, never overwrite the final status line
+      if (done) return;
       statusEl.textContent = msg;
     }
 
@@ -221,7 +223,7 @@
     // "YYYY-MM-DD..." -> "YYMMDD"
     function toYYMMDD(s){
       if (!s) return "";
-      const d = s.slice(0, 10); // first 10 chars: YYYY-MM-DD
+      const d = s.slice(0, 10);
       const parts = d.split("-");
       if (parts.length !== 3) return "";
       const y  = parts[0];
@@ -268,6 +270,7 @@
         });
         if (r.ok) {
           const href = buildHtmlHref(analysisPath);
+          console.log("Fast-path marker found:", markerRawUrl);
           showDone("✅ Analysis already available for this range.", href);
           return true;
         }
@@ -377,7 +380,8 @@
         statusMsg("⏳ Checking existing results…");
         const haveMarker = await checkMarkerFast();
         if (haveMarker) {
-          return; // showDone already called
+          // showDone has already been called; do NOT touch status again
+          return;
         }
       }
 
