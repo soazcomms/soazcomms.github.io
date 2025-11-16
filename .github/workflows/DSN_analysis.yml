@@ -138,7 +138,7 @@ jobs:
             if [ $rc -ne 0 ]; then
               echo "❌ DSN_generate_csv.py failed; see log above."
               exit $rc
-            }
+            fi
 
             if [ ! -s "${CSV}" ]; then
               echo "❌ CSV generation failed: file is empty or missing"
