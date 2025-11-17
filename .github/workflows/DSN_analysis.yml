@@ -55,7 +55,7 @@ jobs:
           TOD="$(date -d "${TO}" +%Y%m%d)"
           echo "FROMD=${FROMD}"   >> "$GITHUB_OUTPUT"
           echo "TOD=${TOD}"       >> "$GITHUB_OUTPUT"
-          echo "Label: $LABEL ($FROMD..$TOD)"
+          echo "Label: $LABEL ($FROMD..${TOD})"
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -150,14 +150,34 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python DSN_generate_analysis.py \
-            --label     "${LABEL}" \
-            --from      "${FROM}" \
-            --to        "${TO}" \
-            --input_dir "analysis/${LABEL}"
 
-          echo "Listing outputs:"
-          ls -l "analysis/${LABEL}"
+          FROMD="${{ steps.derive.outputs.FROMD }}"
+          TOD="${{ steps.derive.outputs.TOD }}"
+
+          OUTDIR="analysis/${LABEL}"
+          MARKER="${OUTDIR}/files_${FROMD}_${TOD}"
+
+          echo "Expected marker for this range: ${MARKER}"
+
+          need_files=1
+          if [ -f "${MARKER}" ]; then
+            echo "Marker exists for this range; reusing existing analysis outputs."
+            need_files=0
+          fi
+
+          if [ $need_files -eq 1 ]; then
+            echo "Marker not found; running DSN_generate_analysis.py"
+            python DSN_generate_analysis.py \
+              --label     "${LABEL}" \
+              --from      "${FROM}" \
+              --to        "${TO}" \
+              --input_dir "${OUTDIR}"
+          else
+            echo "Skipping DSN_generate_analysis.py (files_* already in place)."
+          fi
+
+          echo "Listing outputs in ${OUTDIR}:"
+          ls -l "${OUTDIR}"
 
       - name: Install endpoint HTML (per-label landing page)
         shell: bash
