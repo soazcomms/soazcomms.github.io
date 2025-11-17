@@ -141,8 +141,7 @@
 
   <script>
   (function(){
-    // You can adjust this to your Cloudflare worker route for CSV
-    const WORKER_URL      = "https://dsn-analysis.dsn-analysis.workers.dev/csv";
+    const WORKER_URL      = "https://dsn-analysis.dsn-analysis.workers.dev/csv"; // adjust if needed
     const GH_RAW_BASE     = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
     const GH_PAGES_BASE   = "https://soazcomms.github.io";
     const TIMEOUT_SECONDS = 7 * 60;
@@ -230,11 +229,10 @@
       }, 1000);
     }
 
-    // "YYYY-MM-DD..." -> "YYYYMMDD"
-    function dateCodeYYYYMMDD(s){
+    // Turn "YYYY-MM-DD" or "YYYY-MM-DD HH:MM:SS" into a pure digits code: YYYYMMDD or YYYYMMDDHHMMSS
+    function dateCodeDigits(s){
       if (!s) return "";
-      const d = s.slice(0, 10);
-      return d.replace(/-/g, "");
+      return s.replace(/[^0-9]/g, "");
     }
 
     async function csvExists(){
@@ -254,7 +252,6 @@
 
     async function logExists(){
       if (!logPagesUrl) return false;
-      // raw vs pages: use pages URL here, it's fine if 404
       const rawLog = csvRawUrl.replace(/\.csv(\?|$)/, ".log$1");
       try {
         const r = await fetch(rawLog + "?ts=" + Date.now(), {
@@ -284,7 +281,6 @@
       }
 
       if (logBtn && logPagesUrl) {
-        // log might still be missing for very old CSVs; that's ok.
         logBtn.removeAttribute("disabled");
         logBtn.href = logPagesUrl;
       }
@@ -327,8 +323,8 @@
         " · Range: " + justDate(fromStr) +
         " → " + justDate(toStr);
 
-      const fromCode = dateCodeYYYYMMDD(fromStr);
-      const toCode   = dateCodeYYYYMMDD(toStr);
+      const fromCode = dateCodeDigits(fromStr); // YYYYMMDD or YYYYMMDDHHMMSS
+      const toCode   = dateCodeDigits(toStr);
 
       if (!fromCode || !toCode) {
         statusEl.innerHTML = "<span class='err'>❌ Could not parse date range.</span>";
