@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>DSN CSV Export</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at top, #1e293b 0, #020617 55%, #000 100%);
+      color: #e5e7eb;
+    }
+    .card {
+      background: rgba(15, 23, 42, 0.96);
+      border-radius: 1.25rem;
+      padding: 1.5rem 1.75rem 1.75rem;
+      box-shadow: 0 24px 80px rgba(15, 23, 42, 0.85);
+      max-width: 720px;
+      width: min(720px, 100% - 2rem);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+    }
+    h1 {
+      margin: 0 0 0.35rem;
+      font-size: 1.2rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #a5b4fc;
+    }
+    #siteLine {
+      font-size: 0.9rem;
+      color: #e5e7eb;
+      margin-bottom: 0.75rem;
+    }
+    #status {
+      margin: 0.4rem 0 0.9rem;
+      font-size: 0.98rem;
+    }
+    .muted {
+      color: #9ca3af;
+    }
+    .bar-wrap {
+      width: 100%;
+      margin: 0.35rem 0 0.5rem;
+    }
+    .bar-bg {
+      width: 100%;
+      height: 0.5rem;
+      border-radius: 999px;
+      background: rgba(30, 64, 175, 0.5);
+      overflow: hidden;
+    }
+    .bar-fill {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #60a5fa, #22c55e);
+      transition: width 0.25s linear;
+    }
+    #timersRow {
+      font-size: 0.8rem;
+      color: #9ca3af;
+      margin-bottom: 0.9rem;
+    }
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      padding: 0.45rem 0.9rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      background: rgba(15, 23, 42, 0.9);
+      color: #e5e7eb;
+      font-size: 0.85rem;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease, transform 0.08s ease;
+    }
+    .btn[disabled] {
+      opacity: 0.4;
+      cursor: default;
+      pointer-events: none;
+    }
+    .btn:hover:not([disabled]) {
+      background: rgba(30, 64, 175, 0.9);
+      border-color: rgba(129, 140, 248, 0.9);
+      transform: translateY(-0.5px);
+    }
+    .btn.secondary:hover:not([disabled]) {
+      background: rgba(31, 41, 55, 0.95);
+      border-color: rgba(148, 163, 184, 0.9);
+    }
+    .ok {
+      color: #4ade80;
+    }
+    .err {
+      color: #f97373;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>DSN CSV Export V.08</h1>
+    <div id="siteLine" class="muted">Initializing…</div>
+    <div id="status">⚙️ Working…</div>
+
+    <div class="bar-wrap">
+      <div class="bar-bg">
+        <div class="bar-fill" id="barFill"></div>
+      </div>
+    </div>
+
+    <div id="timersRow">⏱ 0:00 · Timeout in 7:00</div>
+
+    <div class="btn-row">
+      <a id="downloadBtn" class="btn" href="#" target="_blank" rel="noopener" disabled>
+        ⬇ Download CSV
+      </a>
+      <a id="logBtn" class="btn" href="#" target="_blank" rel="noopener" disabled>
+        🪵 View LOG
+      </a>
+      <a id="exitBtn" class="btn secondary" href="#" onclick="window.close(); return false;">
+        🔙 Exit
+      </a>
+    </div>
+  </main>
+
+  <script>
+  (function(){
+    const WORKER_URL      = "https://dsn-analysis.dsn-analysis.workers.dev/csv"; // adjust if needed
+    const GH_RAW_BASE     = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
+    const GH_PAGES_BASE   = "https://soazcomms.github.io";
+    const TIMEOUT_SECONDS = 7 * 60;
+    const POLL_INTERVAL   = 5000;
+
+    const statusEl   = document.getElementById("status");
+    const siteLineEl = document.getElementById("siteLine");
+    const barFill    = document.getElementById("barFill");
+    const timersRow  = document.getElementById("timersRow");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const logBtn      = document.getElementById("logBtn");
+
+    let elapsedSec   = 0;
+    let timerId      = null;
+    let pollId       = null;
+    let done         = false;
+    let started      = false;
+    let rawLabel     = "";
+    let fromStr      = "";
+    let toStr        = "";
+    let csvRawUrl    = "";
+    let csvPagesUrl  = "";
+    let logPagesUrl  = "";
+
+    function parseParams(){
+      const u = new URL(window.location.href);
+      const sp = u.searchParams;
+      const label = (sp.get("label") || "").trim();
+      const from  = (sp.get("from")  || "").trim();
+      const to    = (sp.get("to")    || "").trim();
+      return { label, from, to };
+    }
+
+    function justDate(s){
+      if (!s) return "";
+      return s.slice(0, 10);
+    }
+
+    function mmss(sec){
+      sec = Math.max(0, Math.floor(sec));
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return m + ":" + String(s).padStart(2, "0");
+    }
+
+    function statusMsg(msg) {
+      if (done) return;
+      statusEl.textContent = msg;
+    }
+
+    function stopAllTimers(){
+      if (timerId !== null) {
+        clearInterval(timerId);
+        timerId = null;
+      }
+      if (pollId !== null) {
+        clearInterval(pollId);
+        pollId = null;
+      }
+    }
+
+    function startTimers(){
+      elapsedSec = 0;
+      timersRow.textContent = "⏱ 0:00 · Timeout in " + mmss(TIMEOUT_SECONDS);
+      barFill.style.width = "0%";
+
+      timerId = window.setInterval(function(){
+        if (done) {
+          clearInterval(timerId);
+          timerId = null;
+          return;
+        }
+        elapsedSec += 1;
+        const remaining = Math.max(0, TIMEOUT_SECONDS - elapsedSec);
+        timersRow.textContent =
+          "⏱ " + mmss(elapsedSec) + " · Timeout in " + mmss(remaining);
+        const pct = Math.max(0, Math.min(100, (elapsedSec / TIMEOUT_SECONDS) * 100));
+        barFill.style.width = pct.toFixed(1) + "%";
+
+        if (remaining <= 0) {
+          done = true;
+          statusEl.innerHTML = "<span class='err'>❌ Timed out waiting for CSV.</span>";
+          stopAllTimers();
+        }
+      }, 1000);
+    }
+
+    // Turn "YYYY-MM-DD" or "YYYY-MM-DD HH:MM:SS" into a pure digits code: YYYYMMDD or YYYYMMDDHHMMSS
+    function dateCodeDigits(s){
+      if (!s) return "";
+      return s.replace(/[^0-9]/g, "");
+    }
+
+    async function csvExists(){
+      if (!csvRawUrl) return false;
+      try {
+        const r = await fetch(csvRawUrl + "?ts=" + Date.now(), {
+          method: "HEAD",
+          cache: "no-store"
+        });
+        console.log("HEAD CSV", csvRawUrl, "->", r.status);
+        return r.ok;
+      } catch (err) {
+        console.log("csvExists error", err);
+        return false;
+      }
+    }
+
+    async function logExists(){
+      if (!logPagesUrl) return false;
+      const rawLog = csvRawUrl.replace(/\.csv(\?|$)/, ".log$1");
+      try {
+        const r = await fetch(rawLog + "?ts=" + Date.now(), {
+          method: "HEAD",
+          cache: "no-store"
+        });
+        console.log("HEAD LOG", rawLog, "->", r.status);
+        return r.ok;
+      } catch (err) {
+        console.log("logExists error", err);
+        return false;
+      }
+    }
+
+    function showDone(msg){
+      if (done) return;
+      done = true;
+
+      barFill.style.width = "100%";
+      timersRow.textContent = "⏱ " + mmss(elapsedSec) + " · Done";
+      statusEl.innerHTML = msg || "✅ CSV ready.";
+
+      if (downloadBtn && csvPagesUrl) {
+        downloadBtn.removeAttribute("disabled");
+        downloadBtn.href = csvPagesUrl;
+        downloadBtn.setAttribute("download", "");
+      }
+
+      if (logBtn && logPagesUrl) {
+        logBtn.removeAttribute("disabled");
+        logBtn.href = logPagesUrl;
+      }
+
+      stopAllTimers();
+    }
+
+    async function pollCSV(){
+      if (done || !csvRawUrl) return;
+
+      if (await csvExists()) {
+        showDone("✅ CSV ready for this range.");
+        return;
+      }
+
+      statusMsg("⚙️ Working…");
+    }
+
+    async function startJob(){
+      if (started) {
+        console.log("startJob() called twice; ignoring.");
+        return;
+      }
+      started = true;
+
+      const p = parseParams();
+      rawLabel = p.label;
+      fromStr  = p.from;
+      toStr    = p.to;
+
+      if (!rawLabel || !fromStr || !toStr) {
+        statusEl.innerHTML =
+          "<span class='err'>❌ Missing label/from/to parameters.</span>";
+        console.log("Missing params", p);
+        return;
+      }
+
+      siteLineEl.textContent =
+        "Label: " + rawLabel +
+        " · Range: " + justDate(fromStr) +
+        " → " + justDate(toStr);
+
+      const fromCode = dateCodeDigits(fromStr); // YYYYMMDD or YYYYMMDDHHMMSS
+      const toCode   = dateCodeDigits(toStr);
+
+      if (!fromCode || !toCode) {
+        statusEl.innerHTML = "<span class='err'>❌ Could not parse date range.</span>";
+        console.log("Bad date codes", fromStr, toStr);
+        return;
+      }
+
+      const relCsv = "analysis/" + rawLabel + "/" + rawLabel + "_" + fromCode + "_" + toCode + ".csv";
+      const relLog = "analysis/" + rawLabel + "/" + rawLabel + "_" + fromCode + "_" + toCode + ".log";
+
+      csvRawUrl   = GH_RAW_BASE   + relCsv;
+      csvPagesUrl = GH_PAGES_BASE.replace(/\/+$/, "") + "/" + relCsv;
+      logPagesUrl = GH_PAGES_BASE.replace(/\/+$/, "") + "/" + relLog;
+
+      console.log("CSV RAW:", csvRawUrl);
+      console.log("CSV PAGES:", csvPagesUrl);
+      console.log("LOG PAGES:", logPagesUrl);
+
+      // FAST PATH: if CSV already exists, no worker, just enable download
+      statusMsg("⏳ Checking existing CSV…");
+      if (await csvExists()) {
+        showDone("✅ CSV already available for this range.");
+        return;
+      }
+
+      // SLOW PATH: trigger worker + poll CSV
+      statusMsg("⚙️ Working…");
+      startTimers();
+
+      if (!pollId) {
+        pollId = window.setInterval(pollCSV, POLL_INTERVAL);
+        pollCSV();
+      }
+
+      const payload = { label: rawLabel, from: fromStr, to: toStr, kind: "csv" };
+
+      try {
+        const r = await fetch(WORKER_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        if (!r.ok) {
+          console.log("worker HTTP error", r.status);
+          statusMsg("⚙️ Working…");
+          return;
+        }
+
+        let body = {};
+        try { body = await r.json(); } catch (_) {}
+        console.log("worker response", body);
+
+        statusMsg("⚙️ Working…");
+
+      } catch (err) {
+        console.log("worker fetch error", err);
+        statusMsg("⚙️ Working…");
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", startJob);
+  })();
+  </script>
+</body>
+</html>
