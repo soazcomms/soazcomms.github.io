@@ -7,10 +7,10 @@ on:
         description: "Full label (e.g. DSN019-S_MtLemmon)"
         required: true
       from:
-        description: "Start (YYYY-MM-DD HH:MM:SS)"
+        description: "Start (YYYY-MM-DD)"
         required: true
       to:
-        description: "End (YYYY-MM-DD HH:MM:SS)"
+        description: "End (YYYY-MM-DD)"
         required: true
 
 permissions:
@@ -39,20 +39,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Derive date codes
+      - name: Derive date yyyymmdd (from date-only inputs)
         id: derive
         shell: bash
         run: |
           set -euo pipefail
+          # FROM / TO are YYYY-MM-DD (no time)
           FROMD="$(date -d "${FROM}" +%Y%m%d)"
           TOD="$(date -d "${TO}" +%Y%m%d)"
-          FROMTS="$(date -d "${FROM}" +%Y%m%d%H%M%S)"
-          TOTS="$(date -d "${TO}" +%Y%m%d%H%M%S)"
-          echo "FROMD=${FROMD}"     >> "$GITHUB_OUTPUT"
-          echo "TOD=${TOD}"         >> "$GITHUB_OUTPUT"
-          echo "FROMTS=${FROMTS}"   >> "$GITHUB_OUTPUT"
-          echo "TOTS=${TOTS}"       >> "$GITHUB_OUTPUT"
-          echo "CSV range for ${LABEL}: ${FROM}..${TO} (${FROMTS}..${TOTS})"
+          echo "FROMD=${FROMD}" >> "$GITHUB_OUTPUT"
+          echo "TOD=${TOD}"     >> "$GITHUB_OUTPUT"
+          echo "CSV date range for ${LABEL}: ${FROM}..${TO} (${FROMD}..${TOD})"
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -75,20 +72,16 @@ jobs:
 
           FROMD="${{ steps.derive.outputs.FROMD }}"
           TOD="${{ steps.derive.outputs.TOD }}"
-          FROMTS="${{ steps.derive.outputs.FROMTS }}"
-          TOTS="${{ steps.derive.outputs.TOTS }}"
 
           OUTDIR="analysis/${LABEL}"
-          CSV="${OUTDIR}/${LABEL}_${FROMTS}_${TOTS}.csv"
-          LOG="${OUTDIR}/${LABEL}_${FROMTS}_${TOTS}.log"
+          CSV="${OUTDIR}/${LABEL}_${FROMD}_${TOD}.csv"
+          LOG="${OUTDIR}/${LABEL}_${FROMD}_${TOD}.log"
 
           echo "LABEL=${LABEL}"
           echo "FROM=${FROM}"
           echo "TO=${TO}"
           echo "FROMD=${FROMD}"
           echo "TOD=${TOD}"
-          echo "FROMTS=${FROMTS}"
-          echo "TOTS=${TOTS}"
           echo "OUTDIR=${OUTDIR}"
           echo "CSV=${CSV}"
           echo "LOG=${LOG}"
@@ -143,12 +136,12 @@ jobs:
         run: |
           set -e
 
-          FROMTS="${{ steps.derive.outputs.FROMTS }}"
-          TOTS="${{ steps.derive.outputs.TOTS }}"
+          FROMD="${{ steps.derive.outputs.FROMD }}"
+          TOD="${{ steps.derive.outputs.TOD }}"
 
           OUTDIR="analysis/${LABEL}"
-          CSV="${OUTDIR}/${LABEL}_${FROMTS}_${TOTS}.csv"
-          LOG="${OUTDIR}/${LABEL}_${FROMTS}_${TOTS}.log"
+          CSV="${OUTDIR}/${LABEL}_${FROMD}_${TOD}.csv"
+          LOG="${OUTDIR}/${LABEL}_${FROMD}_${TOD}.log"
 
           git fetch origin main
           git reset --soft origin/main || true
@@ -157,7 +150,7 @@ jobs:
 
           if ! git diff --cached --quiet; then
             git -c user.name="actions" -c user.email="actions@users.noreply.github.com" \
-              commit -m "[csv] ${LABEL} ${FROMTS}..${TOTS}"
+              commit -m "[csv] ${LABEL} ${FROMD}..${TOD}"
             git push origin HEAD:main
           else
             echo "No CSV/log changes to commit."
@@ -166,9 +159,9 @@ jobs:
       - name: Wait for GitHub Pages to serve CSV
         shell: bash
         run: |
-          FROMTS="${{ steps.derive.outputs.FROMTS }}"
-          TOTS="${{ steps.derive.outputs.TOTS }}"
-          REL="analysis/${LABEL}/${LABEL}_${FROMTS}_${TOTS}.csv"
+          FROMD="${{ steps.derive.outputs.FROMD }}"
+          TOD="${{ steps.derive.outputs.TOD }}"
+          REL="analysis/${LABEL}/${LABEL}_${FROMD}_${TOD}.csv"
           URL="https://soazcomms.github.io/${REL}"
           echo "Waiting for ${URL}"
           end=$((SECONDS+60))
@@ -181,3 +174,4 @@ jobs:
           if [ $ok -ne 1 ]; then
             echo "WARNING: CSV not visible on Pages within timeout (but committed)."
           fi
+	  
