@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>DSN Analysis</title>
+  <title>DSN Analysis – Cloudflare Trigger</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     :root {
@@ -113,7 +113,7 @@
 </head>
 <body>
   <main class="card">
-    <h1>🔬 DSN Analysis V.62</h1>
+    <h1>🔬 DSN Analysis V.63</h1>
     <div id="siteLine" class="muted">Initializing…</div>
     <div id="status">⏳ Preparing…</div>
 
@@ -138,8 +138,8 @@
   <script>
   (function(){
     const WORKER_URL      = "https://dsn-analysis.dsn-analysis.workers.dev/";
-    const REPO_RAW_BASE   = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
-    const PAGES_BASE      = "https://soazcomms.github.io";
+    const GH_RAW_BASE     = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
+    const GH_PAGES_BASE   = "https://soazcomms.github.io";
     const TIMEOUT_SECONDS = 7 * 60;
     const POLL_INTERVAL   = 5000;
 
@@ -153,7 +153,7 @@
     let timerId      = null;
     let pollId       = null;
     let done         = false;
-    let started      = false;  // guard against double start
+    let started      = false;
     let rawLabel     = "";
     let fromStr      = "";
     let toStr        = "";
@@ -182,7 +182,7 @@
     }
 
     function statusMsg(msg) {
-      if (done) return;   // once done, never overwrite final message
+      if (done) return;
       statusEl.textContent = msg;
     }
 
@@ -202,10 +202,8 @@
       timersRow.textContent = "⏱ 0:00 · Timeout in " + mmss(TIMEOUT_SECONDS);
       barFill.style.width = "0%";
 
-      // Timer loop
       timerId = window.setInterval(function(){
         if (done) {
-          // extra safety: kill timer immediately if somehow still running
           clearInterval(timerId);
           timerId = null;
           return;
@@ -225,17 +223,11 @@
       }, 1000);
     }
 
-    // "YYYY-MM-DD..." -> "YYMMDD"
-    function toYYMMDD(s){
+    // "YYYY-MM-DD..." -> "YYYYMMDD"
+    function dateCodeYYYYMMDD(s){
       if (!s) return "";
       const d = s.slice(0, 10);
-      const parts = d.split("-");
-      if (parts.length !== 3) return "";
-      const y  = parts[0];
-      const m  = parts[1].padStart(2, "0");
-      const dd = parts[2].padStart(2, "0");
-      const yy = y.slice(-2);
-      return yy + m + dd;
+      return d.replace(/-/g, "");
     }
 
     function buildHtmlHref(path){
@@ -246,22 +238,21 @@
       if (!path.startsWith("/")) {
         path = "/" + path;
       }
-      return PAGES_BASE + path;
+      const base = GH_PAGES_BASE.replace(/\/+$/, "");
+      return base + path;
     }
 
     function buildStatusUrl(label){
-      return REPO_RAW_BASE + "status/status-" + encodeURIComponent(label) +
+      return GH_RAW_BASE + "status/status-" + encodeURIComponent(label) +
              ".json?ts=" + Date.now();
     }
 
     function showDone(text, href){
-      if (done) return; // don't double-finish
+      if (done) return;
       done = true;
 
-      // freeze bar and timers
       barFill.style.width = "100%";
-      const elapsed = mmss(elapsedSec);
-      timersRow.textContent = "⏱ " + elapsed + " · Done";
+      timersRow.textContent = "⏱ " + mmss(elapsedSec) + " · Done";
 
       statusEl.innerHTML = text || "<span class='ok'>✅ Analysis complete.</span>";
 
@@ -270,11 +261,9 @@
         viewBtn.href = href;
       }
 
-      // absolutely kill all loops
       stopAllTimers();
     }
 
-    // HEAD check on the marker file for THIS range
     async function markerExists(){
       if (!markerUrl) return false;
       try {
@@ -290,18 +279,18 @@
       }
     }
 
-    // Poll: first look for marker; then JSON only for intermediate status text
+    // Marker = ONLY completion signal; JSON = progress text only
     async function pollStatus(){
       if (done || !rawLabel) return;
 
-      // 1) marker is the ONLY real "done" signal
+      // 1) marker => done
       if (await markerExists()) {
         const href = buildHtmlHref(analysisPath);
         showDone("✅ Analysis complete for this range.", href);
         return;
       }
 
-      // 2) JSON for progress only
+      // 2) JSON for intermediate messages only
       let showedStatus = false;
       const url = buildStatusUrl(rawLabel);
 
@@ -314,7 +303,10 @@
 
           console.log("status JSON", data);
 
-          if (phase.includes("publishing")) {
+          if (phase.includes("done")) {
+            // ignore "done" here; marker is the truth
+            showedStatus = true;
+          } else if (phase.includes("publishing")) {
             statusMsg("🚀 Publishing results…");
             showedStatus = true;
           } else if (stat) {
@@ -357,12 +349,12 @@
 
       analysisPath = "/analysis/" + rawLabel + "/" + rawLabel + ".analysis.html";
 
-      const fromCode = toYYMMDD(fromStr);
-      const toCode   = toYYMMDD(toStr);
+      const fromCode = dateCodeYYYYMMDD(fromStr);
+      const toCode   = dateCodeYYYYMMDD(toStr);
 
       if (fromCode && toCode) {
         const relMarker = "analysis/" + rawLabel + "/files_" + fromCode + "_" + toCode;
-        markerUrl = REPO_RAW_BASE + relMarker;
+        markerUrl = GH_RAW_BASE + relMarker;
       } else {
         markerUrl = "";
       }
@@ -372,7 +364,7 @@
       console.log("To:  ", toStr, "->", toCode);
       console.log("Marker URL:", markerUrl);
 
-      // 1) FAST PATH: if files_* marker for this range already exists, reuse
+      // FAST PATH: if files_YYYYMMDD_YYYYMMDD exists, reuse existing analysis, no worker
       if (markerUrl) {
         statusMsg("⏳ Checking existing results…");
         if (await markerExists()) {
@@ -382,19 +374,17 @@
         }
       }
 
-      // 2) SLOW PATH: trigger analysis + poll marker/JSON
+      // SLOW PATH: trigger worker + poll marker/JSON
       statusMsg("⏳ Triggering analysis…");
       startTimers();
 
       if (!pollId) {
         pollId = window.setInterval(pollStatus, POLL_INTERVAL);
-        // also fire once immediately
         pollStatus();
       }
 
       const payload = { label: rawLabel, from: fromStr, to: toStr };
 
-      // Fire worker best-effort; UI doesn't depend on success
       try {
         const r = await fetch(WORKER_URL, {
           method: "POST",
