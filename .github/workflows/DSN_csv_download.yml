@@ -1,0 +1,183 @@
+name: DSN CSV Download
+
+on:
+  workflow_dispatch:
+    inputs:
+      label:
+        description: "Full label (e.g. DSN019-S_MtLemmon)"
+        required: true
+      from:
+        description: "Start (YYYY-MM-DD HH:MM:SS)"
+        required: true
+      to:
+        description: "End (YYYY-MM-DD HH:MM:SS)"
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dsn-csv-${{ github.event.inputs.label }}
+  cancel-in-progress: false
+
+jobs:
+  csv:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      INFLUX_URL:   https://us-east-1-1.aws.cloud2.influxdata.com
+      INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN }}
+      LABEL: ${{ github.event.inputs.label }}
+      FROM:  ${{ github.event.inputs.from }}
+      TO:    ${{ github.event.inputs.to }}
+      SITE_REPO: ${{ github.workspace }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Derive date codes
+        id: derive
+        shell: bash
+        run: |
+          set -euo pipefail
+          FROMD="$(date -d "${FROM}" +%Y%m%d)"
+          TOD="$(date -d "${TO}" +%Y%m%d)"
+          FROMTS="$(date -d "${FROM}" +%Y%m%d%H%M%S)"
+          TOTS="$(date -d "${TO}" +%Y%m%d%H%M%S)"
+          echo "FROMD=${FROMD}"     >> "$GITHUB_OUTPUT"
+          echo "TOD=${TOD}"         >> "$GITHUB_OUTPUT"
+          echo "FROMTS=${FROMTS}"   >> "$GITHUB_OUTPUT"
+          echo "TOTS=${TOTS}"       >> "$GITHUB_OUTPUT"
+          echo "CSV range for ${LABEL}: ${FROM}..${TO} (${FROMTS}..${TOTS})"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: "requirements.txt"
+
+      - name: Install Python deps (best effort)
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt || true
+          fi
+
+      - name: Ensure CSV exists (recreate if missing)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          FROMD="${{ steps.derive.outputs.FROMD }}"
+          TOD="${{ steps.derive.outputs.TOD }}"
+          FROMTS="${{ steps.derive.outputs.FROMTS }}"
+          TOTS="${{ steps.derive.outputs.TOTS }}"
+
+          OUTDIR="analysis/${LABEL}"
+          CSV="${OUTDIR}/${LABEL}_${FROMTS}_${TOTS}.csv"
+          LOG="${OUTDIR}/${LABEL}_${FROMTS}_${TOTS}.log"
+
+          echo "LABEL=${LABEL}"
+          echo "FROM=${FROM}"
+          echo "TO=${TO}"
+          echo "FROMD=${FROMD}"
+          echo "TOD=${TOD}"
+          echo "FROMTS=${FROMTS}"
+          echo "TOTS=${TOTS}"
+          echo "OUTDIR=${OUTDIR}"
+          echo "CSV=${CSV}"
+          echo "LOG=${LOG}"
+          echo "INFLUX_URL=${INFLUX_URL}"
+
+          mkdir -p "${OUTDIR}"
+
+          need_csv=1
+          if [ -f "${CSV}" ] && [ -s "${CSV}" ]; then
+            echo "Reusing existing CSV: ${CSV}"
+            need_csv=0
+          fi
+
+          if [ $need_csv -eq 1 ]; then
+            echo "Generating CSV -> ${CSV}"
+            set +e
+            python DSN_generate_csv.py \
+              --label        "${LABEL}" \
+              --from         "${FROM}" \
+              --to           "${TO}" \
+              --site-repo    "${GITHUB_WORKSPACE}" \
+              --influx-url   "${INFLUX_URL}" \
+              --influx-token "${INFLUX_TOKEN}" \
+              --out          "${CSV}" \
+              > "${LOG}" 2>&1
+            rc=$?
+            set -e
+
+            echo "DSN_generate_csv.py exit code: $rc"
+            echo "------ CSV LOG (${LOG}) ------"
+            cat "${LOG}" || echo "(no log output)"
+            echo "------------------------------"
+
+            if [ $rc -ne 0 ]; then
+              echo "❌ DSN_generate_csv.py failed; see log above."
+              exit $rc
+            fi
+
+            if [ ! -s "${CSV}" ]; then
+              echo "❌ CSV generation failed: file is empty or missing"
+              exit 1
+            fi
+          fi
+
+          echo "Final CSV:"
+          ls -l "${CSV}" || true
+          echo "Log file:"
+          ls -l "${LOG}" || true
+
+      - name: Commit and push CSV
+        shell: bash
+        run: |
+          set -e
+
+          FROMTS="${{ steps.derive.outputs.FROMTS }}"
+          TOTS="${{ steps.derive.outputs.TOTS }}"
+
+          OUTDIR="analysis/${LABEL}"
+          CSV="${OUTDIR}/${LABEL}_${FROMTS}_${TOTS}.csv"
+          LOG="${OUTDIR}/${LABEL}_${FROMTS}_${TOTS}.log"
+
+          git fetch origin main
+          git reset --soft origin/main || true
+
+          git add "${CSV}" "${LOG}" || true
+
+          if ! git diff --cached --quiet; then
+            git -c user.name="actions" -c user.email="actions@users.noreply.github.com" \
+              commit -m "[csv] ${LABEL} ${FROMTS}..${TOTS}"
+            git push origin HEAD:main
+          else
+            echo "No CSV/log changes to commit."
+          fi
+
+      - name: Wait for GitHub Pages to serve CSV
+        shell: bash
+        run: |
+          FROMTS="${{ steps.derive.outputs.FROMTS }}"
+          TOTS="${{ steps.derive.outputs.TOTS }}"
+          REL="analysis/${LABEL}/${LABEL}_${FROMTS}_${TOTS}.csv"
+          URL="https://soazcomms.github.io/${REL}"
+          echo "Waiting for ${URL}"
+          end=$((SECONDS+60))
+          ok=0
+          while [ $SECONDS -lt $end ]; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -H "Cache-Control: no-cache" -I "${URL}?_cb=$(date +%s%3N)")
+            if [ "$code" = "200" ]; then ok=1; break; fi
+            sleep 1
+          done
+          if [ $ok -ne 1 ]; then
+            echo "WARNING: CSV not visible on Pages within timeout (but committed)."
+          fi
