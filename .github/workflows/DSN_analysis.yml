@@ -40,7 +40,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: "Remove stale status file (no commit yet)"
         run: |
@@ -96,6 +96,7 @@ jobs:
 
           OUTDIR="analysis/${LABEL}"
           CSV="${OUTDIR}/${LABEL}_${FROMD}_${TOD}.csv"
+          LOG="${OUTDIR}/${LABEL}_${FROMD}_${TOD}.log"
 
           echo "LABEL=${LABEL}"
           echo "FROM=${FROM}"
@@ -126,13 +127,13 @@ jobs:
               --influx-url   "${INFLUX_URL}" \
               --influx-token "${INFLUX_TOKEN}" \
               --out          "${CSV}" \
-              > /tmp/dsn_csv.log 2>&1
+              > "${LOG}" 2>&1
             rc=$?
             set -e
 
             echo "DSN_generate_csv.py exit code: $rc"
-            echo "------ /tmp/dsn_csv.log ------"
-            cat /tmp/dsn_csv.log || echo "(no log output)"
+            echo "------ ${LOG} ------"
+            cat "${LOG}" || echo "(no log output)"
             echo "------------------------------"
 
             if [ $rc -ne 0 ]; then
@@ -206,6 +207,20 @@ jobs:
           "  \"raw_label\": \"${LABEL}\"" \
           "}" > "${STATUS_FILE}"
 
+      - name: Upload Analysis Results as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: analysis-${{ env.LABEL }}-${{ steps.derive.outputs.FROMD }}-${{ steps.derive.outputs.TOD }}
+          path: |
+            analysis/${{ env.LABEL }}/*.html
+            analysis/${{ env.LABEL }}/*.csv
+            analysis/${{ env.LABEL }}/*.log
+            analysis/${{ env.LABEL }}/*.png
+            analysis/${{ env.LABEL }}/*.json
+            analysis/${{ env.LABEL }}/files_*
+          retention-days: 90
+          if-no-files-found: error
+
       - name: "Write status: done and push"
         run: |
           set -e
@@ -226,50 +241,32 @@ jobs:
           "  \"raw_label\": \"${LABEL}\"" \
           "}" > "${STATUS_FILE}"
 
-          # Make sure we're based on the latest origin/main to avoid non-fast-forward pushes
-          git fetch origin main
-          git reset --soft origin/main || true
+          git config user.name "actions"
+          git config user.email "actions@users.noreply.github.com"
 
           git add "${STATUS_FILE}" "analysis/${LABEL}"
 
           if ! git diff --cached --quiet; then
-            git -c user.name="actions" -c user.email="actions@users.noreply.github.com" \
-              commit -m "[analysis] ${LABEL} complete"
+            git commit -m "[analysis] ${LABEL} complete"
 
-            # Retry push a few times in case main moved between fetch and push
+            # Retry push a few times in case main moved
             max_tries=3
             n=1
             while [ $n -le $max_tries ]; do
               if git push origin HEAD:main; then
-                echo "Push succeeded."
+                echo "✅ Push succeeded."
                 break
               fi
-              echo "Push failed (attempt $n); fetching latest origin/main and retrying..."
-              git fetch origin main || true
-              git reset --soft origin/main || true
+              echo "Push failed (attempt $n); pulling latest and retrying..."
+              git pull --rebase origin main || true
               n=$((n+1))
+              sleep 2
             done
 
             if [ $n -gt $max_tries ]; then
-              echo "ERROR: Failed to push after ${max_tries} attempts."
+              echo "❌ ERROR: Failed to push after ${max_tries} attempts."
               exit 1
             fi
           else
             echo "No changes to commit."
-          fi
-
-      - name: Wait for GitHub Pages to serve final HTML
-        shell: bash
-        run: |
-          FINAL="https://soazcomms.github.io/analysis/${LABEL}/${LABEL}.analysis.html"
-          echo "Waiting for ${FINAL}"
-          end=$((SECONDS+60))
-          ok=0
-          while [ $SECONDS -lt $end ]; do
-            code=$(curl -s -o /dev/null -w "%{http_code}" -H "Cache-Control: no-cache" -I "${FINAL}?_cb=$(date +%s%3N)")
-            if [ "$code" = "200" ]; then ok=1; break; fi
-            sleep 1
-          done
-          if [ $ok -ne 1 ]; then
-            echo "WARNING: Pages not ready within timeout (status is already 'done')."
           fi
