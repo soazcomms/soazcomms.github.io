@@ -37,7 +37,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Derive date yyyymmdd (from date-only inputs)
         id: derive
@@ -131,6 +131,16 @@ jobs:
           echo "Log file:"
           ls -l "${LOG}" || true
 
+      - name: Upload CSV and Log as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: csv-${{ env.LABEL }}-${{ steps.derive.outputs.FROMD }}-${{ steps.derive.outputs.TOD }}
+          path: |
+            analysis/${{ env.LABEL }}/${{ env.LABEL }}_${{ steps.derive.outputs.FROMD }}_${{ steps.derive.outputs.TOD }}.csv
+            analysis/${{ env.LABEL }}/${{ env.LABEL }}_${{ steps.derive.outputs.FROMD }}_${{ steps.derive.outputs.TOD }}.log
+          retention-days: 90
+          if-no-files-found: error
+
       - name: Commit and push CSV
         shell: bash
         run: |
@@ -143,34 +153,15 @@ jobs:
           CSV="${OUTDIR}/${LABEL}_${FROMD}_${TOD}.csv"
           LOG="${OUTDIR}/${LABEL}_${FROMD}_${TOD}.log"
 
-          git fetch origin main
-          git reset --soft origin/main || true
+          git config user.name "actions"
+          git config user.email "actions@users.noreply.github.com"
 
           git add "${CSV}" "${LOG}" || true
 
           if ! git diff --cached --quiet; then
-            git -c user.name="actions" -c user.email="actions@users.noreply.github.com" \
-              commit -m "[csv] ${LABEL} ${FROMD}..${TOD}"
+            git commit -m "[csv] ${LABEL} ${FROMD}..${TOD}"
             git push origin HEAD:main
+            echo "✅ CSV and log committed to repository"
           else
             echo "No CSV/log changes to commit."
-          fi
-
-      - name: Wait for GitHub Pages to serve CSV
-        shell: bash
-        run: |
-          FROMD="${{ steps.derive.outputs.FROMD }}"
-          TOD="${{ steps.derive.outputs.TOD }}"
-          REL="analysis/${LABEL}/${LABEL}_${FROMD}_${TOD}.csv"
-          URL="https://soazcomms.github.io/${REL}"
-          echo "Waiting for ${URL}"
-          end=$((SECONDS+60))
-          ok=0
-          while [ $SECONDS -lt $end ]; do
-            code=$(curl -s -o /dev/null -w "%{http_code}" -H "Cache-Control: no-cache" -I "${URL}?_cb=$(date +%s%3N)")
-            if [ "$code" = "200" ]; then ok=1; break; fi
-            sleep 1
-          done
-          if [ $ok -ne 1 ]; then
-            echo "WARNING: CSV not visible on Pages within timeout (but committed)."
           fi
