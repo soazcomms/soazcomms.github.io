@@ -80,7 +80,7 @@ for file in all_files:
         print(f"⚠️ Skipping {file}: {e}")
 
 df_all = pd.concat(df_list)
-df_all = df.rename(columns={
+df_all = df_all.rename(columns={
     "time (UT)": "UTC",
     "rad (mag/sq asec)": "SQM",
     "rad nW/cm2/sr": "lum",
@@ -174,9 +174,10 @@ night_hours = gap_corrected_hours(night_df, ts_col="UTC")
 #night_hours = night_seconds / 3600.0
 pct_night = 100 * night_hours / run_hours if run_hours else 0
 #
-night_cl=night_df[night_df['chisquared'] <= 0.009]
+# FIX: Convert chisquared to numeric before comparison
+night_cl = night_df[pd.to_numeric(night_df['chisquared'], errors='coerce') <= 0.009]
 non_cloud_hours = gap_corrected_hours(night_cl, ts_col="UTC")
-percent_le_0009 = 100 * non_cloud_hours/night_hours
+percent_le_0009 = 100 * non_cloud_hours/night_hours if night_hours > 0 else 0
 
 summary_html = f"""
 <h2>1. Annual Summary Statistics</h2>
