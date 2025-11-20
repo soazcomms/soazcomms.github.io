@@ -229,9 +229,10 @@ def fix_influx_csv(text: str, wanted=("SQM","lum","chisquared","moonalt")) -> st
         # Only keep rows whose first column looks like an ISO timestamp
         if not iso_re.match(r[0]):
             continue
-        row = [r[col_index.get("time", 0)]]
-        for c in final_cols[1:]:
-            idx = col_index[c]
+        # Build row by mapping each column name to its correct index
+        row = []
+        for c in final_cols:
+            idx = col_index.get(c, 0)
             row.append(r[idx] if idx < len(r) else "")
         w.writerow(row)
 
