@@ -202,6 +202,12 @@ def fix_influx_csv(text: str, wanted=("SQM","lum","chisquared","moonalt")) -> st
     # Map indices and build final columns
     col_index = {name: i for i, name in enumerate(header)}
     final_cols = ["time"] + [c for c in wanted if c in col_index]
+    
+    # Debug output
+    print(f"DEBUG: Original header from CSV: {header}", file=sys.stderr)
+    print(f"DEBUG: col_index mapping: {col_index}", file=sys.stderr)
+    print(f"DEBUG: final_cols order: {final_cols}", file=sys.stderr)
+    
     # map original names to pretty header titles
     header_map = {
         "time": "time (UT)",
