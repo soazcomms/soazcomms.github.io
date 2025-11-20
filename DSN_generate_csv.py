@@ -54,12 +54,15 @@ def ymd(d: str) -> str:
 
 def iso_range(start_day: str, stop_day: str) -> tuple[str, str]:
     """
-    Convert date strings to UTC ISO range.
-    Assumes input dates are in America/Phoenix (MST/Arizona) timezone.
+    Convert date strings to UTC ISO range for evening observations.
+    Night observations run from 17:30 MST through 07:00 MST next day.
+    
+    For input "2024-11-30", returns:
+      2024-12-01T00:30:00Z (17:30 MST Nov 30) to 2024-12-01T14:00:00Z (07:00 MST Dec 1)
     
     Args:
-        start_day: Date string like "YYYY-MM-DD" or "YYYY-MM-DD HH:MM:SS"
-        stop_day: Date string like "YYYY-MM-DD" or "YYYY-MM-DD HH:MM:SS"
+        start_day: Date string like "YYYY-MM-DD" (observation night date)
+        stop_day: Date string like "YYYY-MM-DD" (last observation night date)
     
     Returns:
         Tuple of (start_iso, stop_iso) in UTC with Z suffix
@@ -67,18 +70,21 @@ def iso_range(start_day: str, stop_day: str) -> tuple[str, str]:
     try:
         mst = ZoneInfo("America/Phoenix")
     except Exception:
-        # Fallback if zoneinfo not available (shouldn't happen in Python 3.9+)
+        # Fallback if zoneinfo not available
         print("Warning: zoneinfo not available, assuming UTC-7 offset", file=sys.stderr)
-        # Parse as naive datetime and manually adjust
         s = datetime.strptime(start_day.split(" ")[0], "%Y-%m-%d")
-        e = datetime.strptime(stop_day.split(" ")[0], "%Y-%m-%d") + timedelta(days=1)
-        s_utc = s.replace(tzinfo=timezone.utc) + timedelta(hours=7)  # MST is UTC-7
-        e_utc = e.replace(tzinfo=timezone.utc) + timedelta(hours=7)
-        return s_utc.isoformat().replace("+00:00", "Z"), e_utc.isoformat().replace("+00:00", "Z")
+        s = s.replace(hour=17, minute=30, tzinfo=timezone.utc) + timedelta(hours=7)
+        e = datetime.strptime(stop_day.split(" ")[0], "%Y-%m-%d") 
+        e = e.replace(hour=14, minute=0, tzinfo=timezone.utc) + timedelta(days=1, hours=7)
+        return s.isoformat().replace("+00:00", "Z"), e.isoformat().replace("+00:00", "Z")
     
-    # Parse dates in MST timezone
-    s = datetime.strptime(start_day.split(" ")[0], "%Y-%m-%d").replace(tzinfo=mst)
-    e = datetime.strptime(stop_day.split(" ")[0], "%Y-%m-%d").replace(tzinfo=mst) + timedelta(days=1)
+    # Parse as MST date, set to 17:30 (start of evening observations)
+    s = datetime.strptime(start_day.split(" ")[0], "%Y-%m-%d")
+    s = s.replace(hour=17, minute=30, tzinfo=mst)
+    
+    # End date + 1 day at 07:00 MST (end of morning observations)
+    e = datetime.strptime(stop_day.split(" ")[0], "%Y-%m-%d") + timedelta(days=1)
+    e = e.replace(hour=7, minute=0, tzinfo=mst)
     
     # Convert to UTC
     s_utc = s.astimezone(timezone.utc)
