@@ -4,6 +4,7 @@
 import argparse, os, shutil, sys, json, time, shlex, subprocess, re
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 import requests
 import io, csv
 
@@ -52,10 +53,38 @@ def ymd(d: str) -> str:
     return d.split(" ")[0].replace("-", "")
 
 def iso_range(start_day: str, stop_day: str) -> tuple[str, str]:
-    # Convert YYYY-MM-DD or YYYY-MM-DD HH:MM:SS → ISO UTC Z range
-    s = datetime.strptime(start_day.split(" ")[0], "%Y-%m-%d").replace(tzinfo=timezone.utc)
-    e = datetime.strptime(stop_day.split(" ")[0], "%Y-%m-%d").replace(tzinfo=timezone.utc) + timedelta(days=1)
-    return s.isoformat().replace("+00:00", "Z"), e.isoformat().replace("+00:00", "Z")
+    """
+    Convert date strings to UTC ISO range.
+    Assumes input dates are in America/Phoenix (MST/Arizona) timezone.
+    
+    Args:
+        start_day: Date string like "YYYY-MM-DD" or "YYYY-MM-DD HH:MM:SS"
+        stop_day: Date string like "YYYY-MM-DD" or "YYYY-MM-DD HH:MM:SS"
+    
+    Returns:
+        Tuple of (start_iso, stop_iso) in UTC with Z suffix
+    """
+    try:
+        mst = ZoneInfo("America/Phoenix")
+    except Exception:
+        # Fallback if zoneinfo not available (shouldn't happen in Python 3.9+)
+        print("Warning: zoneinfo not available, assuming UTC-7 offset", file=sys.stderr)
+        # Parse as naive datetime and manually adjust
+        s = datetime.strptime(start_day.split(" ")[0], "%Y-%m-%d")
+        e = datetime.strptime(stop_day.split(" ")[0], "%Y-%m-%d") + timedelta(days=1)
+        s_utc = s.replace(tzinfo=timezone.utc) + timedelta(hours=7)  # MST is UTC-7
+        e_utc = e.replace(tzinfo=timezone.utc) + timedelta(hours=7)
+        return s_utc.isoformat().replace("+00:00", "Z"), e_utc.isoformat().replace("+00:00", "Z")
+    
+    # Parse dates in MST timezone
+    s = datetime.strptime(start_day.split(" ")[0], "%Y-%m-%d").replace(tzinfo=mst)
+    e = datetime.strptime(stop_day.split(" ")[0], "%Y-%m-%d").replace(tzinfo=mst) + timedelta(days=1)
+    
+    # Convert to UTC
+    s_utc = s.astimezone(timezone.utc)
+    e_utc = e.astimezone(timezone.utc)
+    
+    return s_utc.isoformat().replace("+00:00", "Z"), e_utc.isoformat().replace("+00:00", "Z")
 
 def looks_like_placeholder(url: str) -> bool:
     u = (url or "").strip().lower()
@@ -231,9 +260,10 @@ def delete_non_csv(out_dir: Path):
                 f.unlink()
                 removed += 1
             except Exception:
-                debug_log(f"[clean] skip remove {f.name}")
                 pass
-    if removed: debug_log(f"[clean] removed {removed} non-CSV files")
+    if removed: 
+        print(f"[clean] removed {removed} non-CSV files", file=sys.stderr)
+
 def main():
     args = parse_args()
     label = args.label
@@ -276,7 +306,7 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
     out_csv.parent.mkdir(parents=True, exist_ok=True)
 
-    # E out_dir before writing new CSV
+    # Clean out_dir before writing new CSV
     if os.path.exists(out_dir):
         for filename in os.listdir(out_dir):
             file_path = os.path.join(out_dir, filename)
@@ -303,19 +333,19 @@ def main():
         return 2
 
     # Fetch real CSV from Influx for Grafana window
-#    site = site_from_label(label)
     meas = measurement_from_label(label)  # e.g., DSN019S_MtLemmon
 
     start_iso, stop_iso = iso_range(args.from_date, args.to_date)
+    print(f"Querying InfluxDB for {label} ({meas})", file=sys.stderr)
+    print(f"Time range: {start_iso} to {stop_iso}", file=sys.stderr)
+    
     try:
-        csv_text = query_influx_csv(INFLUX_URL, INFLUX_ORG, INFLUX_TOKEN, INFLUX_BUCKET,meas, start_iso, stop_iso)
+        csv_text = query_influx_csv(INFLUX_URL, INFLUX_ORG, INFLUX_TOKEN, INFLUX_BUCKET, meas, start_iso, stop_iso)
         csv_text = fix_influx_csv(csv_text, wanted=("SQM","lum","chisquared","moonalt"))
         out_csv.write_text(csv_text)
     except Exception as e:
         print(f"ERROR: {e}", file=sys.stderr)
         return 2
-
-    out_csv.write_text(csv_text)
 
     # commit & push
     rel = out_csv.relative_to(repo)
