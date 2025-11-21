@@ -138,7 +138,7 @@ from(bucket: {json.dumps(bucket)})
         lines.insert(0, "time,SQM,lum,chisquared,moonalt")
     return "\n".join(lines) + ("\n" if lines and not lines[-1].endswith("\n") else "")
 
-def fix_influx_csv(text: str, wanted=("SQM","chisquared","lum","moonalt")) -> str:
+def fix_influx_csv(text: str, wanted=("SQM","lum","chisquared","moonalt")) -> str:
     """
     Normalize Influx CSV to: time,<wanted...>
     - removes annotation lines starting with '#'
@@ -202,10 +202,6 @@ def fix_influx_csv(text: str, wanted=("SQM","chisquared","lum","moonalt")) -> st
     # Map indices and build final columns
     col_index = {name: i for i, name in enumerate(header)}
     final_cols = ["time"] + [c for c in wanted if c in col_index]
-    
-    print(f"DEBUG: InfluxDB header order: {header}", file=sys.stderr)
-    print(f"DEBUG: Wanted output order: {final_cols}", file=sys.stderr)
-    print(f"DEBUG: col_index: {col_index}", file=sys.stderr)
     
     # map original names to pretty header titles
     header_map = {
