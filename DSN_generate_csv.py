@@ -235,6 +235,11 @@ def fix_influx_csv(text: str, wanted=("SQM","lum","chisquared","moonalt")) -> st
         for c in final_cols:
             idx = col_index.get(c, 0)
             row.append(r[idx] if idx < len(r) else "")
+        
+        # SWAP values in positions 2 and 3 (columns 3 and 4 in CSV output)
+        if len(row) >= 4:
+            row[2], row[3] = row[3], row[2]
+        
         w.writerow(row)
 
     return out.getvalue()
@@ -349,13 +354,7 @@ def main():
     
     try:
         csv_text = query_influx_csv(INFLUX_URL, INFLUX_ORG, INFLUX_TOKEN, INFLUX_BUCKET, meas, start_iso, stop_iso)
-        
-        # Save raw InfluxDB response for debugging
-        debug_file = out_dir / "DEBUG_raw_influx.csv"
-        debug_file.write_text(csv_text)
-        print(f"DEBUG: Saved raw InfluxDB response to {debug_file}", file=sys.stderr)
-        
-        csv_text = fix_influx_csv(csv_text, wanted=("SQM","lum","chisquared","moonalt"))
+        csv_text = fix_influx_csv(csv_text, wanted=("SQM","chisquared","lum","moonalt"))
         out_csv.write_text(csv_text)
     except Exception as e:
         print(f"ERROR: {e}", file=sys.stderr)
