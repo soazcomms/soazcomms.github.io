@@ -201,12 +201,13 @@ def fix_influx_csv(text: str, wanted=("SQM","lum","chisquared","moonalt")) -> st
 
     # Map indices and build final columns
     col_index = {name: i for i, name in enumerate(header)}
-    final_cols = ["time"] + [c for c in wanted if c in col_index]
     
-    # Debug output
-    print(f"DEBUG: Original header from CSV: {header}", file=sys.stderr)
-    print(f"DEBUG: col_index mapping: {col_index}", file=sys.stderr)
-    print(f"DEBUG: final_cols order: {final_cols}", file=sys.stderr)
+    # CRITICAL FIX: InfluxDB returns lum and chisquared swapped, so swap the indices
+    if 'lum' in col_index and 'chisquared' in col_index:
+        col_index['lum'], col_index['chisquared'] = col_index['chisquared'], col_index['lum']
+        print("DEBUG: Swapped lum and chisquared column indices", file=sys.stderr)
+    
+    final_cols = ["time"] + [c for c in wanted if c in col_index]
     
     # map original names to pretty header titles
     header_map = {
@@ -240,6 +241,11 @@ def fix_influx_csv(text: str, wanted=("SQM","lum","chisquared","moonalt")) -> st
         for c in final_cols:
             idx = col_index.get(c, 0)
             row.append(r[idx] if idx < len(r) else "")
+        
+        # SWAP columns 2 and 3 (lum and chisquared values)
+        if len(row) >= 4:
+            row[2], row[3] = row[3], row[2]
+        
         w.writerow(row)
 
     return out.getvalue()
