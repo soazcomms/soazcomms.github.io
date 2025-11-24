@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dark Sky Network - Technical Documentation</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 20px;
+            color: #24292e;
+            background-color: #ffffff;
+        }
+        h1 {
+            font-size: 32px;
+            font-weight: 600;
+            border-bottom: 1px solid #eaecef;
+            padding-bottom: 10px;
+            margin-top: 24px;
+            margin-bottom: 16px;
+        }
+        h2 {
+            font-size: 24px;
+            font-weight: 600;
+            border-bottom: 1px solid #eaecef;
+            padding-bottom: 8px;
+            margin-top: 24px;
+            margin-bottom: 16px;
+        }
+        h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-top: 24px;
+            margin-bottom: 16px;
+        }
+        p {
+            margin-bottom: 16px;
+        }
+        code {
+            background-color: #f6f8fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 85%;
+        }
+        pre {
+            background-color: #f6f8fa;
+            padding: 16px;
+            border-radius: 6px;
+            overflow: auto;
+            line-height: 1.45;
+        }
+        ul, ol {
+            padding-left: 32px;
+            margin-bottom: 16px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        a {
+            color: #0366d6;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .caution {
+            background-color: #fff5f5;
+            border-left: 4px solid #fc8181;
+            padding: 16px;
+            margin: 16px 0;
+            border-radius: 4px;
+        }
+        .caution-title {
+            font-weight: 600;
+            color: #c53030;
+            margin-bottom: 8px;
+        }
+        strong {
+            font-weight: 600;
+        }
+        blockquote {
+            border-left: 4px solid #dfe2e5;
+            padding-left: 16px;
+            color: #6a737d;
+            margin: 16px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Dark Sky Network</h1>
+    
+    <h2>DSN</h2>
+    <p>The Dark Sky Network (DSN): monitoring the night sky brightness over Southern Arizona for the next ten years, starting in 2025. We use SQM and TESS units. Several units are in place, and have been running for up to 7 years. Their data are periodically incorporated in our data space. We took delivery of SQM units on 2/6/25 and TESS units on 5/19/25. As of 10/19/25, we have 17 units in the DSN.</p>
+    
+    <div class="caution">
+        <div class="caution-title">⚠️ CAUTION</div>
+        <p>This code is a work in progress.</p>
+    </div>
+
+    <h1>The Process</h1>
+    <p>The GitHub workflow <strong><a href="https://github.com/soazcomms/soazcomms.github.io/blob/main/.github/workflows/DSN-process_data.V02.yml" target="_blank">DSN-process_data</a></strong> runs weekly. If it finds data in the github directory <code>DSNdata/NEW</code>, it processes it (see below).</p>
+
+    <h3>Step 1</h3>
+    <p>SQM/TESS raw data are uploaded to <code>DSNdata/NEW</code>. This process may be manual (e.g. SQMs w/o internet) or automatic using a Raspberry Pi 4B. The files are labeled with the site and sensor name, <code>DSNnnn-U_SiteName_yy-sss.dat</code> where:</p>
+    <ul>
+        <li><strong>nnn</strong> is a site sequence number</li>
+        <li><strong>U</strong> is the type of the unit, S (T) for SQM (TESS)</li>
+        <li><strong>SiteName</strong> describes the site</li>
+        <li><strong>yy</strong> is the year when the data are obtained</li>
+        <li><strong>sss</strong> is a sequence number for files uploaded each year</li>
+    </ul>
+
+    <p>Two GitHub workflows harvest data for processing into <code>DSNdata/NEW</code>:</p>
+    <ul>
+        <li><strong>[DSN-get-SQM]</strong> runs weekly, finds and downloads new SQM data uploaded manually to a google drive that DSNsoaz owns. Ethernet-enabled SQM units eventually will also upload to the google drive. The new SQM data are also uploaded to Box, directory <code>DSNdata/SQM</code>.</li>
+        <li><strong>[DSN-get-TESS]</strong> runs monthly, finds and downloads new TESS data from the Stars4All network.</li>
+    </ul>
+
+    <p>A shell script outside GitHub harvests data into <code>DSNdata/NEW</code>, running on DSN-imac.</p>
+    <ul>
+        <li><strong>[DSN-sync-box.sh]</strong> runs monthly, finds and downloads new SQM data in Hannes Groller's Box repository.</li>
+    </ul>
+
+    <h3>Step 2</h3>
+    <p><strong>DSN-process_data</strong> looks for data in <code>DSNdata/NEW</code>. If it finds data there, it runs <strong><a href="https://github.com/soazcomms/soazcomms.github.io/blob/main/DSN_V03.py" target="_blank">DSN_python</a></strong> on each file to calculate chisquared, moonalt and LST.</p>
+    <ol>
+        <li>For each file, <strong>DSN_python</strong> writes a .csv file in <code>DSNdata/INFLUX</code>, with the format <code>DSNnnn-U_SiteName_yy-nn.csv</code>.</li>
+        <li>For each file, <strong>DSN_python</strong> writes a .csv file with UTC, SQM, lum, chisquared, moonalt and LST to <code>DSNdata/BOX</code>. These files are an archive of processed data.</li>
+    </ol>
+
+    <h3>Step 3</h3>
+    <p>The .csv format is appropriate for input to <strong>influxDB</strong>, which feeds into <strong>Grafana</strong> for visualization. Each .csv file is uploaded into influxDB, and then deleted from <code>DSNdata/INFLUX</code>. Each .csv file that <strong><a href="https://github.com/soazcomms/soazcomms.github.io/blob/main/DSN_V03.py" target="_blank">DSN_python</a></strong> writes is tagged with the site label, <code>DSNnnn-U_SiteName</code>, for influxDB to include it in the appropriate "dashboard," each of which is specific to the site so that <strong>Grafana</strong> can display it.</p>
+
+    <h3>Step 4</h3>
+    <p>Once each .dat file in <code>DSNdata/NEW</code> is processed it is deleted.</p>
+
+    <h3>Step 5</h3>
+    <p>Each file in <code>DSNdata/BOX</code> is uploaded to the Box repository, in the <code>DSNdata/ARCHIVE</code> folder, and is deleted from <code>DSNdata/BOX</code>. Files are stored in the format <code>DSNnnn-U_SiteName_yy.csv</code>. This is intended as a long-term archive of the processed data.</p>
+
+    <h3>Step 6</h3>
+    <p>A record of the file operations above is written to a running <strong><a href="https://github.com/soazcomms/soazcomms.github.io/blob/main/DSNdata/RUN_LOG" target="_blank">LOG</a></strong>.</p>
+
+    <h1>Visualizing data</h1>
+    <p>The processed data may be visualized with <strong><a href="https://soazcomms.github.io/DSNweb.v04.html" target="_blank">DSNweb</a></strong> (Use SHIFT-click to open in a new window.)</p>
+
+    <hr style="margin: 40px 0; border: none; border-top: 1px solid #eaecef;">
+    
+    <p style="text-align: center; color: #6a737d; font-size: 14px;">
+        <a href="https://soazcomms.github.io/" style="color: #0366d6;">← Back to Home</a>
+    </p>
+
+</body>
+</html>
