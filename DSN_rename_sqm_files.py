@@ -7,24 +7,28 @@ def extract_year_from_file(filepath):
     """Extracts last two digits of the year (YY) from first data line """
     _, sqm_ext = os.path.splitext(filepath)
     sqm_ext = sqm_ext.lower()
-    with open(filepath, "r") as f:
+    with open(filepath, "r",encoding="utf-8", errors="ignore") as f:
+        print(" OPENED ",filepath)
         for line in f:
             if not line.lstrip().startswith("#"):
                 break
     if sqm_ext in ['.dat', '.csv']:
-        with open(filepath, "r") as f:
+        with open(filepath, "r",encoding="utf-8", errors="ignore") as f:
             for line in f:
+                print(line)
                 if not line.lstrip().startswith("#"):
                     break
         match = re.search(r'20(\d{2})', line)  # Matches 20xx
-        if match:
-            return match.group(1)
-    else:
+    elif (sqm_ext == '.xlsx'):
+         match = re.search(r'_(\d+)_', filepath)   
+    else:    
         print(f"Error: file {filepath} wrong extension.")
         sys.exit(1)
-
-    return
-#
+    if match:
+        return match.group(1)
+    else:
+        return None
+ #
 def rename_files_and_update_table(sqm_folder, sqm_table_path):
     """Rename files using the Site name and update \
        SQMtable.csv with incremented sequence numbers."""
@@ -35,25 +39,29 @@ def rename_files_and_update_table(sqm_folder, sqm_table_path):
 #
     site_name = os.path.basename(sqm_folder)
     all_items = os.listdir(sqm_folder)
-    if all(f.startswith("DSN") for f in all_items):
-        print(f"Files in",sqm_folder," already labeled, Skip.")
+
+    if all_items and all(f.startswith("DSN") for f in all_items):
+        print("Files already labeled, skip.")
         return
 #
     sqm_table = pd.read_csv(sqm_table_path)
     sqm_table.columns = ['Site', 'Sequence','Alias']
 #
     row = sqm_table.loc[sqm_table['Site'] == site_name]
+    print(row)
     if row.empty:
         print(f"Site {site_name} not found in SQMtable.csv, Skip.")
         return
 #
     seq_number = int(row['Sequence'].values[0])
+    print(sqm_folder,"\n",seq_number)
 #
     for filename in os.listdir(sqm_folder):
         file_path = os.path.join(sqm_folder, filename)
         _, sqm_ext = os.path.splitext(filename)
         # Extract year from file
         year = extract_year_from_file(file_path)
+        print("YEAR ",year)
         # Increment sequence number
         seq_number += 1
         sqm_table.loc[sqm_table['Site'] == site_name, 'Sequence'] = seq_number  # Update sequence
