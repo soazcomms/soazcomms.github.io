@@ -239,18 +239,25 @@ site_file = os.path.basename(in_file)
 iunder=site_file.find('_')
 idot=site_file.rfind('.')
 idsn=site_file.find('DSN')
-DSN_name=site_file[idsn:idsn+8]
-#print(site_file[:iunder])
-#print(site_dict)
 matches = process.extract(site_file[:iunder], site_dict, limit=1)
 site_number=matches[0][2]+1
-iunder=site_names[site_number].rfind('_')+1
-site_name=site_names[site_number][iunder:]
-SorT=DSN_name[-1] # S or T
-# for influx formatting
-inf_measurement=DSN_name[:6]+SorT+"_"+site_name
-print("*********",inf_measurement)
-inf_file=inf_measurement+"_"+site_file[idsn+7:idot]
+if (idsn>0):   # special cases, e.g. Bonita
+    DSN_name=site_file[idsn:idsn+8]
+    site_name=site_names[site_number][iunder:]
+    SorT=DSN_name[-1] # S or T
+   # for influx formatting
+    inf_measurement=site_name
+    inf_file=site_name
+    iunder=site_names[site_number].rfind('_')+1
+    # for influx formatting
+    inf_measurement=DSN_name[:6]+SorT+"_"+site_name
+    inf_file=inf_measurement+"_"+site_file[idsn+7:idot]
+else:
+    site_name=site_names[site_number][1:iunder+1]
+    DSN_name=site_name
+    # for influx formatting
+    inf_measurement=site_name
+    inf_file=site_name
 
 print("DSN name: ",DSN_name,"Site name: ",site_name," Number: ",site_number)
 #
