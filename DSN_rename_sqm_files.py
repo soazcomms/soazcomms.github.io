@@ -8,14 +8,12 @@ def extract_year_from_file(filepath):
     _, sqm_ext = os.path.splitext(filepath)
     sqm_ext = sqm_ext.lower()
     with open(filepath, "r",encoding="utf-8", errors="ignore") as f:
-        print(" OPENED ",filepath)
         for line in f:
             if not line.lstrip().startswith("#"):
                 break
     if sqm_ext in ['.dat', '.csv']:
         with open(filepath, "r",encoding="utf-8", errors="ignore") as f:
             for line in f:
-                print(line)
                 if not line.lstrip().startswith("#"):
                     break
         match = re.search(r'20(\d{2})', line)  # Matches 20xx
@@ -48,20 +46,19 @@ def rename_files_and_update_table(sqm_folder, sqm_table_path):
     sqm_table.columns = ['Site', 'Sequence','Alias']
 #
     row = sqm_table.loc[sqm_table['Site'] == site_name]
-    print(row)
+#    print(row)
     if row.empty:
         print(f"Site {site_name} not found in SQMtable.csv, Skip.")
         return
 #
     seq_number = int(row['Sequence'].values[0])
-    print(sqm_folder,"\n",seq_number)
+#    print(sqm_folder,"\n",seq_number)
 #
     for filename in os.listdir(sqm_folder):
         file_path = os.path.join(sqm_folder, filename)
         _, sqm_ext = os.path.splitext(filename)
         # Extract year from file
         year = extract_year_from_file(file_path)
-        print("YEAR ",year)
         # Increment sequence number
         seq_number += 1
         sqm_table.loc[sqm_table['Site'] == site_name, 'Sequence'] = seq_number  # Update sequence
