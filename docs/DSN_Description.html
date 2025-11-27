@@ -132,10 +132,10 @@
     <p><strong>Understanding the visualization:</strong></p>
     <p>This dashboard shows data from a single monitoring station (DSN003-S_Sugarloaf) over approximately two weeks in late May to early June 2025. The visualization displays four key metrics:</p>
     <ul>
-        <li><strong>SQM readings (top panel):</strong> Shows sky brightness in magnitudes per square arcsecond. The blue line represents actual measurements, while the green line shows lunar contributions. Notice the characteristic pattern: darker skies at night (higher values, around 22 mag/arcsec²) with deep dips during daylight hours. The red bars indicate periods of cloud cover.</li>
-        <li><strong>Radiance (second panel):</strong> Displays the same data in physical units (nW/cm²/sr), where higher values mean brighter (more polluted) skies. The orange line shows moonlight, and red spikes indicate bright events like the moon or clouds.</li>
-        <li><strong>Chi-squared cloudiness (third panel):</strong> An automated cloud detection metric. Spikes indicate cloudy periods, helping distinguish between light pollution and weather-related brightness changes.</li>
-        <li><strong>Moon altitude (bottom panel):</strong> Shows the moon's position above or below the horizon. This helps explain natural variations in sky brightness—when the moon is up (green line above zero), the sky is naturally brighter.</li>
+      <li><strong>SQM readings (top panel):</strong> Shows sky brightness in magnitudes per square arcsecond. The light blue line represents the measurements. No values are plotted when the sun is up.</li>
+        <li><strong>Radiance (second panel):</strong> Displays the SQM data in physical units (nW/cm²/sr), where higher values mean brighter skies.</li>
+        <li><strong>Chi-squared cloudiness (third panel):</strong> An estimation of the presence of clouds. Spikes above 0.009 indicate cloudy periods.</li>
+        <li><strong>Moon altitude (bottom panel):</strong> Shows the moon's position relative to the horizon. The corresponding natural variation in sky brightness is apparent in the SQM readings.</li>
     </ul>
     <p>Together, these panels tell a complete story about sky conditions: You can see the day-night cycle, identify when clouds passed through, understand the moon's influence, and detect any unusual brightness that might indicate light pollution. The consistent baseline darkness during moonless nights shows this location maintains excellent dark sky quality.</p>
     
