@@ -254,6 +254,7 @@ if (idsn>0):
     inf_file=inf_measurement+"_"+site_file[idsn+7:idot]
 else:      # special cases are idsn<0, e.g. Bonita
     if "DSN" in site_names[site_number]:
+        iunder=site_names[site_number].find('_')
         site_name=site_names[site_number][iunder+1:].strip()
         DSN_name=site_names[site_number][:iunder].strip()
         SorT=DSN_name[-1] # S or T
@@ -371,6 +372,7 @@ if sensor_name == 'SQM1': # .xlsx data
                      'Windd','Stempc','RH','Barom', 'Battery', 'Dtempc']
     frame_sensor=pd.read_excel(in_file,header=None, skiprows=head_skip)
     frame_sensor.columns=orig_cols
+    print(frame_sensor.head())
     frame_sensor.drop(['Solar','Windd','RH','Barom','Precip','Stempc','Dtempc'], axis=1, inplace=True)
     UT,frame_sensor = tloc_ut(frame_sensor)
 elif sensor_name == 'TESS':
