@@ -260,6 +260,7 @@ else:      # special cases are idsn<0, e.g. Bonita
         # for influx formatting
         inf_measurement=DSN_name[:6]+SorT+"_"+site_name
         inf_file=inf_measurement
+        print("DEBUG inf_file: ",inf_file)
     else:
         site_name=site_names[site_number].strip()
         DSN_name=site_name
