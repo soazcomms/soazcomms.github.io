@@ -254,14 +254,18 @@ if (idsn>0):
     inf_file=inf_measurement+"_"+site_file[idsn+7:idot]
 else:      # special cases are idsn<0, e.g. Bonita
     if "DSN" in site_names[site_number]:
-        site_name=site_names[site_number][iunder+1:]
-        DSN_name=site_names[site_number][:iunder]
+        site_name=site_names[site_number][iunder+1:].strip()
+        DSN_name=site_names[site_number][:iunder].strip()
+        SorT=DSN_name[-1] # S or T
+        # for influx formatting
+        inf_measurement=DSN_name[:6]+SorT+"_"+site_name
+        inf_file=inf_measurement
     else:
         site_name=site_names[site_number].strip()
         DSN_name=site_name
-    # for influx formatting
-    inf_measurement=site_name
-    inf_file=site_name
+        # for influx formatting
+        inf_measurement=site_name
+        inf_file=site_name
 
 print("DSN name: ",DSN_name,"Site name: ",site_name," Number: ",site_number)
 #
