@@ -790,3 +790,7 @@ DSN003-S_25_010.csv to Box
 2025-11-28 16:59:58 Uploaded DSN003-__Sugarloaf.csv to influx
 2025-11-28 17:00:21 Uploaded DSN003-S_25_010.csv to Box
 2025-11-28 17:00:22 Deleted temp files.
+2025-11-28 23:20:42 Start DSN-process_data.
+2025-11-28 23:22:15 Uploaded DSN003S_Sugarloaf.csv to influx
+2025-11-28 23:22:38 Uploaded DSN003-S_25_010.csv to Box
+2025-11-28 23:22:39 Deleted temp files.
