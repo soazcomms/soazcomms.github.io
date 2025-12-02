@@ -182,18 +182,10 @@ pct_night = 100 * night_hours / run_hours if run_hours else 0
 # FIX: Convert chisquared to numeric before comparison
 night_cl = night_df[pd.to_numeric(night_df['chisquared'], errors='coerce') <= 0.009]
 non_cloud_hours = gap_corrected_hours(night_cl, ts_col="UTC")
-chisq = df["chisquared"].dropna().values 
-mask_le_0009 = chisq <= 0.009
-count_le_0009 = np.count_nonzero(mask_le_0009)
-total_count   = chisq.size
-if total_count > 0:
-    percent_le_0009 = 100.0 * count_le_0009 / total_count
-else:
-    percent_le_0009 = 0.0
-#percent_le_0009 = 100 * non_cloud_hours/night_hours if night_hours > 0 else 0
+percent_le_0009 = 100 * non_cloud_hours/night_hours if night_hours > 0 else 0
 
 summary_html = f"""
-<h2>1. Annual Summary Statistics</h2>
+<h2>1. Summary Statistics</h2>
 <ul>
   <li><b>Site:</b> {site}</li>
   <li><b>Coordinates:</b> {latlonel}</li>
