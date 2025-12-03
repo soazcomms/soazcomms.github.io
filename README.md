@@ -51,3 +51,7 @@ The processed data may be visualized with
 <a href="https://soazcomms.github.io/DSNweb.v04.html" target="_blank">
   DSNweb
 </a> (Use SHIFT-click to open in a new window.)
+ ### Analyzing and downloading data
+The visualization web pages include buttons with links that trigger an analysis of the data (histograms, heatmap or jelly fish plot) or a download
+of the data within the selected time range. The analysis may take over 3 minutes because it runs on GitHub, which communicates with the Grafana 
+visualization engine using InfluxDB on AWS, as well as Cloudflare to feed the analysis data from the website to GitHub. 
