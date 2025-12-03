@@ -179,8 +179,13 @@ Southern Arizona for the next ten years, starting in 2025. We use SQM
 and TESS units. Several units are in place, and have been running for up
 to 7 years. Their data are periodically incorporated in our data space.
 We took delivery of SQM units on 2/6/25 and TESS units on 5/19/25. As of
-10/19/25, we have 17 units in the DSN. &gt; [!CAUTION] &gt; This code is
-a work in progress.</p>
+10/19/25, we have 17 units in the DSN.</p>
+<div class="caution">
+<div class="title">
+<p>Caution</p>
+</div>
+<p>This code is a work in progress.</p>
+</div>
 <h1 id="the-process">The Process</h1>
 <p>The GitHub workflow <a
 href="https://github.com/soazcomms/soazcomms.github.io/blob/main/.github/workflows/DSN-process_data.V02.yml"><strong>DSN-process_data</strong></a>
@@ -188,54 +193,77 @@ runs weekly. If it finds data in the github directory DSNdata/NEW, it
 processes it (see below).</p>
 <h3 id="step-1">Step 1</h3>
 <p>SQM/TESS raw data are uploaded to DSNdata/NEW. This process may be
-manual (e.g. SQMs w/o internet) or automatic using a Raspberry Pi 4B.
+manual (e.g. SQMs w/o internet) or automatic using a Raspberry Pi 4B.
 The files are labeled with the site and sensor name,
-DSNnnn-U_SiteName_yy-sss.dat where: * nnn is a site sequence number * U
-is the type of the unit, S (T) for SQM (TESS) * SiteName describes the
-site * yy is the year when the data are obtained * sss is a sequence
-number for files uploaded each year</p>
-<p>Two GitHub workflows harvest data for processing into DSNdata/NEW: -
-[<strong>DSN-get-SQM</strong>] runs weekly, finds and downloads new SQM
-data uploaded manually to a google drive that DSNsoaz owns.
+DSNnnn-U_SiteName_yy-sss.dat where:</p>
+<ul>
+<li>nnn is a site sequence number</li>
+<li>U is the type of the unit, S (T) for SQM (TESS)</li>
+<li>SiteName describes the site</li>
+<li>yy is the year when the data are obtained</li>
+<li>sss is a sequence number for files uploaded each year</li>
+</ul>
+<p>Two GitHub workflows harvest data for processing into
+DSNdata/NEW:</p>
+<ul>
+<li>[<strong>DSN-get-SQM</strong>] runs weekly, finds and downloads new
+SQM data uploaded manually to a google drive that DSNsoaz owns.
 Ethernet-enabled SQM units eventually will also upload to the google
-drive. The new SQM data are also uploaded to Box, directory DSNdata/SQM.
-+ [<strong>DSN-get-TESS</strong>] runs monthly, finds and downloads new
-TESS data from the Stars4All network.</p>
+drive. The new SQM data are also uploaded to Box, directory
+DSNdata/SQM.</li>
+</ul>
+<ul>
+<li>[<strong>DSN-get-TESS</strong>] runs monthly, finds and downloads
+new TESS data from the Stars4All network.</li>
+</ul>
 <p>A shell script outside GitHub harvests data into DSNdata/NEW, running
-on DSN-imac. - [<strong>DSN-sync-box.sh</strong>] runs monthly, finds
-and downloads new SQM data in Hannes Groller’s Box repository.<br />
-### Step 2 <strong>DSN-process_data</strong> looks for data in
-DSNdata/NEW. If it finds data there, it runs <a
+on DSN-imac.</p>
+<ul>
+<li>[<strong>DSN-sync-box.sh</strong>] runs monthly, finds and downloads
+new SQM data in Hannes Groller's Box repository.</li>
+</ul>
+<h3 id="step-2">Step 2</h3>
+<p><strong>DSN-process_data</strong> looks for data in DSNdata/NEW. If
+it finds data there, it runs <a
 href="https://github.com/soazcomms/soazcomms.github.io/blob/main/DSN_V03.py">DSN_python</a>
-on each file to calculate chisquared, moonalt and LST. 1. For each file,
-<strong>DSN_python</strong> writes a .csv file in DSNdata/INFLUX, with
-the format DSNnnn-U_SiteName_yy-nn.csv. 2. For each file,
-<strong>DSN_python</strong> writes a .csv file with UTC, SQM, lum,
-chisquared, moonalt and LST to DSNdata/BOX. These files are an archive
-of processed data. ### Step 3 The .csv format is appropriate for input
-to <strong>influxDB</strong>, which feeds into <strong>Grafana</strong>
-for visualization. Each .csv file is uploaded into influxDB, and then
+on each file to calculate chisquared, moonalt and LST.</p>
+<ol type="1">
+<li>For each file, <strong>DSN_python</strong> writes a .csv file in
+DSNdata/INFLUX, with the format DSNnnn-U_SiteName_yy-nn.csv.</li>
+<li>For each file, <strong>DSN_python</strong> writes a .csv file with
+UTC, SQM, lum, chisquared, moonalt and LST to DSNdata/BOX. These files
+are an archive of processed data.</li>
+</ol>
+<h3 id="step-3">Step 3</h3>
+<p>The .csv format is appropriate for input to
+<strong>influxDB</strong>, which feeds into <strong>Grafana</strong> for
+visualization. Each .csv file is uploaded into influxDB, and then
 deleted from DSNdata/INFLUX. Each .csv file that <a
 href="https://github.com/soazcomms/soazcomms.github.io/blob/main/DSN_V03.py">DSN_python</a>
 writes is tagged with the site label, DSNnnn-U_SiteName, for influxDB to
-include it in the appropriate “dashboard,” each of which is specific to
-the site so that <strong>Grafana</strong> can display it. ### Step 4
-Once each .dat file in DSNdata/NEW is processed it is deleted. ### Step
-5 Each file in DSNdata/BOX is uploaded to the Box repository, in the
+include it in the appropriate "dashboard," each of which is specific to
+the site so that <strong>Grafana</strong> can display it.</p>
+<h3 id="step-4">Step 4</h3>
+<p>Once each .dat file in DSNdata/NEW is processed it is deleted.</p>
+<h3 id="step-5">Step 5</h3>
+<p>Each file in DSNdata/BOX is uploaded to the Box repository, in the
 DSNdata/ARCHIVE folder, and is deleted from DSNdata/BOX. Files are
 stored in the format DSNnnn-U_SiteName_yy.csv. This is intended as a
-long-term archive of the processed data. ### Step 6 A record of the file
-operations above is written to a running <a
-href="https://github.com/soazcomms/soazcomms.github.io/blob/main/DSNdata/RUN_LOG">LOG</a>.
-# Visualizing data The processed data may be visualized with
+long-term archive of the processed data.</p>
+<h3 id="step-6">Step 6</h3>
+<p>A record of the file operations above is written to a running <a
+href="https://github.com/soazcomms/soazcomms.github.io/blob/main/DSNdata/RUN_LOG">LOG</a>.</p>
+<h1 id="visualizing-data">Visualizing data</h1>
+<p>The processed data may be visualized with
 <a href="https://soazcomms.github.io/DSNweb.v04.html" target="_blank">
-DSNweb </a> (Use SHIFT-click to open in a new window.) ### Analyzing and
-downloading data The visualization web pages include buttons with links
-that trigger an analysis of the data (histograms, heatmap or jelly fish
-plot) or a download of the data within the selected time range. The
-analysis may take over 3 minutes because it runs on GitHub, which
-communicates with the Grafana visualization engine using InfluxDB on
-AWS, as well as Cloudflare to feed the analysis data from the website to
-GitHub.</p>
+DSNweb </a> (Use SHIFT-click to open in a new window.)</p>
+<h3 id="analyzing-and-downloading-data">Analyzing and downloading
+data</h3>
+<p>The visualization web pages include buttons with links that trigger
+an analysis of the data (histograms, heatmap or jelly fish plot) or a
+download of the data within the selected time range. The analysis may
+take over 3 minutes because it runs on GitHub, which communicates with
+the Grafana visualization engine using InfluxDB on AWS, as well as
+Cloudflare to feed the analysis data from the website to GitHub.</p>
 </body>
 </html>
