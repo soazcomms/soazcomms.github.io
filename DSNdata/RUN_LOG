@@ -804,3 +804,8 @@ DSN003-S_25_010.csv to Box
 DSN014-T_25_005.csv
 DSN029-T_25_009.csv to Box
 2025-12-03 08:24:54 Deleted temp files.
+2025-12-04 22:36:12 Start DSN-process_data.
+2025-12-04 22:37:35 Uploaded DSN016S_SaguaroNP.csv DSN024S_Winer.csv to influx
+2025-12-04 22:37:54 Uploaded DSN016-S_25_011.csv
+DSN024-S_2025-046.csv to Box
+2025-12-04 22:37:55 Deleted temp files.
