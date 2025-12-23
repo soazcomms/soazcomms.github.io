@@ -276,7 +276,7 @@ if 'SQM' in df_all.columns:
         x=sqm_peak + 0.02,
         y=0.5,
         yref="paper",
-        text=f"Mean = {sqm_peak:.2f}",
+        text=f"Mode = {sqm_peak:.2f}",
         showarrow=False,
         xanchor="left",
         yanchor="top",
