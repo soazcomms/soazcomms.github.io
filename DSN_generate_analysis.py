@@ -224,7 +224,23 @@ if 'SQM' in df_all.columns:
     # Filtered subset (moonalt ≤ -10, χ² ≤ 0.009)
     df_f = _filtered_sqm(df_all, moon_thr=-10.0, MW_thr=50., chi_thr=0.009)
     SQM_filt = df_f['SQM'].astype(float) if len(df_f) else pd.Series([], dtype=float)
-    sqm_max = float(np.nanmax(SQM_filt))
+
+    # SQM_filt is your filtered SQM Series/array
+    sqm_vals = pd.to_numeric(SQM_filt, errors="coerce").dropna().to_numpy()
+
+    if sqm_vals.size:
+        # choose binning (match your histogram bins!)
+        bin_size = 0.1  # <-- set to whatever you use (e.g., 0.1 or 0.25)
+        lo = np.floor(sqm_vals.min() / bin_size) * bin_size
+        hi = np.ceil(sqm_vals.max() / bin_size) * bin_size
+        edges = np.arange(lo, hi + bin_size, bin_size)
+
+        counts, edges = np.histogram(sqm_vals, bins=edges)
+        peak_i = int(np.argmax(counts))
+        sqm_peak = float((edges[peak_i] + edges[peak_i + 1]) / 2.0)  # bin center
+    else:
+        sqm_peak = None
+    
     # Consistent binning across both traces (0.1 mag bins)
 #    if len(SQM_all):
 #        xmin = np.floor(SQM_all.min()*10)/10
@@ -251,16 +267,16 @@ if 'SQM' in df_all.columns:
         hovertemplate="SQM: %{x:.2f}<br>Count: %{y}<extra>Filtered</extra>"
     ))
     fig1.add_vline(
-        x=sqm_max,
+        x=sqm_peak,
         line_width=2,
         line_dash="dash",
         line_color="gray"
     )  
     fig1.add_annotation(
-        x=sqm_max + 0.02,
+        x=sqm_peak + 0.02,
         y=0.5,
         yref="paper",
-        text=f"Mean = {sqm_max:.2f}",
+        text=f"Mean = {sqm_peak:.2f}",
         showarrow=False,
         xanchor="left",
         yanchor="top",
