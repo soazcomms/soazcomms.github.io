@@ -225,7 +225,7 @@ if 'SQM' in df_all.columns:
     # Filtered subset (moonalt ≤ -10, χ² ≤ 0.009)
     df_f = _filtered_sqm(df_all, moon_thr=-10.0, MW_thr=50., chi_thr=0.009)
     SQM_filt = df_f['SQM'].astype(float) if len(df_f) else pd.Series([], dtype=float)
-    sqm_max = float(np.nanmax(SQM_filt)
+    sqm_max = float(np.nanmax(SQM_filt))
     # Consistent binning across both traces (0.1 mag bins)
 #    if len(SQM_all):
 #        xmin = np.floor(SQM_all.min()*10)/10
