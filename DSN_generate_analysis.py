@@ -13,6 +13,7 @@ import datetime
 from pathlib import Path
 from astropy.time import Time
 from astropy.coordinates import AltAz, EarthLocation, SkyCoord, get_sun
+import astropy.units as u
 
 #******************
 def altsun1(tlat,tlong,tele,utc):
