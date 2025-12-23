@@ -12,7 +12,8 @@ import glob
 import datetime
 from pathlib import Path
 from astropy.time import Time
-from astropy.coordinates import AltAz, EarthLocation, get_sun
+from astropy.coordinates import AltAz, EarthLocation, SkyCoord, get_sun
+
 #******************
 def altsun1(tlat,tlong,tele,utc):
     sun_time = Time(utc) #UTC time
