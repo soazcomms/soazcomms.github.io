@@ -153,54 +153,51 @@ def gap_corrected_hours(df, ts_col="UTC", q=10, tol=1.25):
 
     return seconds / 3600.0
 #
-def _filtered_sqm(df, moon_thr=-10.0, MW_thr=50., chi_thr=0.009):
-    """Return a copy of df filtered to good SQM rows:
-       moonalt <= moon_thr AND chisquared <= chi_thr.
-       Ensures SQM is numeric and drops NaNs.
+def _filtered_sqm(df, moon_thr=-10.0, MW_thr=50.0, chi_thr=0.009):
     """
-    if 'SQM' not in df.columns:
-        return df.iloc[0:0].copy()  # empty, SQM missing
+    Return a copy of df filtered to good SQM rows that satisfy ALL:
+      moonalt    <= moon_thr
+      MWlat     <= MW_thr
+      chisquared <= chi_thr
 
-    m = pd.Series(True, index=df.index)
+    Ensures SQM is numeric and drops NaNs.
+    Missing required columns => returns empty.
+    """
+    required = ("SQM", "moonalt", "MWlat", "chisquared")
+    for c in required:
+        if c not in df.columns:
+            return df.iloc[0:0].copy()
 
-    if 'moonalt' in df.columns:
-        m &= pd.to_numeric(df['moonalt'], errors='coerce') <= float(moon_thr)
-    else:
-        m &= False  # no moonalt -> nothing passes
-    if 'MW_lat' in df.columns:
-        m &= pd.to_numeric(df['MW_lat'], errors='coerce') <= float(MW_thr)
-    else:
-        m &= False  # no moonalt -> nothing passes
-
-    if 'chisquared' in df.columns:
-        m &= pd.to_numeric(df['chisquared'], errors='coerce') <= float(chi_thr)
-    else:
-        m &= False  # no chisquared -> nothing passes
+    moonalt = pd.to_numeric(df["moonalt"], errors="coerce")
+    mwlat  = pd.to_numeric(df["MWlat"], errors="coerce")
+    chi     = pd.to_numeric(df["chisquared"], errors="coerce")
+    m = (moonalt <= float(moon_thr)) & (mwlat <= float(MW_thr)) & (chi <= float(chi_thr))
 
     out = df.loc[m].copy()
-    out['SQM'] = pd.to_numeric(out['SQM'], errors='coerce')
-    out = out.dropna(subset=['SQM'])
+    out["SQM"] = pd.to_numeric(out["SQM"], errors="coerce")
+    out = out.dropna(subset=["SQM"])
     return out
 #
-df_local = df_all.copy()
-df_local['Local'] = df_local['UTC'].dt.tz_convert('America/Phoenix')
-df_local['Date'] = df_local['Local'].dt.date
+#df_local = df_all.copy()
+df_all['Local'] = df_all['UTC'].dt.tz_convert('America/Phoenix')
+df_all['Date'] = df_all['Local'].dt.date
 # Total (gap-aware)
 run_hours = gap_corrected_hours(df_all, ts_col="UTC")
 # Night only (sunalt <= -18)
-df_local['sunalt']=altsun1(lat,lon,el,list(UTC))
-night_df = df_local[df_local['sunalt'] <= -18]
-night_hours = gap_corrected_hours(night_df, ts_col="UTC")
+df_all['sunalt']=altsun1(lat,lon,el,list(UTC))
+df_all = df_all[df_all['sunalt'] <= -18]
+UTC=df_all['UTC']
+night_hours = gap_corrected_hours(df_all, ts_col="UTC")
 #run_hours = (df_all['UTC'].iloc[-1]-df_all['UTC'].iloc[0]).total_seconds()/3600
 #night_hours = night_seconds / 3600.0
 pct_night = 100 * night_hours / run_hours if run_hours else 0
 #
 # FIX: Convert chisquared to numeric before comparison
-night_cl = night_df[pd.to_numeric(night_df['chisquared'], errors='coerce') <= 0.009]
+night_cl = df_all[pd.to_numeric(df_all['chisquared'], errors='coerce') <= 0.009]
 non_cloud_hours = gap_corrected_hours(night_cl, ts_col="UTC")
 percent_le_0009 = 100 * non_cloud_hours/night_hours if night_hours > 0 else 0
 # MW lats
-df_local['MWlat']=z_MWlat(lat,lon,el,list(UTC))
+df_all['MWlat']=z_MWlat(lat,lon,el,list(UTC))
 summary_html = f"""
 <h2>1. Summary Statistics</h2>
 <ul>
@@ -257,7 +254,7 @@ if 'SQM' in df_all.columns:
         x=sqm_max,
         line_width=2,
         line_dash="dash",
-        line_color="black",
+        line_color="gray"
     )  
     fig1.add_annotation(
         x=sqm_max + 0.02,
@@ -268,8 +265,7 @@ if 'SQM' in df_all.columns:
         xanchor="left",
         yanchor="top",
         font=dict(size=12),
-        bgcolor="rgba(255,255,255,0.7)",
-        line_color="gray"
+        bgcolor="rgba(255,255,255,0.7)"
     )
     fig1.update_layout(
         barmode="overlay",
