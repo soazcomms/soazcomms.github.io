@@ -13,13 +13,23 @@ import datetime
 from pathlib import Path
 from astropy.time import Time
 from astropy.coordinates import AltAz, EarthLocation, get_sun
-#
+#******************
 def altsun1(tlat,tlong,tele,utc):
     sun_time = Time(utc) #UTC time
     loc = EarthLocation.from_geodetic(tlong,tlat,tele)
     altaz = AltAz(obstime=sun_time, location=loc)
     alt_ang = get_sun(sun_time).transform_to(altaz).alt.degree
     return alt_ang
+#******************
+# calculate galactic latitude of zenith at times utc
+def z_MWlat(tlat,tlong,tele,utc):
+    loc = EarthLocation.from_geodetic(tlong,tlat,tele)
+    obs_time = Time(utc, location=(tlong, tlat))
+    z_lst=obs_time.sidereal_time('apparent').degree # 
+    z_coo = SkyCoord(ra=z_lst*u.degree, dec=tlat*u.degree, frame='icrs')
+    z_MWlat=z_coo.galactic.b.degree
+    return np.abs(z_MWlat)
+#******************
 def ymd(d: str) -> str:
     # Accept YYYY-MM-DD (from Grafana) and return YYYYMMDD
     return d.split(" ")[0].replace("-", "")
@@ -141,7 +151,7 @@ def gap_corrected_hours(df, ts_col="UTC", q=10, tol=1.25):
 
     return seconds / 3600.0
 #
-def _filtered_sqm(df, moon_thr=-10.0, chi_thr=0.009):
+def _filtered_sqm(df, moon_thr=-10.0, MW_thr=50., chi_thr=0.009):
     """Return a copy of df filtered to good SQM rows:
        moonalt <= moon_thr AND chisquared <= chi_thr.
        Ensures SQM is numeric and drops NaNs.
@@ -153,6 +163,10 @@ def _filtered_sqm(df, moon_thr=-10.0, chi_thr=0.009):
 
     if 'moonalt' in df.columns:
         m &= pd.to_numeric(df['moonalt'], errors='coerce') <= float(moon_thr)
+    else:
+        m &= False  # no moonalt -> nothing passes
+    if 'MW_lat' in df.columns:
+        m &= pd.to_numeric(df['MW_lat'], errors='coerce') <= float(MW_thr)
     else:
         m &= False  # no moonalt -> nothing passes
 
@@ -183,7 +197,8 @@ pct_night = 100 * night_hours / run_hours if run_hours else 0
 night_cl = night_df[pd.to_numeric(night_df['chisquared'], errors='coerce') <= 0.009]
 non_cloud_hours = gap_corrected_hours(night_cl, ts_col="UTC")
 percent_le_0009 = 100 * non_cloud_hours/night_hours if night_hours > 0 else 0
-
+# MW lats
+df_local['MWlat']=z_MWlat(lat,lon,el,list(UTC))
 summary_html = f"""
 <h2>1. Summary Statistics</h2>
 <ul>
@@ -201,22 +216,22 @@ summary_html = f"""
 # set plot sizes
 plot_w=700
 plot_h=400
-df_use = _filtered_sqm(df_all, moon_thr=-10.0, chi_thr=0.009)
+df_use = _filtered_sqm(df_all, moon_thr=-10.0, MW_thr=50., chi_thr=0.009)
 # Plot 1: SQM histogram — All (gray) vs Filtered (red)
 if 'SQM' in df_all.columns:
     # All data
     SQM_all = pd.to_numeric(df_all['SQM'], errors='coerce').dropna()
 
     # Filtered subset (moonalt ≤ -10, χ² ≤ 0.009)
-    df_f = _filtered_sqm(df_all, moon_thr=-10.0, chi_thr=0.009)
+    df_f = _filtered_sqm(df_all, moon_thr=-10.0, MW_thr=50., chi_thr=0.009)
     SQM_filt = df_f['SQM'].astype(float) if len(df_f) else pd.Series([], dtype=float)
-
+    sqm_max = float(np.nanmax(SQM_filt)
     # Consistent binning across both traces (0.1 mag bins)
-    if len(SQM_all):
-        xmin = np.floor(SQM_all.min()*10)/10
-        xmax = np.ceil(SQM_all.max()*10)/10
-    else:
-        xmin, xmax = 18.0, 22.0
+#    if len(SQM_all):
+#        xmin = np.floor(SQM_all.min()*10)/10
+#        xmax = np.ceil(SQM_all.max()*10)/10
+#    else:
+    xmin, xmax = 17.0, 23.0
     xbins_cfg = dict(start=float(xmin), end=float(xmax), size=0.1)
 
     fig1 = go.Figure()
@@ -230,13 +245,30 @@ if 'SQM' in df_all.columns:
     ))
     fig1.add_trace(go.Histogram(
         x=SQM_filt,
-        name="moonalt ≤ −10° & χ² ≤ 0.009",
+        name="moonalt ≤ −10° & χ² ≤ 0.009 & MWlat < 50°",
         opacity=0.65,
         marker=dict(color="red"),
         xbins=xbins_cfg,
         hovertemplate="SQM: %{x:.2f}<br>Count: %{y}<extra>Filtered</extra>"
     ))
-
+    fig1.add_vline(
+        x=sqm_max,
+        line_width=2,
+        line_dash="dash",
+        line_color="black",
+    )  
+    fig1.add_annotation(
+        x=sqm_max + 0.02,
+        y=0.5,
+        yref="paper",
+        text=f"Mean = {sqm_max:.2f}",
+        showarrow=False,
+        xanchor="left",
+        yanchor="top",
+        font=dict(size=12),
+        bgcolor="rgba(255,255,255,0.7)",
+        line_color="gray"
+    )
     fig1.update_layout(
         barmode="overlay",
         title="NSB Histogram",
