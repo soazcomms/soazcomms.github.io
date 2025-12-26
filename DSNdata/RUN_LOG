@@ -863,3 +863,23 @@ DSN003-S_None_007.csv
 DSN003-S_None_008.csv
 DSN003-S_None_009.csv to Box
 2025-12-26 19:38:41 Deleted temp files.
+2025-12-26 20:13:06 Start DSN-process_data.
+2025-12-26 20:26:36 Uploaded Bonita.csv DSN003S_Sugarloaf.csv to influx
+2025-12-26 20:29:02 Uploaded Bonita_18_006.csv
+Bonita_19_007.csv
+Bonita_20_008.csv
+Bonita_21_004.csv
+Bonita_22_002.csv
+Bonita_23_003.csv
+Bonita_24_005.csv
+Bonita_25_001.csv
+DSN003-S_17_009.csv
+DSN003-S_18_007.csv
+DSN003-S_19_001.csv
+DSN003-S_20_006.csv
+DSN003-S_21_008.csv
+DSN003-S_22_003.csv
+DSN003-S_23_004.csv
+DSN003-S_24_005.csv
+DSN003-S_25_002.csv to Box
+2025-12-26 20:29:02 Deleted temp files.
