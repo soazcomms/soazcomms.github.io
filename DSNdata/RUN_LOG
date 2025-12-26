@@ -771,7 +771,6 @@ DSN040-S_25_009.csv to Box
 2025-11-26 19:23:57 Deleted temp files.
 2025-11-27 20:17:29 Start DSN-process_data.
 2025-11-27 20:19:52 Uploaded Bonita.csv DSN003-S.csv to influx
-2025-11-27 20:20:13 Uploaded Bonita_25_002.csv
 DSN003-S_25_010.csv to Box
 2025-11-27 20:20:14 Deleted temp files.
 2025-11-27 20:38:33 Start DSN-process_data.
@@ -825,12 +824,5 @@ DSN024-S_2025-049.csv to Box
 2025-12-25 19:21:16 Start DSN-process_data.
 2025-12-25 19:30:05 Uploaded Bonita.csv DSN024S_Winer.csv to influx
 2025-12-25 19:30:51 Uploaded Bonita_None_003.csv
-Bonita_None_004.csv
-Bonita_None_005.csv
-Bonita_None_006.csv
-Bonita_None_007.csv
-Bonita_None_008.csv
-Bonita_None_009.csv
-Bonita_None_010.csv
 DSN024-S_2025-050.csv to Box
 2025-12-25 19:30:51 Deleted temp files.
