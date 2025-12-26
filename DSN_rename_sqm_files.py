@@ -18,7 +18,7 @@ def extract_year_from_file(filepath):
                     break
         match = re.search(r'20(\d{2})', line)  # Matches 20xx
     elif (sqm_ext == '.xlsx'):
-         match = re.search(r'_(\d+)_', filepath)   
+         match =re.search(r'^[^_]*_(.{2})', filepath)
     else:    
         print(f"Error: file {filepath} wrong extension.")
         sys.exit(1)
