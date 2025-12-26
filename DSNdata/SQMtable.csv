@@ -1,5 +1,5 @@
 Site,Sequence,Alias
-DSN003-S,6,Sugarloaf
+DSN003-S,0,Sugarloaf
 DSN006-S,4,V06
 DSN008-S,5,OracleSP
 DSN014-S,30,Tubac
@@ -15,4 +15,4 @@ DSN036-S,2,Gilinsky
 DSN040-S,9,CCs
 SQM-V00,0,V00
 MtLemmon1,0,G96
-Bonita,5,Bonita
+Bonita,0,Bonita
