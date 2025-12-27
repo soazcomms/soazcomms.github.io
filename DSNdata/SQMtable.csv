@@ -1,7 +1,7 @@
 Site,Sequence,Alias
 DSN003-S,9,Sugarloaf
 DSN006-S,4,V06
-DSN008-S,5,OracleSP
+DSN008-S,6,OracleSP
 DSN014-S,30,Tubac
 DSN016-S,11,SaguaroNP
 DSN019-S,8,MtL
@@ -15,5 +15,5 @@ DSN036-S,2,Gilinsky
 DSN039-S,0,SRER
 DSN040-S,9,CCs
 DSN041-S,0,G96
-DSN042-S,0,Bonita
+DSN042-S,8,Bonita
 DSN043-S,0,V00
