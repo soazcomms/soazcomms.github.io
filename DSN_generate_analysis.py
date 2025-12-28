@@ -24,13 +24,15 @@ def altsun1(tlat,tlong,tele,utc):
     return alt_ang
 #******************
 # calculate galactic latitude of zenith at times utc
-def z_MWlat(tlat,tlong,tele,utc):
-    loc = EarthLocation.from_geodetic(tlong,tlat,tele)
-    obs_time = Time(utc, location=(tlong, tlat))
-    z_lst=obs_time.sidereal_time('apparent').degree # 
-    z_coo = SkyCoord(ra=z_lst*u.degree, dec=tlat*u.degree, frame='icrs')
-    z_MWlat=z_coo.galactic.b.degree
-    return np.abs(z_MWlat)
+# absolute galactic latitude |b| of the zenith
+def z_MWlat(tlat, tlong, tele, utc):
+    loc = EarthLocation.from_geodetic(lon=tlong*u.deg, lat=tlat*u.deg, height=tele*u.m)
+    t = Time(utc, location=loc)
+    # Zenith in the local AltAz frame
+    zen_altaz = SkyCoord(alt=90*u.deg, az=0*u.deg, frame=AltAz(obstime=t, location=loc))
+    # Convert to Galactic and return |b|
+    b = zen_altaz.galactic.b.to_value(u.deg)
+    return float(np.abs(b))
 #******************
 def ymd(d: str) -> str:
     # Accept YYYY-MM-DD (from Grafana) and return YYYYMMDD
@@ -157,7 +159,7 @@ def _filtered_sqm(df, moon_thr=-10.0, MW_thr=50.0, chi_thr=0.009):
     """
     Return a copy of df filtered to good SQM rows that satisfy ALL:
       moonalt    <= moon_thr
-      MWlat     <= MW_thr
+      MWlat     > MW_thr
       chisquared <= chi_thr
 
     Ensures SQM is numeric and drops NaNs.
@@ -171,7 +173,7 @@ def _filtered_sqm(df, moon_thr=-10.0, MW_thr=50.0, chi_thr=0.009):
     moonalt = pd.to_numeric(df["moonalt"], errors="coerce")
     mwlat  = pd.to_numeric(df["MWlat"], errors="coerce")
     chi     = pd.to_numeric(df["chisquared"], errors="coerce")
-    m = (moonalt <= float(moon_thr)) & (mwlat <= float(MW_thr)) & (chi <= float(chi_thr))
+    m = (moonalt <= float(moon_thr)) & (mwlat > float(MW_thr)) & (chi <= float(chi_thr))
 
     out = df.loc[m].copy()
     out["SQM"] = pd.to_numeric(out["SQM"], errors="coerce")
@@ -260,7 +262,7 @@ if 'SQM' in df_all.columns:
     ))
     fig1.add_trace(go.Histogram(
         x=SQM_filt,
-        name="moonalt ≤ −10° & χ² ≤ 0.009 & MWlat < 50°",
+        name="moonalt ≤ −10° & χ² ≤ 0.009 & Zenith-MW > {MW_thr:.0f}°",
         opacity=0.65,
         marker=dict(color="red"),
         xbins=xbins_cfg,
@@ -449,7 +451,7 @@ if len(df_use) and 'UTC' in df_use.columns:
     ))
 
     fig3.update_layout(
-        title="Jellyfish Plot, moonalt ≤ -10°, χ² ≤ 0.009",
+        title="Jellyfish Plot, moonalt ≤ -10°, χ² ≤ 0.009 & Zenith-MW > {MW_thr:.0f}°",
         title_font=dict(size=24),
         title_x=0.5,
         xaxis=dict(
