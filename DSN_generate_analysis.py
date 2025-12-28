@@ -157,7 +157,7 @@ def gap_corrected_hours(df, ts_col="UTC", q=10, tol=1.25):
 
     return seconds / 3600.0
 #
-def _filtered_sqm(df, moon_thr=-10.0, chi_thr=0.009, MW_thr):
+def _filtered_sqm(df, moon_thr=-10.0, chi_thr=0.009, MW_thr=50.):
     """
     Return a copy of df filtered to good SQM rows that satisfy ALL:
       moonalt    <= moon_thr
@@ -222,14 +222,14 @@ summary_html = f"""
 # set plot sizes
 plot_w=700
 plot_h=400
-df_use = _filtered_sqm(df_all, moon_thr=-10.0, chi_thr=0.009, MW_thr)
+df_use = _filtered_sqm(df_all, moon_thr=-10.0, chi_thr=0.009, MW_thr=MW_thr)
 # Plot 1: SQM histogram — All (gray) vs Filtered (red)
 if 'SQM' in df_all.columns:
     # All data
     SQM_all = pd.to_numeric(df_all['SQM'], errors='coerce').dropna()
 
     # Filtered subset (moonalt ≤ -10, χ² ≤ 0.009)
-    df_f = _filtered_sqm(df_all, moon_thr=-10.0, chi_thr=0.009, MW_thr)
+    df_f = _filtered_sqm(df_all, moon_thr=-10.0, chi_thr=0.009, MW_thr=MW_thr)
     SQM_filt = df_f['SQM'].astype(float) if len(df_f) else pd.Series([], dtype=float)
 
     # SQM_filt is your filtered SQM Series/array
@@ -396,7 +396,7 @@ else:
 #    
 # Plot 3: Jellyfish (use filtered SQM only)
 # --- Jellyfish: 2D histogram time-of-night vs SQM (filtered), stable 17→07 axis ---
-df_use = _filtered_sqm(df_all, moon_thr=-10.0, chi_thr=0.009, MW_thr)
+df_use = _filtered_sqm(df_all, moon_thr=-10.0, chi_thr=0.009, MW_thr=MW_thr)
 if len(df_use) and 'UTC' in df_use.columns:
     ts_utc = pd.to_datetime(df_use['UTC'], errors='coerce', utc=True)
     try:
