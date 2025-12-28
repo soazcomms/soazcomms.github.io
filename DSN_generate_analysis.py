@@ -456,8 +456,8 @@ if len(df_use) and 'UTC' in df_use.columns:
     ))
 
     fig3.update_layout(
-        title=f"Jellyfish Plot, moonalt ≤ -10°, χ² ≤ 0.009 & Zenith-MW > {MW_thr:.0f}°",
-        title_font=dict(size=24),
+        title=f"Jellyfish Plot -- moonalt ≤ -10°, χ² ≤ 0.009 & Zenith-MW > {MW_thr:.0f}°",
+        title_font=dict(size=16),
         title_x=0.5,
         xaxis=dict(
             title="MST",
