@@ -183,7 +183,7 @@ def _filtered_sqm(df, moon_thr=-10.0, MW_thr=50.0, chi_thr=0.009):
     return out
 # plotting thresholds:
 moon_thr=-10.
-MW_thr=50.
+MW_thr=40.
 chi_thr=0.009
 #df_local = df_all.copy()
 df_all['Local'] = df_all['UTC'].dt.tz_convert('America/Phoenix')
@@ -222,14 +222,14 @@ summary_html = f"""
 # set plot sizes
 plot_w=700
 plot_h=400
-df_use = _filtered_sqm(df_all, moon_thr=-10.0, MW_thr=50., chi_thr=0.009)
+df_use = _filtered_sqm(df_all, moon_thr=-10.0, MW_thr, chi_thr=0.009)
 # Plot 1: SQM histogram — All (gray) vs Filtered (red)
 if 'SQM' in df_all.columns:
     # All data
     SQM_all = pd.to_numeric(df_all['SQM'], errors='coerce').dropna()
 
     # Filtered subset (moonalt ≤ -10, χ² ≤ 0.009)
-    df_f = _filtered_sqm(df_all, moon_thr=-10.0, MW_thr=50., chi_thr=0.009)
+    df_f = _filtered_sqm(df_all, moon_thr=-10.0, MW_thr, chi_thr=0.009)
     SQM_filt = df_f['SQM'].astype(float) if len(df_f) else pd.Series([], dtype=float)
 
     # SQM_filt is your filtered SQM Series/array
