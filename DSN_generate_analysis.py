@@ -26,13 +26,15 @@ def altsun1(tlat,tlong,tele,utc):
 # calculate galactic latitude of zenith at times utc
 # absolute galactic latitude |b| of the zenith
 def z_MWlat(tlat, tlong, tele, utc):
-    loc = EarthLocation.from_geodetic(lon=tlong*u.deg, lat=tlat*u.deg, height=tele*u.m)
+    loc = EarthLocation.from_geodetic(
+        lon=tlong*u.deg, lat=tlat*u.deg, height=tele*u.m)
     t = Time(utc, location=loc)
     # Zenith in the local AltAz frame
-    zen_altaz = SkyCoord(alt=90*u.deg, az=0*u.deg, frame=AltAz(obstime=t, location=loc))
+    zen_altaz = SkyCoord(
+        alt=90*u.deg, az=0*u.deg, frame=AltAz(obstime=t, location=loc))
     # Convert to Galactic and return |b|
     b = zen_altaz.galactic.b.to_value(u.deg)
-    return float(np.abs(b))
+    return np.abs(b)
 #******************
 def ymd(d: str) -> str:
     # Accept YYYY-MM-DD (from Grafana) and return YYYYMMDD
