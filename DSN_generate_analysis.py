@@ -264,7 +264,7 @@ if 'SQM' in df_all.columns:
     ))
     fig1.add_trace(go.Histogram(
         x=SQM_filt,
-        name="moonalt ≤ −10° & χ² ≤ 0.009 & Zenith-MW > {MW_thr:.0f}°",
+        name=f"moonalt ≤ −10° & χ² ≤ 0.009 & Zenith-MW > {MW_thr:.0f}°",
         opacity=0.65,
         marker=dict(color="red"),
         xbins=xbins_cfg,
@@ -453,7 +453,7 @@ if len(df_use) and 'UTC' in df_use.columns:
     ))
 
     fig3.update_layout(
-        title="Jellyfish Plot, moonalt ≤ -10°, χ² ≤ 0.009 & Zenith-MW > {MW_thr:.0f}°",
+        title=f"Jellyfish Plot, moonalt ≤ -10°, χ² ≤ 0.009 & Zenith-MW > {MW_thr:.0f}°",
         title_font=dict(size=24),
         title_x=0.5,
         xaxis=dict(
