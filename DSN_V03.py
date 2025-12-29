@@ -1,6 +1,6 @@
 #----
 version="DSN_python V03"
-version_date="06/12/2025"
+version_date="12/28/2025"
 #----
 #     Original FORTRAN written by A.D. Grauer
 #     Converted to python and expanded by E.E. Falco
@@ -729,12 +729,23 @@ else:
 # for DSNdata BOX, to transfer to Box
 box_file="DSNdata/BOX/"+ site_file[:idot]+".csv"
 print("InfluxDB file name ",influx_file)
-# write influxdb file header
-ofile=open(influx_file,'w')
-_=ofile.write('#group,false,false,false,false,true,true\n')
-_=ofile.write('#datatype,string,long,dateTime:RFC3339,double,string,string\n')
-_=ofile.write('#default,,,,,,\n')
-ofile.close()
+# write influxdb file header (only when creating a new file)
+# If you process multiple years/ranges, we want to append to the same CSV rather than overwrite it.
+influx_new_file = (not os.path.exists(influx_file)) or (os.path.getsize(influx_file) == 0)
+
+# Ensure parent directory exists
+_influx_dir = os.path.dirname(influx_file)
+if _influx_dir:
+    os.makedirs(_influx_dir, exist_ok=True)
+
+if influx_new_file:
+    ofile=open(influx_file,'w')
+    _=ofile.write('#group,false,false,false,false,true,true\n')
+    _=ofile.write('#datatype,string,long,dateTime:RFC3339,double,string,string\n')
+    _=ofile.write('#default,,,,,,\n')
+    ofile.close()
+else:
+    print("[INFO] Appending to existing Influx CSV:", influx_file)
 # populate dataframe df
 if sensor_name=="TESS":
     cols_df=['UTC','SQM','lum','chisquared','moonalt','LST','sunalt','Skytemp']
@@ -778,7 +789,7 @@ for second in ['SQM','lum','chisquared','moonalt']:
     df1['_measurement']=inf_measurement
 #
 #   write header only for the first loop, when second=='SQM'
-    df1.to_csv(influx_file,mode='a', header=(second=='SQM'),index=False)
+    df1.to_csv(influx_file,mode='a', header=(second=='SQM' and influx_new_file),index=False)
 print(version," ",version_date," Wrote ",4*len(df1)," entries to ",influx_file)
 #print(df.head())
 #
