@@ -45,8 +45,6 @@ JD_midnight = 0.7916667 # local midnight for each night in UTC, hours
 JD_2AM = 0.875 # hours for 2AM in UTC
 JD_4AM = 0.958333 # hours for 4AM in UTC
 JD_3sep2017 = 2458000 # 3 sep 2017 JD
-#moonlimit=-10
-#MWlimit=70 
 nentries=150000
 nxy=5000
 # factor to convert to nW/cm^2/sr from 21 msas
@@ -56,7 +54,6 @@ imoon=np.full(nentries,10)
 isun=np.full(nentries,1)
 ts=np.zeros(nentries)
 sunalt=np.zeros(nentries)
-#MWalt=np.zeros(nentries)
 #
 x=np.zeros(nxy)
 y=np.zeros(nxy)
@@ -116,44 +113,8 @@ def moon_phase1(tlat,tlong,utc):
     moon.compute(observer)
     return moon.moon_phase
 #***************new MW calc
-# for a given lat,lon,utc return MW max elevation
-# for a range of galactic lon, -180 to 180 in 12 steps
-def altMW0(tlat,tlong,tele,utc):
-    loc = EarthLocation.from_geodetic(tlong,tlat,tele)
-    longs=np.linspace(-180,180,12)
-    MW_time = Time(utc)
-    alt_ang=np.max(Galactic(l=longs*u.deg, b=0*u.deg).transform_to(
-                AltAz(location=loc, obstime=MW_time)).alt.value)
-    return alt_ang
 #***************** second version of altMW, 
-# for a given lat,lon,utc return lon, MW elevations
-# for a range of galactic lon, -180 to 180 in 12 steps
-def altMW1(tlat,tlong,tele,utc):
-    loc = EarthLocation.from_geodetic(tlong,tlat,tele)
-    longs=np.linspace(-180,180,12)
-    MW_time = Time(utc)
-    alt_ang=Galactic(l=longs*u.deg, b=0*u.deg).transform_to(
-                    AltAz(location=loc, 
-                    obstime=MW_time)).alt.value
-    return longs, alt_ang
 #******************
-# calculate galactic latitude of zenith at time utc
-def z_MWlat0(tlat,tlong,tele,utc):
-    loc = EarthLocation.from_geodetic(tlong,tlat,tele)
-    obs_time = Time(utc, location=(tlong, tlat))
-    z_lst=obs_time.sidereal_time('apparent').degree # 
-    z_coo = SkyCoord(ra=z_lst*u.degree, dec=tlat*u.degree, frame='icrs')
-    z_MWlat=z_coo.galactic.b.degree
-    return np.abs(z_MWlat)
-#******************
-# calculate galactic latitude of zenith at times utc
-def z_MWlat(tlat,tlong,tele,utc):
-    loc = EarthLocation.from_geodetic(tlong,tlat,tele)
-    obs_time = Time(utc, location=(tlong, tlat))
-    z_lst=obs_time.sidereal_time('apparent').degree # 
-    z_coo = SkyCoord(ra=z_lst*u.degree, dec=tlat*u.degree, frame='icrs')
-    z_MWlat=z_coo.galactic.b.degree
-    return np.abs(z_MWlat)
 #********************polynomial fitting function for cloud detection
 def mycurve_fit(x, y, ndata,degree):
     xxx=x-np.mean(x)
