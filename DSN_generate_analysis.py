@@ -183,7 +183,7 @@ def _filtered_sqm(df, moon_thr=-10.0, chi_thr=0.009, MW_thr=50.):
     return out
 # plotting thresholds:
 moon_thr=-10.
-MW_thr=40.
+MW_thr=20.
 chi_thr=0.009
 #df_local = df_all.copy()
 df_all['Local'] = df_all['UTC'].dt.tz_convert('America/Phoenix')
