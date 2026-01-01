@@ -43,7 +43,7 @@
   <!-- Large Title for the Map -->
   <div id="map-container">
       <h1>Dark Sky Network (DSN) Monitoring Sites</h1>
-      <div id="dsn-legend" style="font-family: Arial, sans-serif; margin: 0 0 10px 0; font-size: 14px;">Existing: 24 &nbsp;·&nbsp; Proposed: 21</div>
+      <div id="dsn-legend" style="font-family: Arial, sans-serif; margin: 0 0 10px 0; font-size: 14px;">Existing: 20 &nbsp;·&nbsp; Proposed: 24</div>
       <div id="map"></div>
   </div>
 
@@ -54,7 +54,7 @@
   const { Map, InfoWindow } = await google.maps.importLibrary("maps");
   const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
 
-      const SQM = [
+        const SQM = [
       {site: "DSN002-T_Bisbee", position: {lat: 31.448200, lng: -109.928400}, stat: "P", title: "TESS", dsn: "DSN002"},
       {site: "DSN003-S_Sugarloaf", position: {lat: 32.017900, lng: -109.320800}, stat: "E", title: "SQM1", dsn: "DSN003"},
       {site: "DSN006-S_KPNO", position: {lat: 31.964000, lng: -111.600000}, stat: "E", title: "SQM3", dsn: "DSN006"},
@@ -80,25 +80,25 @@
       {site: "DSN043-S_V00", position: {lat: 31.961600, lng: -111.600200}, stat: "E", title: "SQM3", dsn: "DSN043"},
       {site: "DSN044-S_NOIRLabHQ", position: {lat: 32.233600, lng: -110.947000}, stat: "E", title: "SQM2", dsn: "DSN044"},
       {site: "DSN045-S_Morenci", position: {lat: 33.050500, lng: -109.324900}, stat: "E", title: "SQM3", dsn: "DSN045"},
-      {site: "Ajo, Pima County", position: {lat: 32.373500, lng: -112.861600}, stat: "P", title: "SQM"},
-      {site: "Bisbee, Cochise County", position: {lat: 31.448800, lng: -109.888500}, stat: "P", title: "SQM"},
-      {site: "Douglas, Cochise County", position: {lat: 31.344800, lng: -109.554900}, stat: "P", title: "SQM"},
-      {site: "Kartchner Caverns State Park, Cochise County", position: {lat: 31.836700, lng: -110.349000}, stat: "P", title: "SQM"},
-      {site: "Organ Pipe Cactus National Monument, Pima County", position: {lat: 31.954900, lng: -112.801100}, stat: "P", title: "SQM"},
-      {site: "Picacho Peak State Park, Pinal County", position: {lat: 32.646200, lng: -111.401700}, stat: "P", title: "SQM"},
-      {site: "Rio Rico High School, Santa Cruz County", position: {lat: 31.504722, lng: -111.018772}, stat: "P", title: "SQM"},
-      {site: "Sahuarita High School, Pima County", position: {lat: 31.959000, lng: -110.973600}, stat: "P", title: "SQM"},
-      {site: "Sells, Pima County", position: {lat: 31.914900, lng: -111.881900}, stat: "P", title: "SQM"},
-      {site: "Safford , Graham County", position: {lat: 32.832700, lng: -109.715500}, stat: "P", title: "SQM"},
-      {site: "Sierra Vista , Cochise County", position: {lat: 31.565100, lng: -110.273200}, stat: "P", title: "SQM"},
-      {site: "Willcox, Cochise County", position: {lat: 32.252900, lng: -109.832000}, stat: "P", title: "SQM"},
-      {site: "Winkelman, Gila County", position: {lat: 32.987600, lng: -110.770900}, stat: "P", title: "SQM"},
-      {site: "Yuma, Yuma County", position: {lat: 32.692700, lng: -114.627700}, stat: "P", title: "SQM"},
-      {site: "Quartzite, La Paz County", position: {lat: 33.663900, lng: -114.229900}, stat: "P", title: "SQM"},
-      {site: "El Pinacate, Sonora", position: {lat: 31.902700, lng: -113.858500}, stat: "P", title: "SQM"},
-      {site: "Cascabel, Cochise County", position: {lat: 32.291000, lng: -110.371800}, stat: "P", title: "SQM"},
-      {site: "Catalina SP, Pima County", position: {lat: 32.436400, lng: -110.909600}, stat: "P", title: "SQM"},
-      {site: "Aravaipa Wilderness, Cochise County", position: {lat: 32.897500, lng: -110.488600}, stat: "P", title: "SQM"},
+      {site: "Ajo, Pima County", position: {lat: 32.373500, lng: -112.861600}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Bisbee, Cochise County", position: {lat: 31.448800, lng: -109.888500}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Douglas, Cochise County", position: {lat: 31.344800, lng: -109.554900}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Kartchner Caverns State Park, Cochise County", position: {lat: 31.836700, lng: -110.349000}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Organ Pipe Cactus National Monument, Pima County", position: {lat: 31.954900, lng: -112.801100}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Picacho Peak State Park, Pinal County", position: {lat: 32.646200, lng: -111.401700}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Rio Rico High School, Santa Cruz County", position: {lat: 31.504722, lng: -111.018772}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Sahuarita High School, Pima County", position: {lat: 31.959000, lng: -110.973600}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Sells, Pima County", position: {lat: 31.914900, lng: -111.881900}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Safford , Graham County", position: {lat: 32.832700, lng: -109.715500}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Sierra Vista , Cochise County", position: {lat: 31.565100, lng: -110.273200}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Willcox, Cochise County", position: {lat: 32.252900, lng: -109.832000}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Winkelman, Gila County", position: {lat: 32.987600, lng: -110.770900}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Yuma, Yuma County", position: {lat: 32.692700, lng: -114.627700}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Quartzite, La Paz County", position: {lat: 33.663900, lng: -114.229900}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "El Pinacate, Sonora", position: {lat: 31.902700, lng: -113.858500}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Cascabel, Cochise County", position: {lat: 32.291000, lng: -110.371800}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Catalina SP, Pima County", position: {lat: 32.436400, lng: -110.909600}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Aravaipa Wilderness, Cochise County", position: {lat: 32.897500, lng: -110.488600}, stat: "P", title: "SQM", dsn: "DSN---"},
 ];
 
   const map = new Map(document.getElementById("map"), {
