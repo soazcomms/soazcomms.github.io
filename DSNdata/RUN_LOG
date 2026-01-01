@@ -912,3 +912,9 @@ DSN042-S_25_001.csv to Box
 DSN043-S_25_001.csv
 DSN045-S_25_001.csv to Box
 2025-12-31 21:58:33 Deleted temp files.
+2026-01-01 01:35:07 Start DSN-process_data.
+2026-01-01 01:42:45 Uploaded DSN041S_MtLemmon1.csv DSN043S_V00.csv DSN045S_Morenci.csv to influx
+2026-01-01 01:43:25 Uploaded DSN041-S_25_001.csv
+DSN043-S_25_001.csv
+DSN045-S_25_001.csv to Box
+2026-01-01 01:43:26 Deleted temp files.
