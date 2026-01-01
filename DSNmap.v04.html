@@ -43,7 +43,7 @@
   <!-- Large Title for the Map -->
   <div id="map-container">
       <h1>Dark Sky Network (DSN) Monitoring Sites</h1>
-      <div id="dsn-legend" style="font-family: Arial, sans-serif; margin: 0 0 10px 0; font-size: 14px;">Existing: 24 &nbsp;·&nbsp; Proposed: 22</div>
+      <div id="dsn-legend" style="font-family: Arial, sans-serif; margin: 0 0 10px 0; font-size: 14px;">Existing: 24 &nbsp;·&nbsp; Proposed: 21</div>
       <div id="map"></div>
   </div>
 
@@ -54,24 +54,25 @@
   const { Map, InfoWindow } = await google.maps.importLibrary("maps");
   const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
 
-    const SQM = [
-      {site: "DSN002-T_Bisbee", position: {lat: 31.448200, lng: -109.928400}, stat: "E", title: "TESS", dsn: "DSN002"},
+      const SQM = [
+      {site: "DSN002-T_Bisbee", position: {lat: 31.448200, lng: -109.928400}, stat: "P", title: "TESS", dsn: "DSN002"},
       {site: "DSN003-S_Sugarloaf", position: {lat: 32.017900, lng: -109.320800}, stat: "E", title: "SQM1", dsn: "DSN003"},
       {site: "DSN006-S_KPNO", position: {lat: 31.964000, lng: -111.600000}, stat: "E", title: "SQM3", dsn: "DSN006"},
       {site: "DSN008-S_OracleSP", position: {lat: 32.607800, lng: -110.733000}, stat: "E", title: "SQM", dsn: "DSN008"},
       {site: "DSN014-S_Tubac", position: {lat: 31.611500, lng: -111.047800}, stat: "E", title: "SQM", dsn: "DSN014"},
       {site: "DSN014-T_Tubac", position: {lat: 31.611500, lng: -111.047800}, stat: "E", title: "TESS", dsn: "DSN014"},
-      {site: "DSN015-T_Safford", position: {lat: 32.798900, lng: -109.728200}, stat: "E", title: "TESS", dsn: "DSN015"},
+      {site: "DSN015-T_Safford", position: {lat: 32.798900, lng: -109.728200}, stat: "P", title: "TESS", dsn: "DSN015"},
       {site: "DSN016-S_SaguaroNP", position: {lat: 32.254500, lng: -111.197400}, stat: "E", title: "SQM", dsn: "DSN016"},
       {site: "DSN019-S_MtLemmon", position: {lat: 32.442700, lng: -110.788600}, stat: "E", title: "SQM3", dsn: "DSN019"},
       {site: "DSN021-S_VATT", position: {lat: 32.701300, lng: -109.892000}, stat: "E", title: "SQM", dsn: "DSN021"},
-      {site: "DSN022-S_TumacacoriNHP", position: {lat: 31.567800, lng: -111.051000}, stat: "E", title: "SQM", dsn: "DSN022"},
+      {site: "DSN022-S_TumacacoriNHP", position: {lat: 31.567800, lng: -111.051000}, stat: "P", title: "SQM", dsn: "DSN022"},
       {site: "DSN024-S_Winer", position: {lat: 31.665600, lng: -110.601800}, stat: "E", title: "SQM4", dsn: "DSN024"},
       {site: "DSN029-T_JB", position: {lat: 32.265500, lng: -110.961300}, stat: "E", title: "TESS", dsn: "DSN029"},
       {site: "DSN030-S_Nogales", position: {lat: 31.333300, lng: -110.933300}, stat: "E", title: "SQM", dsn: "DSN030"},
       {site: "DSN031-S_AlGrauer", position: {lat: 32.306700, lng: -110.851300}, stat: "E", title: "SQM3", dsn: "DSN031"},
       {site: "DSN035-S_Cosmic", position: {lat: 33.479300, lng: -108.922600}, stat: "E", title: "SQM3", dsn: "DSN035"},
       {site: "DSN036-S_Gilinsky", position: {lat: 32.302000, lng: -110.986000}, stat: "E", title: "SQM2", dsn: "DSN036"},
+      {site: "DSN038-S_Ironwood", position: {lat: 32.358400, lng: -111.470200}, stat: "P", title: "SQM4", dsn: "DSN038"},
       {site: "DSN039-S_SRER", position: {lat: 31.910700, lng: -110.835500}, stat: "P", title: "SQM4", dsn: "DSN039"},
       {site: "DSN040-S_CosmicS", position: {lat: 33.479300, lng: -108.922600}, stat: "E", title: "SQM3", dsn: "DSN040"},
       {site: "DSN041-S_G96", position: {lat: 32.442900, lng: -110.788800}, stat: "E", title: "SQM3", dsn: "DSN041"},
@@ -83,7 +84,6 @@
       {site: "Bisbee, Cochise County", position: {lat: 31.448800, lng: -109.888500}, stat: "P", title: "SQM"},
       {site: "Douglas, Cochise County", position: {lat: 31.344800, lng: -109.554900}, stat: "P", title: "SQM"},
       {site: "Kartchner Caverns State Park, Cochise County", position: {lat: 31.836700, lng: -110.349000}, stat: "P", title: "SQM"},
-      {site: "Morenci, Greenlee County", position: {lat: 33.052400, lng: -109.329700}, stat: "E", title: "SQM"},
       {site: "Organ Pipe Cactus National Monument, Pima County", position: {lat: 31.954900, lng: -112.801100}, stat: "P", title: "SQM"},
       {site: "Picacho Peak State Park, Pinal County", position: {lat: 32.646200, lng: -111.401700}, stat: "P", title: "SQM"},
       {site: "Rio Rico High School, Santa Cruz County", position: {lat: 31.504722, lng: -111.018772}, stat: "P", title: "SQM"},
@@ -91,9 +91,7 @@
       {site: "Sells, Pima County", position: {lat: 31.914900, lng: -111.881900}, stat: "P", title: "SQM"},
       {site: "Safford , Graham County", position: {lat: 32.832700, lng: -109.715500}, stat: "P", title: "SQM"},
       {site: "Sierra Vista , Cochise County", position: {lat: 31.565100, lng: -110.273200}, stat: "P", title: "SQM"},
-      {site: "Tumaca\u0301cori NHP, Santa Cruz County", position: {lat: 31.568100, lng: -111.050600}, stat: "P", title: "Tumaca\u0301cori"},
       {site: "Willcox, Cochise County", position: {lat: 32.252900, lng: -109.832000}, stat: "P", title: "SQM"},
-      {site: "Winer Observatory, Santa Cruz County", position: {lat: 31.665500, lng: -110.601500}, stat: "E", title: "SQM"},
       {site: "Winkelman, Gila County", position: {lat: 32.987600, lng: -110.770900}, stat: "P", title: "SQM"},
       {site: "Yuma, Yuma County", position: {lat: 32.692700, lng: -114.627700}, stat: "P", title: "SQM"},
       {site: "Quartzite, La Paz County", position: {lat: 33.663900, lng: -114.229900}, stat: "P", title: "SQM"},
