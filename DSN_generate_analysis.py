@@ -523,6 +523,114 @@ if 'chisquared' in df_all.columns:
     # Save
     pio.write_html(fig4, file=str(outdir / f"{label}_chisq.html"), auto_open=False)
     fig4.write_image(str(outdir / f"{label}_chisq.png"))
+
+# ============================================================
+# LST-folded SQM (χ² < 0.09 & moonalt < -10°)
+# Points folded into one "night" vs Local Sidereal Time (0-24h),
+# with a faint-envelope band (faintest and 0.05 mag brighter),
+# plus binned medians with error bars = stdev in each LST bin.
+# ============================================================
+try:
+    if not {'SQM', 'chisquared', 'moonalt', 'UTC'}.issubset(df_all.columns):
+        raise ValueError("Missing one or more required columns for LST plot (SQM, chisquared, moonalt, UTC).")
+
+    # Filter: χ² < 0.09 AND moonalt < -10
+    sq = pd.to_numeric(df_all['SQM'], errors='coerce')
+    chi = pd.to_numeric(df_all['chisquared'], errors='coerce')
+    ma  = pd.to_numeric(df_all['moonalt'], errors='coerce')
+
+    m_lst = (chi < 0.09) & (ma < -10.0) & np.isfinite(sq)
+    df_lst = df_all.loc[m_lst, ['UTC', 'SQM']].copy()
+    df_lst['SQM'] = pd.to_numeric(df_lst['SQM'], errors='coerce')
+    df_lst = df_lst.dropna(subset=['UTC', 'SQM'])
+
+    if len(df_lst) < 10:
+        print("⚠️ Not enough filtered points for LST plot; skipping.")
+    else:
+        # Compute Local Sidereal Time (hours, 0-24) using site location
+        loc = EarthLocation.from_geodetic(lon=lon*u.deg, lat=lat*u.deg, height=el*u.m)
+        t = Time(df_lst['UTC'].dt.to_pydatetime(), location=loc)
+        lst_hours = t.sidereal_time('apparent').hour
+        df_lst['LST'] = np.mod(np.array(lst_hours, dtype=float), 24.0)
+
+        # Bin in LST to compute median, stdev, and faint envelope
+        bin_hours = 10.0/60.0  # 10-minute bins
+        df_lst['bin'] = (np.floor(df_lst['LST'] / bin_hours) * bin_hours) + (bin_hours/2.0)
+
+        g = df_lst.groupby('bin')['SQM']
+        b_centers = g.median().index.to_numpy(dtype=float)
+        med = g.median().to_numpy(dtype=float)
+        std = g.std(ddof=0).to_numpy(dtype=float)  # population stdev
+        # "Faintest" magnitude per bin (max mag = faintest)
+        faint = g.max().to_numpy(dtype=float)
+        bright = faint - 0.05  # 0.05 mag brighter (smaller number)
+
+        # Sort by bin center for plotting
+        order = np.argsort(b_centers)
+        x = b_centers[order]
+        med = med[order]
+        std = std[order]
+        faint = faint[order]
+        bright = bright[order]
+
+        fig5 = go.Figure()
+
+        # Raw folded points (light blue)
+        fig5.add_trace(go.Scattergl(
+            x=df_lst['LST'],
+            y=df_lst['SQM'],
+            mode='markers',
+            name='χ² < 0.09 & moonalt < -10° (points)',
+            marker=dict(size=4, color='lightblue', opacity=0.55),
+            hovertemplate="LST %{x:.2f} h<br>SQM %{y:.3f}<extra></extra>",
+        ))
+
+        # Faint edge (orange) - smooth spline
+        fig5.add_trace(go.Scatter(
+            x=x, y=faint,
+            mode='lines',
+            name='Faint envelope (max per bin)',
+            line=dict(color='orange', width=2, shape='spline'),
+            hovertemplate="LST %{x:.2f} h<br>Faint %{y:.3f}<extra></extra>",
+        ))
+
+        # Brighter edge (light red) + fill to faint edge to make a band
+        fig5.add_trace(go.Scatter(
+            x=x, y=bright,
+            mode='lines',
+            name='Envelope - 0.05 mag (brighter)',
+            line=dict(color='lightcoral', width=2, shape='spline'),
+            fill='tonexty',
+            fillcolor='rgba(255, 160, 160, 0.25)',
+            hovertemplate="LST %{x:.2f} h<br>Bright %{y:.3f}<extra></extra>",
+        ))
+
+        # Median with error bars (std in bin)
+        fig5.add_trace(go.Scatter(
+            x=x, y=med,
+            mode='markers+lines',
+            name='Median ± stdev (per bin)',
+            line=dict(width=1, shape='spline'),
+            marker=dict(size=6),
+            error_y=dict(type='data', array=std, visible=True),
+            hovertemplate="LST %{x:.2f} h<br>Median %{y:.3f}<br>σ %{customdata:.3f}<extra></extra>",
+            customdata=std
+        ))
+
+        fig5.update_layout(
+            title="SQM folded by Local Sidereal Time (χ² < 0.09 & moonalt < -10°)",
+            title_x=0.5,
+            xaxis=dict(title="Local Sidereal Time (hours)", range=[0, 24]),
+            yaxis=dict(title="SQM (mag/arcsec²)"),
+            width=plot_w, height=plot_h,
+        )
+
+        # Save
+        pio.write_html(fig5, file=str(outdir / f"{label}_lst.html"), auto_open=False)
+        fig5.write_image(str(outdir / f"{label}_lst.png"))
+        print("✅ Wrote LST-folded plot.")
+except Exception as e:
+    print(f"⚠️ LST-folded plot failed: {e}")
 # Generate main dashboard HTML
 main_html = f"<html><head><title>{label} Analysis</title></head><body>\n"
 main_html += f"<h1>{label} Analysis</h1>\n"
@@ -530,7 +638,7 @@ timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 main_html += f"<p style='font-size:small'>Generated: {timestamp}</p>\n"
 main_html += summary_html +"\n"  # 👈 Include site summary
 
-for plot_type in ["histogram", "heatmap", "jellyfish", "chisq"]:
+for plot_type in ["histogram", "heatmap", "jellyfish", "chisq", "lst"]:
     html_file = f"analysis/{label}/{label}_{plot_type}.html"
     if os.path.exists(html_file):
         with open(html_file) as f:
