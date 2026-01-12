@@ -297,7 +297,7 @@ if 'SQM' in df_all.columns:
         title_x=0.5,
         xaxis_title="NSB (mag/arcsec²)",
         yaxis_title="Count",
-        width=plot_w, height=plot_h,
+        width=int(plot_w*1.5), height=int(plot_h*1.5),
         legend=dict(orientation="h", y=1.08, x=0.0)
     )
 
@@ -539,7 +539,7 @@ try:
     chi = pd.to_numeric(df_all['chisquared'], errors='coerce')
     ma  = pd.to_numeric(df_all['moonalt'], errors='coerce')
 
-    m_lst = (chi < 0.09) & (ma < -10.0) & np.isfinite(sq)
+    m_lst = (chi < 0.09) & (ma < -10.0) & np.isfinite(sq) & (sq <= 23.0)
     df_lst = df_all.loc[m_lst, ['UTC', 'SQM']].copy()
     df_lst['SQM'] = pd.to_numeric(df_lst['SQM'], errors='coerce')
     df_lst = df_lst.dropna(subset=['UTC', 'SQM'])
@@ -561,17 +561,24 @@ try:
         b_centers = g.median().index.to_numpy(dtype=float)
         med = g.median().to_numpy(dtype=float)
         std = g.std(ddof=0).to_numpy(dtype=float)  # population stdev
-        # "Faintest" magnitude per bin (max mag = faintest)
-        faint = g.max().to_numpy(dtype=float)
-        bright = faint - 0.05  # 0.05 mag brighter (smaller number)
+        # Median-based bands/envelopes in *brightness* space:
+        # 10% band: ±10% brightness around median; 20% envelope: ±20% brightness.
+        dm10 = 2.5 * np.log10(1.10)
+        dm20 = 2.5 * np.log10(1.20)
+        faint_band = med + dm10
+        bright_band = med - dm10
+        faint_env  = med + dm20
+        bright_env = med - dm20
 
         # Sort by bin center for plotting
         order = np.argsort(b_centers)
         x = b_centers[order]
         med = med[order]
         std = std[order]
-        faint = faint[order]
-        bright = bright[order]
+        faint_band = faint_band[order]
+        bright_band = bright_band[order]
+        faint_env = faint_env[order]
+        bright_env = bright_env[order]
 
         fig5 = go.Figure()
 
@@ -581,27 +588,44 @@ try:
             y=df_lst['SQM'],
             mode='markers',
             name='χ² < 0.09 & moonalt < -10° (points)',
-            marker=dict(size=4, color='lightblue', opacity=0.55),
+            marker=dict(size=0.5, color='lightblue', opacity=0.55),
             hovertemplate="LST %{x:.2f} h<br>SQM %{y:.3f}<extra></extra>",
         ))
 
         # Faint edge (orange) - smooth spline
         fig5.add_trace(go.Scatter(
-            x=x, y=faint,
+            x=x, y=faint_band,
             mode='lines',
-            name='Faint envelope (max per bin)',
+            name='Faint band (+10% brightness equiv)',
             line=dict(color='orange', width=2, shape='spline'),
             hovertemplate="LST %{x:.2f} h<br>Faint %{y:.3f}<extra></extra>",
         ))
 
-        # Brighter edge (light red) + fill to faint edge to make a band
+        
+        # Envelope edges (±20% brightness equiv) - dashed
         fig5.add_trace(go.Scatter(
-            x=x, y=bright,
+            x=x, y=faint_env,
             mode='lines',
-            name='Envelope - 0.05 mag (brighter)',
+            name='Envelope faint (+20% bright equiv)',
+            line=dict(color='orange', width=1.5, dash='dash', shape='spline'),
+            hovertemplate="LST %{x:.2f} h<br>Env faint %{y:.3f}<extra></extra>",
+        ))
+        fig5.add_trace(go.Scatter(
+            x=x, y=bright_env,
+            mode='lines',
+            name='Envelope bright (-20% bright equiv)',
+            line=dict(color='lightcoral', width=1.5, dash='dash', shape='spline'),
+            hovertemplate="LST %{x:.2f} h<br>Env bright %{y:.3f}<extra></extra>",
+        ))
+
+# Brighter edge (light red) + fill to faint edge to make a band
+        fig5.add_trace(go.Scatter(
+            x=x, y=bright_band,
+            mode='lines',
+            name='Bright band (-10% brightness equiv)',
             line=dict(color='lightcoral', width=2, shape='spline'),
             fill='tonexty',
-            fillcolor='rgba(255, 160, 160, 0.25)',
+            fillcolor='rgba(255, 160, 160, 0.22)',
             hovertemplate="LST %{x:.2f} h<br>Bright %{y:.3f}<extra></extra>",
         ))
 
@@ -621,8 +645,9 @@ try:
             title="SQM folded by Local Sidereal Time (χ² < 0.09 & moonalt < -10°)",
             title_x=0.5,
             xaxis=dict(title="Local Sidereal Time (hours)", range=[0, 24]),
-            yaxis=dict(title="SQM (mag/arcsec²)"),
-            width=plot_w, height=plot_h,
+            legend=dict(font=dict(size=9)),
+            yaxis=dict(title="SQM (mag/arcsec²)", autorange='reversed'),
+            width=int(plot_w*1.5), height=int(plot_h*1.5),
         )
 
         # Save
