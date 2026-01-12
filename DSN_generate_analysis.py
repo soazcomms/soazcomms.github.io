@@ -656,6 +656,185 @@ try:
         print("✅ Wrote LST-folded plot.")
 except Exception as e:
     print(f"⚠️ LST-folded plot failed: {e}")
+
+# -------------------------------
+# LST-folded SQM "one-night" plot
+# Filters: chisquared < 0.09 AND moonalt < -10 AND SQM <= 23
+# X: Local Sidereal Time (0..24 h)
+# Y: SQM (mag/arcsec^2), inverted (fainter up)
+# Shows:
+#  - all filtered points (light blue)
+#  - binned median with error bars = stdev per bin (no caps)
+#  - a faint-side band between +10% and +20% (brightness) relative to median
+#    (i.e., +Δmag10 .. +Δmag20), smoothed with a periodic Fourier fit
+# -------------------------------
+try:
+    # Require columns
+    for c in ("SQM", "chisquared", "moonalt", "UTC"):
+        if c not in df_all.columns:
+            raise ValueError("Missing one or more required columns for LST plot (SQM, chisquared, moonalt, UTC).")
+
+    # Filter rows
+    df_lst = df_all.copy()
+    df_lst["SQM"] = pd.to_numeric(df_lst["SQM"], errors="coerce")
+    df_lst["chisquared"] = pd.to_numeric(df_lst["chisquared"], errors="coerce")
+    df_lst["moonalt"] = pd.to_numeric(df_lst["moonalt"], errors="coerce")
+
+    df_lst = df_lst[
+        (df_lst["chisquared"] < 0.09) &
+        (df_lst["moonalt"] < -10.0) &
+        (df_lst["SQM"].notna()) &
+        (df_lst["SQM"] <= 23.0) &
+        (df_lst["UTC"].notna())
+    ].copy()
+
+    if len(df_lst) < 50:
+        print("⚠️ Not enough filtered points for LST plot; skipping.")
+    else:
+        # Compute LST (hours) for each timestamp
+        loc = EarthLocation.from_geodetic(lon=lon*u.deg, lat=lat*u.deg, height=el*u.m)
+        t = Time(list(df_lst["UTC"]), location=loc)
+        lst_hours = t.sidereal_time("apparent").hour
+        df_lst["LST"] = np.mod(np.array(lst_hours, dtype=float), 24.0)
+
+        # Bin in LST (10-minute bins)
+        bin_hours = 10.0/60.0
+        df_lst["bin"] = (np.floor(df_lst["LST"] / bin_hours) * bin_hours) + (bin_hours/2.0)
+
+        g = df_lst.groupby("bin")["SQM"]
+        binned = pd.DataFrame({
+            "LST": g.median().index.values.astype(float),
+            "median": g.median().values.astype(float),
+            "stdev": g.std(ddof=0).values.astype(float),
+            "n": g.size().values.astype(int),
+        })
+
+        # Keep only bins with at least a few points (stable stdev)
+        binned = binned[binned["n"] >= 5].sort_values("LST").reset_index(drop=True)
+
+        if len(binned) < 10:
+            print("⚠️ Not enough populated bins for LST plot; skipping.")
+        else:
+            # Convert brightness fractions to mag deltas (faint side = +Δmag)
+            dmag10 = 2.5*np.log10(1.10)  # ~0.1035 mag
+            dmag20 = 2.5*np.log10(1.20)  # ~0.1980 mag
+            band_inner = binned["median"] + dmag10
+            band_outer = binned["median"] + dmag20
+
+            # Periodic Fourier fit for smooth curves
+            def fourier_fit_periodic(x, y, period=24.0, K=6):
+                x = np.asarray(x, dtype=float)
+                y = np.asarray(y, dtype=float)
+                ok = np.isfinite(x) & np.isfinite(y)
+                x = x[ok]
+                y = y[ok]
+                if x.size < (2*K + 1):
+                    return None
+
+                w = 2*np.pi/period
+                cols = [np.ones_like(x)]
+                for k in range(1, K+1):
+                    cols.append(np.cos(k*w*x))
+                    cols.append(np.sin(k*w*x))
+                A = np.column_stack(cols)
+                coef, *_ = np.linalg.lstsq(A, y, rcond=None)
+
+                def eval_fn(xq):
+                    xq = np.asarray(xq, dtype=float)
+                    colsq = [np.ones_like(xq)]
+                    for k in range(1, K+1):
+                        colsq.append(np.cos(k*w*xq))
+                        colsq.append(np.sin(k*w*xq))
+                    Aq = np.column_stack(colsq)
+                    return Aq @ coef
+
+                return eval_fn
+
+            x_bins = binned["LST"].to_numpy()
+            f_med = fourier_fit_periodic(x_bins, binned["median"].to_numpy(), K=6)
+            if f_med is None:
+                # Fallback: use raw (still plotted)
+                x_smooth = x_bins
+                med_smooth = binned["median"].to_numpy()
+            else:
+                x_smooth = np.linspace(0.0, 24.0, 481)  # ~3-min resolution
+                med_smooth = f_med(x_smooth)
+
+            inner_smooth = med_smooth + dmag10
+            outer_smooth = med_smooth + dmag20
+
+            # Figure (50% larger)
+            lst_w = int(plot_w * 1.5)
+            lst_h = int(plot_h * 1.5)
+
+            fig_lst = go.Figure()
+
+            # Raw points (light blue, small)
+            fig_lst.add_trace(go.Scattergl(
+                x=df_lst["LST"],
+                y=df_lst["SQM"],
+                mode="markers",
+                name="SQM (χ²<0.09, moonalt<-10°)",
+                marker=dict(size=0.5, color="lightblue", opacity=0.6),
+                hovertemplate="LST %{x:.2f} h<br>SQM %{y:.3f}<extra></extra>",
+            ))
+
+            # Faint-side band between +10% and +20% (brightness) of median
+            # Plot outer first, then fill to inner
+            fig_lst.add_trace(go.Scatter(
+                x=x_smooth,
+                y=outer_smooth,
+                mode="lines",
+                name="Faint envelope (+20%)",
+                line=dict(color="lightcoral", width=2),
+                hovertemplate="LST %{x:.2f} h<br>Env20 %{y:.3f}<extra></extra>",
+            ))
+            fig_lst.add_trace(go.Scatter(
+                x=x_smooth,
+                y=inner_smooth,
+                mode="lines",
+                name="Faint band (+10%)",
+                line=dict(color="orange", width=2),
+                fill="tonexty",
+                fillcolor="rgba(255,160,122,0.25)",  # light red-ish
+                hovertemplate="LST %{x:.2f} h<br>Band10 %{y:.3f}<extra></extra>",
+            ))
+
+            # Median with error bars (no caps), smaller but brighter marker
+            fig_lst.add_trace(go.Scatter(
+                x=binned["LST"],
+                y=binned["median"],
+                mode="markers+lines",
+                name="Binned median ±σ",
+                line=dict(width=2),
+                marker=dict(size=1.2, color="gold"),
+                error_y=dict(
+                    type="data",
+                    array=binned["stdev"].fillna(0).to_numpy(),
+                    visible=True,
+                    thickness=1,
+                    width=0,  # no caps
+                ),
+                customdata=binned["stdev"].fillna(0).to_numpy(),
+                hovertemplate="LST %{x:.2f} h<br>Median %{y:.3f}<br>σ %{customdata:.3f}<extra></extra>",
+            ))
+
+            fig_lst.update_layout(
+                title="LST-folded SQM (χ²<0.09 & moonalt<-10°; SQM≤23)",
+                title_x=0.5,
+                xaxis=dict(title="Local Sidereal Time (hours)", range=[0, 24]),
+                yaxis=dict(title="SQM (mag/arcsec²)", autorange="reversed"),
+                width=lst_w, height=lst_h,
+                legend=dict(font=dict(size=9)),
+            )
+
+            # Save
+            pio.write_html(fig_lst, file=str(outdir / f"{label}_lst.html"), auto_open=False)
+            fig_lst.write_image(str(outdir / f"{label}_lst.png"))
+            print("✅ Wrote LST-folded plot.")
+except Exception as e:
+    print(f"⚠️ LST-folded plot failed: {e}")
+
 # Generate main dashboard HTML
 main_html = f"<html><head><title>{label} Analysis</title></head><body>\n"
 main_html += f"<h1>{label} Analysis</h1>\n"
@@ -664,7 +843,7 @@ main_html += f"<p style='font-size:small'>Generated: {timestamp}</p>\n"
 main_html += summary_html +"\n"  # 👈 Include site summary
 
 for plot_type in ["histogram", "heatmap", "jellyfish", "chisq", "lst"]:
-    html_file = f"analysis/{label}/{label}_{plot_type}.html"
+    html_file = str(outdir / f"{label}_{plot_type}.html")
     if os.path.exists(html_file):
         with open(html_file) as f:
             main_html += f.read() + "\n"
