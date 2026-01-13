@@ -549,7 +549,7 @@ try:
     else:
         # Compute Local Sidereal Time (hours, 0-24) using site location
         loc = EarthLocation.from_geodetic(lon=lon*u.deg, lat=lat*u.deg, height=el*u.m)
-        t = Time(df_lst['UTC'].dt.to_pydatetime(), location=loc)
+        t = Time(np.array(df_lst['UTC'].dt.to_pydatetime()), location=loc)
         lst_hours = t.sidereal_time('apparent').hour
         df_lst['LST'] = np.mod(np.array(lst_hours, dtype=float), 24.0)
 
@@ -588,7 +588,7 @@ try:
             y=df_lst['SQM'],
             mode='markers',
             name='χ² < 0.09 & moonalt < -10° (points)',
-            marker=dict(size=0.5, color='lightblue', opacity=0.55),
+            marker=dict(size=0.5, color='green', opacity=1),
             hovertemplate="LST %{x:.2f} h<br>SQM %{y:.3f}<extra></extra>",
         ))
 
@@ -634,10 +634,10 @@ try:
             x=x, y=med,
             mode='markers+lines',
             name='Median ± stdev (per bin)',
-            line=dict(color='blue', width=1.25, shape='spline'),
-            marker=dict(size=7.5, color='blue', opacity=0.95),
+            line=dict(color='#0000FF', width=1.25, shape='spline'),
+            marker=dict(size=9.375, color='#0000FF', opacity=0.2),
             # error bars: line only (no caps)
-            error_y=dict(type='data', array=std, visible=True, thickness=1.25, width=0, color='blue'),
+            error_y=dict(type='data', array=std, visible=True, thickness=1.25, width=0, color='#0000FF'),
             hovertemplate="LST %{x:.2f} h<br>Median %{y:.3f}<br>σ %{customdata:.3f}<extra></extra>",
             customdata=std
         ))
@@ -645,9 +645,26 @@ try:
         
         # Y-axis limits: ±0.5 mag beyond brightest/faintest values in this plot
         try:
-            brightest = float(np.nanmin(df_lst['SQM'].values))
-            faintest  = float(np.nanmax(df_lst['SQM'].values))
-            y_range = [faintest + 0.5, brightest - 0.5]  # reversed mag axis (faint at bottom)
+            vals_for_ylim = []
+            try:
+                vals_for_ylim.append(np.asarray(med, dtype=float))
+            except Exception:
+                pass
+            try:
+                vals_for_ylim.append(np.asarray(faint_band, dtype=float))
+            except Exception:
+                pass
+            try:
+                vals_for_ylim.append(np.asarray(bright_band, dtype=float))
+            except Exception:
+                pass
+            vv = np.concatenate([v[np.isfinite(v)] for v in vals_for_ylim if v is not None and len(v) > 0]) if vals_for_ylim else np.array([])
+            if vv.size:
+                brightest = float(np.nanmin(vv))
+                faintest  = float(np.nanmax(vv))
+                y_range = [faintest + 0.5, brightest - 0.5]  # reversed mag axis
+            else:
+                y_range = None
         except Exception:
             y_range = None
 
@@ -666,7 +683,6 @@ try:
         # Save
         pio.write_html(fig5, file=str(outdir / f"{label}_lst.html"), auto_open=False)
         fig5.write_image(str(outdir / f"{label}_lst.png"))
-        print("✅ Wrote LST-folded plot.")
 except Exception as e:
     print(f"⚠️ LST-folded plot failed: {e}")
 
@@ -750,7 +766,17 @@ try:
                     cols.append(np.cos(k*w*x))
                     cols.append(np.sin(k*w*x))
                 A = np.column_stack(cols)
-                coef, *_ = np.linalg.lstsq(A, y, rcond=None)
+                # Ridge-regularized least squares (more stable than lstsq for near-singular A)
+                lam = 1e-6
+                with np.errstate(divide="ignore", invalid="ignore",
+                                 over="ignore", under="ignore"):
+                    try:
+                        AtA = A.T @ A
+                        AtY = A.T @ y
+                        AtA = AtA + lam * np.eye(AtA.shape[0])
+                        coef = np.linalg.solve(AtA, AtY)
+                    except Exception:
+                        coef, *_ = np.linalg.lstsq(A, y, rcond=None)
 
                 def eval_fn(xq):
                     xq = np.asarray(xq, dtype=float)
@@ -759,7 +785,12 @@ try:
                         colsq.append(np.cos(k*w*xq))
                         colsq.append(np.sin(k*w*xq))
                     Aq = np.column_stack(colsq)
-                    return Aq @ coef
+                    with np.errstate(divide="ignore", invalid="ignore",
+                                     over="ignore", under="ignore"):
+                        yq = Aq @ coef
+                    yq = np.asarray(yq, float)
+                    yq[~np.isfinite(yq)] = np.nan
+                    return yq
 
                 return eval_fn
 
@@ -787,8 +818,8 @@ try:
                 x=df_lst["LST"],
                 y=df_lst["SQM"],
                 mode="markers",
-                name="SQM (χ²<0.09, moonalt<-10°)",
-                marker=dict(size=0.5, color="lightblue", opacity=0.6),
+                name="SQM",
+                marker=dict(size=1.5, color="green", opacity=0.5),
                 hovertemplate="LST %{x:.2f} h<br>SQM %{y:.3f}<extra></extra>",
             ))
 
@@ -819,8 +850,8 @@ try:
                 y=binned["median"],
                 mode="markers+lines",
                 name="Binned median ±σ",
-                line=dict(width=2),
-                marker=dict(size=1.2, color="gold"),
+                line=dict(width=2, color="#0000FF"),
+                marker=dict(size=1.5, color="#0000FF", opacity=1.0, line=dict(color="white", width=0.5)),
                 error_y=dict(
                     type="data",
                     array=binned["stdev"].fillna(0).to_numpy(),
@@ -832,11 +863,31 @@ try:
                 hovertemplate="LST %{x:.2f} h<br>Median %{y:.3f}<br>σ %{customdata:.3f}<extra></extra>",
             ))
 
+
+            # Tight y-range: ±0.5 mag beyond brightest/faintest of median+band (ignore raw scatter outliers)
+            try:
+                y_parts = [binned['median'].to_numpy(dtype=float)]
+                if inner_smooth is not None:
+                    y_parts.append(np.asarray(inner_smooth, dtype=float))
+                if outer_smooth is not None:
+                    y_parts.append(np.asarray(outer_smooth, dtype=float))
+                y_all = np.concatenate([p[np.isfinite(p)] for p in y_parts if p is not None and np.size(p) > 0])
+                if y_all.size >= 2:
+                    y_lo = float(np.nanmin(y_all))  # brightest (smaller mag)
+                    y_hi = float(np.nanmax(y_all))  # faintest (larger mag)
+                    y_range = [y_hi + 0.5, y_lo - 0.5]  # keep mag axis inverted
+                else:
+                    y_range = None
+            except Exception:
+                y_range = None
+            except Exception:
+                y_range = None
+
             fig_lst.update_layout(
-                title="LST-folded SQM (χ²<0.09 & moonalt<-10°; SQM≤23)",
+                title="LST-folded SQM (χ²<0.09 & moonalt<-10°)",
                 title_x=0.5,
                 xaxis=dict(title="Local Sidereal Time (hours)", range=[0, 24]),
-                yaxis=dict(title="SQM (mag/arcsec²)", autorange="reversed"),
+                yaxis=dict(title="SQM (mag/arcsec²)", autorange=False, range=y_range),
                 width=lst_w, height=lst_h,
                 legend=dict(font=dict(size=9)),
             )
