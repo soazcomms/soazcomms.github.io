@@ -634,12 +634,22 @@ try:
             x=x, y=med,
             mode='markers+lines',
             name='Median ± stdev (per bin)',
-            line=dict(width=1, shape='spline'),
-            marker=dict(size=6),
-            error_y=dict(type='data', array=std, visible=True),
+            line=dict(color='blue', width=1.25, shape='spline'),
+            marker=dict(size=7.5, color='blue', opacity=0.95),
+            # error bars: line only (no caps)
+            error_y=dict(type='data', array=std, visible=True, thickness=1.25, width=0, color='blue'),
             hovertemplate="LST %{x:.2f} h<br>Median %{y:.3f}<br>σ %{customdata:.3f}<extra></extra>",
             customdata=std
         ))
+
+        
+        # Y-axis limits: ±0.5 mag beyond brightest/faintest values in this plot
+        try:
+            brightest = float(np.nanmin(df_lst['SQM'].values))
+            faintest  = float(np.nanmax(df_lst['SQM'].values))
+            y_range = [faintest + 0.5, brightest - 0.5]  # reversed mag axis (faint at bottom)
+        except Exception:
+            y_range = None
 
         fig5.update_layout(
             title="SQM folded by Local Sidereal Time (χ² < 0.09 & moonalt < -10°)",
@@ -649,6 +659,9 @@ try:
             yaxis=dict(title="SQM (mag/arcsec²)", autorange='reversed'),
             width=int(plot_w*1.5), height=int(plot_h*1.5),
         )
+
+        if y_range is not None:
+            fig5.update_yaxes(range=y_range)
 
         # Save
         pio.write_html(fig5, file=str(outdir / f"{label}_lst.html"), auto_open=False)
