@@ -528,7 +528,7 @@ if 'chisquared' in df_all.columns:
 # LST-folded SQM (χ² < 0.09 & moonalt < -10°)
 # Points folded into one "night" vs Local Sidereal Time (0-24h),
 # with a faint-envelope band (faintest and 0.05 mag brighter),
-# plus binned medians with error bars = stdev in each LST bin.
+# plus binned medians with(out) error bars = stdev in each LST bin.
 # ============================================================
 try:
     if not {'SQM', 'chisquared', 'moonalt', 'UTC'}.issubset(df_all.columns):
@@ -629,7 +629,7 @@ try:
             hovertemplate="LST %{x:.2f} h<br>Bright %{y:.3f}<extra></extra>",
         ))
 
-        # Median with error bars (std in bin)
+        # Median with(out) error bars (std in bin)
         fig5.add_trace(go.Scatter(
             x=x, y=med,
             mode='markers+lines',
@@ -637,7 +637,7 @@ try:
             line=dict(color='#0000FF', width=1.25, shape='spline'),
             marker=dict(size=9.375, color='#0000FF', opacity=0.2),
             # error bars: line only (no caps)
-            error_y=dict(type='data', array=std, visible=True, thickness=1.25, width=0, color='#0000FF'),
+#            error_y=dict(type='data', array=std, visible=True, thickness=1.25, width=0, color='#0000FF'),
             hovertemplate="LST %{x:.2f} h<br>Median %{y:.3f}<br>σ %{customdata:.3f}<extra></extra>",
             customdata=std
         ))
@@ -819,7 +819,7 @@ try:
                 y=df_lst["SQM"],
                 mode="markers",
                 name="SQM",
-                marker=dict(size=1.5, color="green", opacity=0.5),
+                marker=dict(size=2, color="green", opacity=0.8),
                 hovertemplate="LST %{x:.2f} h<br>SQM %{y:.3f}<extra></extra>",
             ))
 
@@ -844,21 +844,21 @@ try:
                 hovertemplate="LST %{x:.2f} h<br>Band10 %{y:.3f}<extra></extra>",
             ))
 
-            # Median with error bars (no caps), smaller but brighter marker
+            # Median with(out) error bars (no caps), smaller but brighter marker
             fig_lst.add_trace(go.Scatter(
                 x=binned["LST"],
                 y=binned["median"],
                 mode="markers+lines",
-                name="Binned median ±σ",
+                name="Binned median", # ±σ",
                 line=dict(width=2, color="#0000FF"),
                 marker=dict(size=1.5, color="#0000FF", opacity=1.0, line=dict(color="white", width=0.5)),
-                error_y=dict(
-                    type="data",
-                    array=binned["stdev"].fillna(0).to_numpy(),
-                    visible=True,
-                    thickness=1,
-                    width=0,  # no caps
-                ),
+ #               error_y=dict(
+ #                   type="data",
+ #                   array=binned["stdev"].fillna(0).to_numpy(),
+ #                   visible=True,
+ #                   thickness=1,
+ #                   width=0,  # no caps
+ #               ),
                 customdata=binned["stdev"].fillna(0).to_numpy(),
                 hovertemplate="LST %{x:.2f} h<br>Median %{y:.3f}<br>σ %{customdata:.3f}<extra></extra>",
             ))
