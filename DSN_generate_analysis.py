@@ -672,7 +672,7 @@ try:
             title="SQM folded by Local Sidereal Time (χ² < 0.09 & moonalt < -10°)",
             title_x=0.5,
             xaxis=dict(title="Local Sidereal Time (hours)", range=[0, 24]),
-            legend=dict(font=dict(size=9)),
+            legend=dict(orientation="h", x=0.5, xanchor="center", y=1.02, yanchor="bottom", font=dict(size=9)),
             yaxis=dict(title="SQM (mag/arcsec²)", autorange='reversed'),
             width=int(plot_w*1.5), height=int(plot_h*1.5),
         )
@@ -889,8 +889,31 @@ try:
                 xaxis=dict(title="Local Sidereal Time (hours)", range=[0, 24]),
                 yaxis=dict(title="SQM (mag/arcsec²)", autorange=False, range=y_range),
                 width=lst_w, height=lst_h,
-                legend=dict(font=dict(size=9)),
+                legend=dict(orientation="h", x=0.5, xanchor="center", y=1.02, yanchor="bottom", font=dict(size=9)),
             )
+
+
+            # Bottom-left stats (minima of binned curves)
+            try:
+                min_med = float(np.nanmax(binned["median"].to_numpy(dtype=float)))
+                min_band10 = float(np.nanmax(np.asarray(band_inner, dtype=float)))
+                min_env20 = float(np.nanmax(np.asarray(band_outer, dtype=float)))
+                stats_txt = (
+                    f"Faintest binned median: {min_med:.2f}<br>"
+                    f"Faintest 10% band edge: {min_band10:.2f}<br>"
+                    f"Faintest 20% envelope edge: {min_env20:.2f}"
+                )
+                fig_lst.add_annotation(
+                    xref="paper", yref="paper", x=0.01, y=0.01,
+                    text=stats_txt, showarrow=False,
+                    align="left",
+                    font=dict(size=10),
+                    bgcolor="rgba(255,255,255,0.6)",
+                    bordercolor="rgba(0,0,0,0.25)",
+                    borderwidth=1,
+                )
+            except Exception:
+                pass
 
             # Save
             pio.write_html(fig_lst, file=str(outdir / f"{label}_lst.html"), auto_open=False)
