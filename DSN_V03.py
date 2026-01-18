@@ -244,7 +244,7 @@ tele = frame_sites.el.iloc[site_number-1]
 # Check input file for comment lines
 n_comments=0
 FMT=""
-if not in_file.endswith('.xlsx'):
+if in_file.endswith('.xlsx'):
     f=open(in_file,'r')
     while True:
         line = f.readline()
