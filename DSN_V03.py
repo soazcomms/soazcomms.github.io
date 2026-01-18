@@ -1,6 +1,6 @@
 #----
 version="DSN_python V03"
-version_date="12/28/2025"
+version_date="01/18/2026"
 #----
 #     Original FORTRAN written by A.D. Grauer
 #     Converted to python and expanded by E.E. Falco
@@ -333,8 +333,22 @@ if sensor_name == 'SQM1': # .xlsx data
                      'Windd','Stempc','RH','Barom', 'Battery', 'Dtempc']
     frame_sensor=pd.read_excel(in_file,header=None, skiprows=head_skip)
     frame_sensor.columns=orig_cols
-    frame_sensor.drop(['Solar','Windd','RH','Barom','Precip','Stempc','Dtempc'], axis=1, inplace=True)
+    frame_sensor.drop(['Solar','Windd','Barom','Precip','Stempc','Dtempc'], axis=1, inplace=True)
     UT,frame_sensor = tloc_ut(frame_sensor)
+    # XLSX-only sanity filters (meteo)
+    # Drop non-physical values: Etempc < -10 C, RH < 0
+    # Log counts before/after with print()
+    _n_before = len(frame_sensor)
+    if 'Etempc' in frame_sensor.columns:
+#        print('Etempc min max: ',frame_sensor['Etempc'].min(),frame_sensor['Etempc'].max())
+        frame_sensor['Etempc'] = pd.to_numeric(frame_sensor['Etempc'], errors='coerce')
+        frame_sensor = frame_sensor[frame_sensor['Etempc'] >= -10]
+    if 'RH' in frame_sensor.columns:
+#        print('RH min max: ',frame_sensor['RH'].min(),frame_sensor['RH'].max())
+        frame_sensor['RH'] = pd.to_numeric(frame_sensor['RH'], errors='coerce')
+        frame_sensor = frame_sensor[frame_sensor['RH'] >= 0]
+    _n_after = len(frame_sensor)
+    print(f"[XLSX filter] rows before={_n_before}, after={_n_after}, dropped={_n_before-_n_after}")
 elif sensor_name == 'TESS':
     frame_sensor=pd.read_csv(in_file,header=None,skiprows=ihead,sep=sepcol,usecols=use_cols)
     frame_sensor.columns=frame_cols
