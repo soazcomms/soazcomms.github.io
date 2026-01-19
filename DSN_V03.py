@@ -47,6 +47,7 @@ JD_4AM = 0.958333 # hours for 4AM in UTC
 JD_3sep2017 = 2458000 # 3 sep 2017 JD
 nentries=150000
 nxy=5000
+sepcol=";"
 # factor to convert to nW/cm^2/sr from 21 msas
 fnwcm2sr = 0.05746 # 0.063*10**((21-21.15)/2.5) to adjust to Bará scale
 #
@@ -244,7 +245,7 @@ tele = frame_sites.el.iloc[site_number-1]
 # Check input file for comment lines
 n_comments=0
 FMT=""
-if in_file.endswith('.xlsx'):
+if not in_file.endswith('.xlsx'):
     f=open(in_file,'r')
     while True:
         line = f.readline()
@@ -281,7 +282,6 @@ if in_file.endswith('.xlsx'):
 else:
     read_delta=10 # for Sugarloaf
 #
-
 if n_comments==0:
     ihead=1
 else:
