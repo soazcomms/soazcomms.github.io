@@ -956,3 +956,14 @@ DSN042-S_23_007.csv
 DSN042-S_24_008.csv
 DSN042-S_25_005.csv to Box
 2026-01-20 01:20:33 Deleted temp files.
+2026-01-20 17:42:06 Start DSN-process_data.
+2026-01-20 17:50:34 Uploaded chunk files DSN042S_Bonita_2016-2018.csv DSN042S_Bonita_2019-2021.csv DSN042S_Bonita_2022-2024.csv DSN042S_Bonita_2025-2027.csv to influx
+2026-01-20 17:51:53 Uploaded DSN042-S_18_006.csv
+DSN042-S_19_007.csv
+DSN042-S_20_008.csv
+DSN042-S_21_004.csv
+DSN042-S_22_002.csv
+DSN042-S_23_003.csv
+DSN042-S_24_005.csv
+DSN042-S_25_001.csv to Box
+2026-01-20 17:51:53 Deleted temp files.
