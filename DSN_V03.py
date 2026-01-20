@@ -1,6 +1,6 @@
 #----
 version="DSN_python V03"
-version_date="01/18/2026"
+version_date="01/19/2026"
 #----
 #     Original FORTRAN written by A.D. Grauer
 #     Converted to python and expanded by E.E. Falco
@@ -459,7 +459,10 @@ sun_6 = -6.0 # "
 sun_5 = -5.0 # "
 sun_4 = -4.0 # "
 sun_3 = -3.0 # "
-isun = [0 if sunalt[i]<=sun_3 else 10 for i in range(icount)] # all data
+if in_file.endswith('.xlsx'): # only sun<sun_dark for xlsx data
+    isun = [0 if sunalt[i]<=sun_dark else 10 for i in range(icount)] # all data
+else:
+    isun = [0 if sunalt[i]<=sun_3 else 10 for i in range(icount)] # all data
 dark = [1 if sunalt[i]<=sun_dark else 2 for i in range(icount)] # night
 # sun_index contains all indices with sun below criterion above
 #
@@ -707,6 +710,28 @@ print("InfluxDB file name ",influx_file)
 # write influxdb file header (only when creating a new file)
 # If you process multiple years/ranges, we want to append to the same CSV rather than overwrite it.
 influx_new_file = (not os.path.exists(influx_file)) or (os.path.getsize(influx_file) == 0)
+
+
+#####################################
+# DROP entire nights if any time has RH>70 AND Etempc<5 C
+#####################################
+if ('RH' in frame_sensor.columns) and ('Etempc' in frame_sensor.columns):
+    # Ensure numeric (NaNs won't trigger the condition)
+    _RH = pd.to_numeric(frame_sensor['RH'], errors='coerce').to_numpy()
+    _T  = pd.to_numeric(frame_sensor['Etempc'], errors='coerce').to_numpy()
+    _drop_nights = 0
+    for _i in range(inight):
+        _a = int(nstart1[_i])
+        _b = int(nend1[_i])
+        if _b < _a:
+            continue
+        # any sample in this night triggers the drop
+        _cond = (_RH[_a:_b+1] > 70.0) & (_T[_a:_b+1] < 5.0)
+        if _cond.any():
+            nsun[_a:_b+1] = 10
+            _drop_nights += 1
+    if _drop_nights > 0:
+        print(f"Dropped {_drop_nights} nights due to RH>70 & Etempc<5C")
 
 # Ensure parent directory exists
 _influx_dir = os.path.dirname(influx_file)
