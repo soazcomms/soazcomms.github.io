@@ -1,6 +1,6 @@
 #----
 version="DSN_python V03"
-version_date="01/19/2026"
+version_date="01/20/2026"
 #----
 #     Original FORTRAN written by A.D. Grauer
 #     Converted to python and expanded by E.E. Falco
@@ -349,6 +349,7 @@ if sensor_name == 'SQM1': # .xlsx data
         frame_sensor = frame_sensor[frame_sensor['RH'] >= 0]
     _n_after = len(frame_sensor)
     print(f"[XLSX filter] rows before={_n_before}, after={_n_after}, dropped={_n_before-_n_after}")
+#
 elif sensor_name == 'TESS':
     frame_sensor=pd.read_csv(in_file,header=None,skiprows=ihead,sep=sepcol,usecols=use_cols)
     frame_sensor.columns=frame_cols
@@ -560,6 +561,51 @@ endstart=np.sum(nend1+1-nstart1)-icount
 if endstart != 0:
     print("Night mismatch: ",endstart)
 #
+
+#####################################
+# DROP entire nights if any time has RH>70 AND Etempc<5 C
+#####################################
+if ('RH' in frame_sensor.columns) and ('Etempc' in frame_sensor.columns):
+    _RH = pd.to_numeric(frame_sensor['RH'], errors='coerce').to_numpy()
+    _T  = pd.to_numeric(frame_sensor['Etempc'], errors='coerce').to_numpy()
+    _keep = np.ones(icount, dtype=bool)
+    _drop_nights = 0
+    for _i in range(inight):
+        _a = int(nstart1[_i])
+        _b = int(nend1[_i])
+        if _b < _a:
+            continue
+        _cond = (_RH[_a:_b+1] > 70.0) & (_T[_a:_b+1] < 5.0)
+        if np.any(_cond):
+            _keep[_a:_b+1] = False
+            _drop_nights += 1
+    if _drop_nights > 0:
+        print(f"Dropped nights due to RH>70 & Etempc<5C: {_drop_nights}")
+        _idx = np.where(_keep)[0]
+        frame_sensor = frame_sensor.iloc[_idx].copy()
+        frame_sensor.reset_index(drop=True, inplace=True)
+        sunalt = [sunalt[i] for i in _idx]
+        dark   = [dark[i] for i in _idx]
+        JD     = [JD[i] for i in _idx]
+        icount = len(sunalt)
+        # refresh arrays derived from frame_sensor (keep alignment)
+        SQM=np.array(frame_sensor.SQM.values)
+        tloc=pd.DatetimeIndex(frame_sensor.Tloc)
+        locyr=np.array(tloc.year)
+        locmon=np.array(tloc.month)
+        locday=np.array(tloc.day)
+        # recreate start/end after meteo-night drop
+        nstart1=np.full(icount,0)
+        nend1=np.full(icount,0)
+        nstart1=[i+1 for i in range(1,icount-1) if (JD[i+1]-JD[i])>jd_thr]
+        nstart1=np.insert(nstart1,0,0)
+        inight=len(nstart1)
+        nend1=[nstart1[i]-1 for i in range(1,len(nstart1))]
+        nend1=np.append(nend1,icount-1)
+        endstart=np.sum(nend1+1-nstart1)-icount
+        if endstart != 0:
+            print("Night mismatch after meteo-night drop: ",endstart)
+
 run_time = time.time()-start_time
 print("+++ RUN time after filtering (sec): ",np.around(run_time,2))
 
@@ -711,27 +757,6 @@ print("InfluxDB file name ",influx_file)
 # If you process multiple years/ranges, we want to append to the same CSV rather than overwrite it.
 influx_new_file = (not os.path.exists(influx_file)) or (os.path.getsize(influx_file) == 0)
 
-
-#####################################
-# DROP entire nights if any time has RH>70 AND Etempc<5 C
-#####################################
-if ('RH' in frame_sensor.columns) and ('Etempc' in frame_sensor.columns):
-    # Ensure numeric (NaNs won't trigger the condition)
-    _RH = pd.to_numeric(frame_sensor['RH'], errors='coerce').to_numpy()
-    _T  = pd.to_numeric(frame_sensor['Etempc'], errors='coerce').to_numpy()
-    _drop_nights = 0
-    for _i in range(inight):
-        _a = int(nstart1[_i])
-        _b = int(nend1[_i])
-        if _b < _a:
-            continue
-        # any sample in this night triggers the drop
-        _cond = (_RH[_a:_b+1] > 70.0) & (_T[_a:_b+1] < 5.0)
-        if _cond.any():
-            nsun[_a:_b+1] = 10
-            _drop_nights += 1
-    if _drop_nights > 0:
-        print(f"Dropped {_drop_nights} nights due to RH>70 & Etempc<5C")
 
 # Ensure parent directory exists
 _influx_dir = os.path.dirname(influx_file)
