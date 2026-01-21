@@ -1,6 +1,7 @@
 #----
 version="DSN_python V03"
-version_date="01/20/2026"
+version_date="01/21/2026"
+print("DSN_V03.py version ",version_date)
 #----
 #     Original FORTRAN written by A.D. Grauer
 #     Converted to python and expanded by E.E. Falco
@@ -566,42 +567,88 @@ if endstart != 0:
 # DROP entire nights if any time has RH>70 AND Etempc<5 C
 #####################################
 if ('RH' in frame_sensor.columns) and ('Etempc' in frame_sensor.columns):
+    # DROP ENTIRE NIGHTS if ANY sample has RH>70 AND Etempc<5 C
+    # NOTE: Use len(frame_sensor) (not stale icount) to avoid out-of-bounds.
+    _nrows = len(frame_sensor)
+    if icount != _nrows:
+        icount = _nrows
+
     _RH = pd.to_numeric(frame_sensor['RH'], errors='coerce').to_numpy()
     _T  = pd.to_numeric(frame_sensor['Etempc'], errors='coerce').to_numpy()
-    _keep = np.ones(icount, dtype=bool)
-    _drop_nights = 0
-    for _i in range(inight):
-        _a = int(nstart1[_i])
-        _b = int(nend1[_i])
+
+    _bad_night = np.zeros(inight, dtype=bool)
+    for _ni in range(inight):
+        _a = int(nstart1[_ni])
+        _b = int(nend1[_ni])
         if _b < _a:
             continue
-        _cond = (_RH[_a:_b+1] > 70.0) & (_T[_a:_b+1] < 5.0)
-        if np.any(_cond):
-            _keep[_a:_b+1] = False
-            _drop_nights += 1
+        # clamp to current row count (defensive)
+        if _a < 0: _a = 0
+        if _b >= _nrows: _b = _nrows - 1
+        if _b < _a:
+            continue
+        if np.any((_RH[_a:_b+1] > 70.0) & (_T[_a:_b+1] < 5.0)):
+            _bad_night[_ni] = True
+
+    _drop_nights = int(_bad_night.sum())
+    print(f"Dropped nights due to RH>70 & Etempc<5C: {_drop_nights}")
+
+# When TESTING=1, dump the *triggering* meteo samples (RH>70 AND Etempc<5) from dropped nights.
+# (Tloc is local time and is effectively MST for DSN sites.)
+if _drop_nights > 0 and os.environ.get('TESTING', '') == '1':
+    _bad_rows = np.zeros(_nrows, dtype=bool)
+    for _ni in range(inight):
+        if _bad_night[_ni]:
+            _a = int(nstart1[_ni]); _b = int(nend1[_ni])
+            if _a < 0: _a = 0
+            if _b >= _nrows: _b = _nrows - 1
+            if _b >= _a:
+                # mark all rows in the dropped night
+                _bad_rows[_a:_b+1] = True
+
+    # Now keep only rows that actually triggered the drop condition.
+    _trigger = (_RH > 70.0) & (_T < 5.0)
+    _rows = _bad_rows & _trigger
+
+    try:
+        _df_bad = frame_sensor.loc[_rows, ['Tloc', 'RH', 'Etempc']].copy()
+    except Exception:
+        _cols = [c for c in ['Tloc', 'RH', 'Etempc'] if c in frame_sensor.columns]
+        _df_bad = frame_sensor.loc[_rows, _cols].copy()
+    if 'Tloc' in _df_bad.columns:
+        _df_bad.rename(columns={'Tloc': 'MST'}, inplace=True)
+    _out_bad = "/tmp/TESTING-dropped.csv"
+    _df_bad.to_csv(_out_bad, index=False)
+    print(f"[TESTING] Wrote dropped-night TRIGGER rows to {_out_bad}: {len(_df_bad)} rows")
+
     if _drop_nights > 0:
-        print(f"Dropped nights due to RH>70 & Etempc<5C: {_drop_nights}")
+        _keep = np.ones(_nrows, dtype=bool)
+        for _ni in range(inight):
+            if _bad_night[_ni]:
+                _a = int(nstart1[_ni])
+                _b = int(nend1[_ni])
+                if _a < 0: _a = 0
+                if _b >= _nrows: _b = _nrows - 1
+                if _b >= _a:
+                    _keep[_a:_b+1] = False
+
         _idx = np.where(_keep)[0]
         frame_sensor = frame_sensor.iloc[_idx].copy()
         frame_sensor.reset_index(drop=True, inplace=True)
+
         sunalt = [sunalt[i] for i in _idx]
         dark   = [dark[i] for i in _idx]
         JD     = [JD[i] for i in _idx]
-        icount = len(sunalt)
-        # refresh arrays derived from frame_sensor (keep alignment)
-        SQM=np.array(frame_sensor.SQM.values)
-        tloc=pd.DatetimeIndex(frame_sensor.Tloc)
-        locyr=np.array(tloc.year)
-        locmon=np.array(tloc.month)
-        locday=np.array(tloc.day)
-        # recreate start/end after meteo-night drop
-        nstart1=np.full(icount,0)
-        nend1=np.full(icount,0)
-        nstart1=[i+1 for i in range(1,icount-1) if (JD[i+1]-JD[i])>jd_thr]
-        nstart1=np.insert(nstart1,0,0)
-        inight=len(nstart1)
-        nend1=[nstart1[i]-1 for i in range(1,len(nstart1))]
-        nend1=np.append(nend1,icount-1)
+
+        icount = len(frame_sensor)
+        SQM = np.array(frame_sensor.SQM.values)
+        tloc = pd.DatetimeIndex(frame_sensor.Tloc)
+
+        nstart1 = [i+1 for i in range(1, icount-1) if (JD[i+1]-JD[i]) > jd_thr]
+        nstart1 = np.insert(nstart1, 0, 0)
+        inight = len(nstart1)
+        nend1 = [nstart1[i]-1 for i in range(1, len(nstart1))]
+        nend1 = np.append(nend1, icount-1)
         endstart=np.sum(nend1+1-nstart1)-icount
         if endstart != 0:
             print("Night mismatch after meteo-night drop: ",endstart)
