@@ -1,3 +1,8 @@
+#----
+version="DSN_python V01"
+version_date="01/21/2026"
+print("DSN_generate_analysis.py version ",version_date)
+#----
 import os
 import shutil
 import pandas as pd
@@ -46,6 +51,11 @@ parser.add_argument('--from', dest='from_time', required=True)
 parser.add_argument('--to', dest='to_time', required=True)
 parser.add_argument('--label', required=True)
 args = parser.parse_args()
+
+# Time-range label for plot axis titles
+start_str = args.from_time
+end_str = args.to_time
+time_range_label = f"[{start_str[:10]} to {end_str[:10]}]"
 
 in_dir = args.input_dir
 label = args.label
@@ -295,7 +305,7 @@ if 'SQM' in df_all.columns:
         title="NSB Histogram",
         title_font=dict(size=24),
         title_x=0.5,
-        xaxis_title="NSB (mag/arcsec²)",
+        xaxis_title=f"NSB (mag/arcsec²) {time_range_label}",
         yaxis_title="Count",
         width=int(plot_w*1.5), height=int(plot_h*1.5),
         legend=dict(orientation="h", y=1.08, x=0.0)
@@ -671,7 +681,7 @@ try:
         fig5.update_layout(
             title="SQM folded by Local Sidereal Time (χ² < 0.09 & moonalt < -10°)",
             title_x=0.5,
-            xaxis=dict(title="Local Sidereal Time (hours)", range=[0, 24]),
+            xaxis=dict(title=f"Local Sidereal Time (hours) {time_range_label}", range=[0, 24]),
             legend=dict(orientation="h", x=0.5, xanchor="center", y=1.02, yanchor="bottom", font=dict(size=9)),
             yaxis=dict(title="SQM (mag/arcsec²)", autorange='reversed'),
             width=int(plot_w*1.5), height=int(plot_h*1.5),
@@ -886,7 +896,7 @@ try:
             fig_lst.update_layout(
                 title="LST-folded SQM (χ²<0.09 & moonalt<-10°)",
                 title_x=0.5,
-                xaxis=dict(title="Local Sidereal Time (hours)", range=[0, 24]),
+            xaxis=dict(title=f"Local Sidereal Time (hours) {time_range_label}", range=[0, 24]),
                 yaxis=dict(title="SQM (mag/arcsec²)", autorange=False, range=y_range),
                 width=lst_w, height=lst_h,
                 legend=dict(orientation="h", x=0.5, xanchor="center", y=1.02, yanchor="bottom", font=dict(size=9)),
