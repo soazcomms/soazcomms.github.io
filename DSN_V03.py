@@ -593,34 +593,34 @@ if ('RH' in frame_sensor.columns) and ('Etempc' in frame_sensor.columns):
     _drop_nights = int(_bad_night.sum())
     print(f"Dropped nights due to RH>70 & Etempc<5C: {_drop_nights}")
 
-# When TESTING=1, dump the *triggering* meteo samples (RH>70 AND Etempc<5) from dropped nights.
-# (Tloc is local time and is effectively MST for DSN sites.)
-if _drop_nights > 0 and os.environ.get('TESTING', '') == '1':
-    _bad_rows = np.zeros(_nrows, dtype=bool)
-    for _ni in range(inight):
-        if _bad_night[_ni]:
-            _a = int(nstart1[_ni]); _b = int(nend1[_ni])
-            if _a < 0: _a = 0
-            if _b >= _nrows: _b = _nrows - 1
-            if _b >= _a:
-                # mark all rows in the dropped night
-                _bad_rows[_a:_b+1] = True
-
-    # Now keep only rows that actually triggered the drop condition.
-    _trigger = (_RH > 70.0) & (_T < 5.0)
-    _rows = _bad_rows & _trigger
-
-    try:
-        _df_bad = frame_sensor.loc[_rows, ['Tloc', 'RH', 'Etempc']].copy()
-    except Exception:
-        _cols = [c for c in ['Tloc', 'RH', 'Etempc'] if c in frame_sensor.columns]
-        _df_bad = frame_sensor.loc[_rows, _cols].copy()
-    if 'Tloc' in _df_bad.columns:
-        _df_bad.rename(columns={'Tloc': 'MST'}, inplace=True)
-    _out_bad = "/tmp/TESTING-dropped.csv"
-    _df_bad.to_csv(_out_bad, index=False)
-    print(f"[TESTING] Wrote dropped-night TRIGGER rows to {_out_bad}: {len(_df_bad)} rows")
-
+    # When TESTING=1, dump the *triggering* meteo samples (RH>70 AND Etempc<5) from dropped nights.
+    # (Tloc is local time and is effectively MST for DSN sites.)
+    if os.environ.get('TESTING', '') == '1' and _drop_nights > 0:
+        _bad_rows = np.zeros(_nrows, dtype=bool)
+        for _ni in range(inight):
+            if _bad_night[_ni]:
+                _a = int(nstart1[_ni]); _b = int(nend1[_ni])
+                if _a < 0: _a = 0
+                if _b >= _nrows: _b = _nrows - 1
+                if _b >= _a:
+                    # mark all rows in the dropped night
+                    _bad_rows[_a:_b+1] = True
+    
+        # Now keep only rows that actually triggered the drop condition.
+        _trigger = (_RH > 70.0) & (_T < 5.0)
+        _rows = _bad_rows & _trigger
+    
+        try:
+            _df_bad = frame_sensor.loc[_rows, ['Tloc', 'RH', 'Etempc']].copy()
+        except Exception:
+            _cols = [c for c in ['Tloc', 'RH', 'Etempc'] if c in frame_sensor.columns]
+            _df_bad = frame_sensor.loc[_rows, _cols].copy()
+        if 'Tloc' in _df_bad.columns:
+            _df_bad.rename(columns={'Tloc': 'MST'}, inplace=True)
+        _out_bad = "/tmp/TESTING-dropped.csv"
+        _df_bad.to_csv(_out_bad, index=False)
+        print(f"[TESTING] Wrote dropped-night TRIGGER rows to {_out_bad}: {len(_df_bad)} rows")
+    
     if _drop_nights > 0:
         _keep = np.ones(_nrows, dtype=bool)
         for _ni in range(inight):
