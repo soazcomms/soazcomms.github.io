@@ -327,9 +327,13 @@ else:
 # frame_sensor is a dataframe with the data from input file(s)
 if sensor_name == 'SQM1': # .xlsx data
     if site_name == 'Sugarloaf':
+        RHmax=60.
+        Etempcmax=10.
         orig_cols = ['Tloc', 'Solar', 'Winds', 'Windd', 'Etempc', 'RH',
                  'Barom', 'Precip','SQM', 'Stempc', 'Battery', 'Dtempc']
     else:
+        RHmax=60.  # just in case we want other values for Bonita
+        Etempcmax=10.
         orig_cols = ['Tloc', 'Precip', 'SQM', 'Etempc', 'Solar','Winds',
                      'Windd','Stempc','RH','Barom', 'Battery', 'Dtempc']
     frame_sensor=pd.read_excel(in_file,header=None, skiprows=head_skip)
@@ -564,10 +568,10 @@ if endstart != 0:
 #
 
 #####################################
-# DROP entire nights if any time has RH>70 AND Etempc<5 C
+# DROP entire nights if any time has RH>RHmax AND Etempc<Etempcmax C
 #####################################
 if ('RH' in frame_sensor.columns) and ('Etempc' in frame_sensor.columns):
-    # DROP ENTIRE NIGHTS if ANY sample has RH>70 AND Etempc<5 C
+    # DROP ENTIRE NIGHTS if ANY sample has RH>RHmax AND Etempcmax<5 C
     # NOTE: Use len(frame_sensor) (not stale icount) to avoid out-of-bounds.
     _nrows = len(frame_sensor)
     if icount != _nrows:
@@ -587,13 +591,14 @@ if ('RH' in frame_sensor.columns) and ('Etempc' in frame_sensor.columns):
         if _b >= _nrows: _b = _nrows - 1
         if _b < _a:
             continue
-        if np.any((_RH[_a:_b+1] > 70.0) & (_T[_a:_b+1] < 5.0)):
+        if np.any((_RH[_a:_b+1] > RHmax) & (_T[_a:_b+1] < Etempcmax)):
             _bad_night[_ni] = True
 
     _drop_nights = int(_bad_night.sum())
-    print(f"Dropped nights due to RH>70 & Etempc<5C: {_drop_nights}")
-
-    # When TESTING=1, dump the *triggering* meteo samples (RH>70 AND Etempc<5) from dropped nights.
+    print(f"Dropped nights due to RH>{RHmax} & Etempc<{Etempcmax}C:\
+    {_drop_nights}")
+    
+    # When TESTING=1, dump the *triggering* meteo samples (RH>RHmax AND Etempc<Etempcmax) from dropped nights.
     # (Tloc is local time and is effectively MST for DSN sites.)
     if os.environ.get('TESTING', '') == '1' and _drop_nights > 0:
         _bad_rows = np.zeros(_nrows, dtype=bool)
@@ -607,7 +612,7 @@ if ('RH' in frame_sensor.columns) and ('Etempc' in frame_sensor.columns):
                     _bad_rows[_a:_b+1] = True
     
         # Now keep only rows that actually triggered the drop condition.
-        _trigger = (_RH > 70.0) & (_T < 5.0)
+        _trigger = (_RH > RHmax) & (_T < Etempcmax)
         _rows = _bad_rows & _trigger
     
         try:
