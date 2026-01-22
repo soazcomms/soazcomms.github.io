@@ -1,6 +1,6 @@
 #----
 version="DSN_python V03"
-version_date="01/21/2026"
+version_date="01/22/2026"
 print("DSN_V03.py version ",version_date)
 #----
 #     Original FORTRAN written by A.D. Grauer
@@ -327,13 +327,15 @@ else:
 # frame_sensor is a dataframe with the data from input file(s)
 if sensor_name == 'SQM1': # .xlsx data
     if site_name == 'Sugarloaf':
-        RHmax=60.
-        Etempcmax=10.
+#        RHmax=60.
+#        Etempcmax=10.
+        SQMmax=22.4
         orig_cols = ['Tloc', 'Solar', 'Winds', 'Windd', 'Etempc', 'RH',
                  'Barom', 'Precip','SQM', 'Stempc', 'Battery', 'Dtempc']
     else:
-        RHmax=60.  # just in case we want other values for Bonita
-        Etempcmax=10.
+#        RHmax=60.  # just in case we want other values for Bonita
+#        Etempcmax=10.
+        SQMmax=22.4
         orig_cols = ['Tloc', 'Precip', 'SQM', 'Etempc', 'Solar','Winds',
                      'Windd','Stempc','RH','Barom', 'Battery', 'Dtempc']
     frame_sensor=pd.read_excel(in_file,header=None, skiprows=head_skip)
@@ -568,17 +570,17 @@ if endstart != 0:
 #
 
 #####################################
-# DROP entire nights if any time has RH>RHmax AND Etempc<Etempcmax C
+# DROP entire nights if any time has SQM>=SQMmax
 #####################################
 if ('RH' in frame_sensor.columns) and ('Etempc' in frame_sensor.columns):
-    # DROP ENTIRE NIGHTS if ANY sample has RH>RHmax AND Etempcmax<5 C
+    # DROP ENTIRE NIGHTS if ANY sample has SQM>=SQMmax
     # NOTE: Use len(frame_sensor) (not stale icount) to avoid out-of-bounds.
     _nrows = len(frame_sensor)
     if icount != _nrows:
         icount = _nrows
-
-    _RH = pd.to_numeric(frame_sensor['RH'], errors='coerce').to_numpy()
-    _T  = pd.to_numeric(frame_sensor['Etempc'], errors='coerce').to_numpy()
+    _SQM  = pd.to_numeric(frame_sensor['SQM'], errors='coerce').to_numpy()
+#    _RH = pd.to_numeric(frame_sensor['RH'], errors='coerce').to_numpy()
+#    _T  = pd.to_numeric(frame_sensor['Etempc'], errors='coerce').to_numpy()
 
     _bad_night = np.zeros(inight, dtype=bool)
     for _ni in range(inight):
@@ -591,16 +593,16 @@ if ('RH' in frame_sensor.columns) and ('Etempc' in frame_sensor.columns):
         if _b >= _nrows: _b = _nrows - 1
         if _b < _a:
             continue
-        if np.any((_RH[_a:_b+1] > RHmax) & (_T[_a:_b+1] < Etempcmax)):
+#        if np.any((_RH[_a:_b+1] > RHmax) & (_T[_a:_b+1] < Etempcmax)):
+        if np.any((_SQM[_a:_b+1] >= SQMmax)):
             _bad_night[_ni] = True
 
     _drop_nights = int(_bad_night.sum())
-    print(f"Dropped nights due to RH>{RHmax} & Etempc<{Etempcmax}C:\
-    {_drop_nights}")
+    print(f"Dropped nights due to SQM>{SQMmax}: {_drop_nights}")
     
-    # When TESTING=1, dump the *triggering* meteo samples (RH>RHmax AND Etempc<Etempcmax) from dropped nights.
-    # (Tloc is local time and is effectively MST for DSN sites.)
-    if os.environ.get('TESTING', '') == '1' and _drop_nights > 0:
+    # dump the *triggering* meteo samples (SQM>SQMmax from dropped nights.
+#    if os.environ.get('TESTING', '') == '1' and _drop_nights > 0:
+    if _drop_nights > 0:
         _bad_rows = np.zeros(_nrows, dtype=bool)
         for _ni in range(inight):
             if _bad_night[_ni]:
@@ -612,19 +614,22 @@ if ('RH' in frame_sensor.columns) and ('Etempc' in frame_sensor.columns):
                     _bad_rows[_a:_b+1] = True
     
         # Now keep only rows that actually triggered the drop condition.
-        _trigger = (_RH > RHmax) & (_T < Etempcmax)
+#        _trigger = (_RH > RHmax) & (_T < Etempcmax)
+        _trigger = (_SQM >= SQMmax)
         _rows = _bad_rows & _trigger
     
         try:
-            _df_bad = frame_sensor.loc[_rows, ['Tloc', 'RH', 'Etempc']].copy()
+            _df_bad = frame_sensor.loc[_rows, ['Tloc', 'SQM', 'RH', 'Etempc', 'Winds']].copy()
         except Exception:
-            _cols = [c for c in ['Tloc', 'RH', 'Etempc'] if c in frame_sensor.columns]
+            _cols = [c for c in ['Tloc', 'SQM', 'RH', 'Etempc', 'Winds'] if c in frame_sensor.columns]
             _df_bad = frame_sensor.loc[_rows, _cols].copy()
-        if 'Tloc' in _df_bad.columns:
-            _df_bad.rename(columns={'Tloc': 'MST'}, inplace=True)
-        _out_bad = "/tmp/TESTING-dropped.csv"
-        _df_bad.to_csv(_out_bad, index=False)
-        print(f"[TESTING] Wrote dropped-night TRIGGER rows to {_out_bad}: {len(_df_bad)} rows")
+        if os.environ.get('TESTING', '') == '1':
+            _out_bad = "/tmp/TESTING-dropped.csv"
+            print(f"[TESTING] Wrote dropped-night TRIGGER rows to {_out_bad}: {len(_df_bad)} rows")
+        else:
+            _out_bad = "DSNdata/SAVE/"+inf_measurement+"-dropped.csv"
+        write_header = not os.path.exists(_out_bad)
+        _df_bad.to_csv(_out_bad, mode="a", header=write_header, index=False)
     
     if _drop_nights > 0:
         _keep = np.ones(_nrows, dtype=bool)
