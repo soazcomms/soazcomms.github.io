@@ -467,10 +467,7 @@ sun_6 = -6.0 # "
 sun_5 = -5.0 # "
 sun_4 = -4.0 # "
 sun_3 = -3.0 # "
-if in_file.endswith('.xlsx'): # only sun<sun_dark for xlsx data
-    isun = [0 if sunalt[i]<=sun_dark else 10 for i in range(icount)] # all data
-else:
-    isun = [0 if sunalt[i]<=sun_3 else 10 for i in range(icount)] # all data
+isun = [0 if sunalt[i]<=sun_3 else 10 for i in range(icount)] # all data
 dark = [1 if sunalt[i]<=sun_dark else 2 for i in range(icount)] # night
 # sun_index contains all indices with sun below criterion above
 #
@@ -572,7 +569,8 @@ if endstart != 0:
 #####################################
 # DROP entire nights if any time has SQM>=SQMmax
 #####################################
-if ('RH' in frame_sensor.columns) and ('Etempc' in frame_sensor.columns):
+#if ('RH' in frame_sensor.columns) and ('Etempc' in frame_sensor.columns):
+if 'SQM' in frame_sensor.columns:
     # DROP ENTIRE NIGHTS if ANY sample has SQM>=SQMmax
     # NOTE: Use len(frame_sensor) (not stale icount) to avoid out-of-bounds.
     _nrows = len(frame_sensor)
