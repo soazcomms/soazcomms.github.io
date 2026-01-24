@@ -1,0 +1,135 @@
+name: DSN-getTESS Data
+
+on:
+  schedule:
+    - cron: '0 8 1 * *'  # Runs at 08:00 UTC on the 1st day of each month
+  workflow_dispatch:  # Allows manual triggering
+
+env:
+  TESSTABLE_CSV: "DSNdata/TESStable.csv"
+  LOG_FILE: "DSNdata/TESSdownloaded.log"
+  # Presence of this file enables "scan all months" mode
+  TESS_MONTH: "DSNdata/TESSmonth"
+  IDA_URL: "https://fta-cloud.fis.ucm.es/public.php/dav/files/Gr9DAbfiX8Pdm86"
+  DATABASE_FILE: "adm/tessida.db"
+
+jobs:
+  process-stars-files:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install tess-ida-tools pandas
+          pip install lica
+
+      - name: Ensure Log File Exists
+        run: |
+          touch "$LOG_FILE"
+
+      - name: Read TESStable.csv and download all available months (scan mode)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ ! -f "$TESSTABLE_CSV" ]; then
+            echo "Error: TESStable.csv not found!" >&2
+            exit 1
+          fi
+
+          LOCAL_FOLDER="DSNdata/NEW"
+          mkdir -p "$LOCAL_FOLDER"
+
+          # If DSNdata/TESSmonth exists, scan all months from START to now and download what exists.
+          # (We don't *use* the contents of the file; its presence is the switch.)
+          if [ -f "$TESS_MONTH" ]; then
+            START_DATE="2016-01-01"
+            END_DATE="$(date -u +%Y-%m-01)"
+            echo "TESSmonth present -> scanning all months from $(date -d "$START_DATE" +%Y-%m) to $(date -d "$END_DATE" +%Y-%m)"
+            MONTHS=()
+            d="$START_DATE"
+            while [ "$(date -d "$d" +%Y-%m-01)" \< "$END_DATE" ] || [ "$(date -d "$d" +%Y-%m-01)" = "$END_DATE" ]; do
+              MONTHS+=("$(date -d "$d" +%Y-%m)")
+              d="$(date -d "$d +1 month" +%Y-%m-01)"
+            done
+          else
+            # Backward-compatible behavior: only previous month
+            PREV_MONTH=$(date --date="$(date +%Y-%m-01) last month" +%Y-%m)
+            echo "TESSmonth not present -> processing previous month only: $PREV_MONTH"
+            MONTHS=("$PREV_MONTH")
+          fi
+
+          echo "Processing $((${#MONTHS[@]})) month(s) per alias."
+
+          nprocessed=0
+
+          while IFS=, read -r site_name sequence alias; do
+            if [[ -z "$site_name" || "$site_name" == "Site" ]]; then
+              continue
+            fi
+
+            echo "Processing $alias -> $site_name"
+
+            for month in "${MONTHS[@]}"; do
+              LOG_TESS="uniq_${alias}_${month}_$(date +%s%N).txt"
+
+              # Try download; non-zero exit should not kill the whole job for missing months
+              tess-ida-get --log-file "$LOG_TESS" single -n "$alias" -m "$month" -o "$LOCAL_FOLDER" || true
+
+              if grep -q "No monthly file" "$LOG_TESS"; then
+                # Nothing for this month
+                continue
+              fi
+
+              # Extract the file path from "Writing" line
+              tess_file=$(awk -F 'Writing ' '/Writing / {print $2; exit}' "$LOG_TESS" || true)
+              if [[ -z "$tess_file" || ! -f "$tess_file" ]]; then
+                continue
+              fi
+
+              base_name=$(basename "$tess_file")
+
+              # Skip if already logged as processed
+              if grep -Fxq "$base_name" "$LOG_FILE"; then
+                continue
+              fi
+
+              nprocessed=$((nprocessed + 1))
+              echo "$base_name" >> "$LOG_FILE"
+
+              # Ensure file lands in DSNdata/NEW
+              if [[ ! -f "$LOCAL_FOLDER/$base_name" ]]; then
+                mv "$tess_file" "$LOCAL_FOLDER/"
+              fi
+            done
+          done < "$TESSTABLE_CSV"
+
+          if [ "$nprocessed" -gt 0 ]; then
+            echo "----Processed $nprocessed file(s); renaming."
+            python DSN_rename_tess_files.py "$LOCAL_FOLDER" "$TESSTABLE_CSV"
+          else
+            echo "----No new TESS files found."
+          fi
+
+      - name: Commit changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+          git add "$LOG_FILE" "$TESSTABLE_CSV" || true
+          # Add any downloaded .dat files if present
+          git add DSNdata/NEW/*.dat 2>/dev/null || true
+
+          git commit -m "Update TESS downloads (scan mode)" || echo "No changes to commit"
+          git push
