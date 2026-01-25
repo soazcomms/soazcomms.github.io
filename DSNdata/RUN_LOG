@@ -1269,3 +1269,15 @@ DSN029-T_25_079.csv
 DSN029-T_25_095.csv
 DSN029-T_26_064.csv to Box
 2026-01-24 19:44:07 Deleted temp files.
+2026-01-25 00:01:52 Start DSN-process_data.
+2026-01-25 00:07:44 Uploaded chunk files DSN003S_Sugarloaf_2016-2018.csv DSN003S_Sugarloaf_2019-2021.csv DSN003S_Sugarloaf_2022-2024.csv DSN003S_Sugarloaf_2025-2027.csv to influx
+2026-01-25 00:09:04 Uploaded Sugarloaf_17.csv
+Sugarloaf_18.csv
+Sugarloaf_19.csv
+Sugarloaf_20.csv
+Sugarloaf_21.csv
+Sugarloaf_22.csv
+Sugarloaf_23.csv
+Sugarloaf_24.csv
+Sugarloaf_25.csv to Box
+2026-01-25 00:09:04 Deleted temp files.
