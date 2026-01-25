@@ -1304,3 +1304,14 @@ Sugarloaf_23.csv
 Sugarloaf_24.csv
 Sugarloaf_25.csv to Box
 2026-01-25 09:37:32 Deleted temp files.
+2026-01-25 09:47:02 Start DSN-process_data.
+2026-01-25 09:54:15 Uploaded chunk files DSN042S_Bonita_2016-2018.csv DSN042S_Bonita_2019-2021.csv DSN042S_Bonita_2022-2024.csv DSN042S_Bonita_2025-2027.csv to influx
+2026-01-25 09:55:22 Uploaded Bonita_18.csv
+Bonita_19.csv
+Bonita_20.csv
+Bonita_21.csv
+Bonita_22.csv
+Bonita_23.csv
+Bonita_24.csv
+Bonita_25.csv to Box
+2026-01-25 09:55:22 Deleted temp files.
