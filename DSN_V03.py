@@ -327,15 +327,15 @@ else:
 # frame_sensor is a dataframe with the data from input file(s)
 if sensor_name == 'SQM1': # .xlsx data
     if site_name == 'Sugarloaf':
-#        RHmax=60.
-#        Etempcmax=10.
-        SQMmax=22.4
+        RHmax=50.
+        Etempcmax=15.
+#        SQMmax=22.4
         orig_cols = ['Tloc', 'Solar', 'Winds', 'Windd', 'Etempc', 'RH',
                  'Barom', 'Precip','SQM', 'Stempc', 'Battery', 'Dtempc']
     else:
-#        RHmax=60.  # just in case we want other values for Bonita
-#        Etempcmax=10.
-        SQMmax=22.4
+        RHmax=50.  # just in case we want other values for Bonita
+        Etempcmax=10.
+#        SQMmax=22.4
         orig_cols = ['Tloc', 'Precip', 'SQM', 'Etempc', 'Solar','Winds',
                      'Windd','Stempc','RH','Barom', 'Battery', 'Dtempc']
     frame_sensor=pd.read_excel(in_file,header=None, skiprows=head_skip)
@@ -577,8 +577,8 @@ if 'SQM' in frame_sensor.columns:
     if icount != _nrows:
         icount = _nrows
     _SQM  = pd.to_numeric(frame_sensor['SQM'], errors='coerce').to_numpy()
-#    _RH = pd.to_numeric(frame_sensor['RH'], errors='coerce').to_numpy()
-#    _T  = pd.to_numeric(frame_sensor['Etempc'], errors='coerce').to_numpy()
+    _RH = pd.to_numeric(frame_sensor['RH'], errors='coerce').to_numpy()
+    _T  = pd.to_numeric(frame_sensor['Etempc'], errors='coerce').to_numpy()
 
     _bad_night = np.zeros(inight, dtype=bool)
     for _ni in range(inight):
@@ -591,12 +591,14 @@ if 'SQM' in frame_sensor.columns:
         if _b >= _nrows: _b = _nrows - 1
         if _b < _a:
             continue
-#        if np.any((_RH[_a:_b+1] > RHmax) & (_T[_a:_b+1] < Etempcmax)):
-        if np.any((_SQM[_a:_b+1] >= SQMmax)):
+        if np.any((_RH[_a:_b+1] > RHmax) & (_T[_a:_b+1] < Etempcmax)):
+#        if np.any((_SQM[_a:_b+1] >= SQMmax)):
             _bad_night[_ni] = True
 
     _drop_nights = int(_bad_night.sum())
-    print(f"Dropped nights due to SQM>{SQMmax}: {_drop_nights}")
+#    print(f"Dropped nights due to SQM>{SQMmax}: {_drop_nights}")
+    print(f"Dropped nights due to RH>{RHmax} & Etempc<Etempcmax: \
+    {_drop_nights}")
     
     # dump the *triggering* meteo samples (SQM>SQMmax from dropped nights.
 #    if os.environ.get('TESTING', '') == '1' and _drop_nights > 0:
@@ -612,8 +614,8 @@ if 'SQM' in frame_sensor.columns:
                     _bad_rows[_a:_b+1] = True
     
         # Now keep only rows that actually triggered the drop condition.
-#        _trigger = (_RH > RHmax) & (_T < Etempcmax)
-        _trigger = (_SQM >= SQMmax)
+        _trigger = (_RH > RHmax) & (_T < Etempcmax)
+#        _trigger = (_SQM >= SQMmax)
         _rows = _bad_rows & _trigger
     
         try:
