@@ -1,6 +1,6 @@
 #----
 version="DSN_python V03"
-version_date="01/22/2026"
+version_date="01/27/2026"
 print("DSN_V03.py version ",version_date)
 #----
 #     Original FORTRAN written by A.D. Grauer
@@ -37,6 +37,7 @@ from scipy.optimize import curve_fit
 import ephem
 from fuzzywuzzy import fuzz, process
 from github import Github
+from pathlib import Path
 #
 # INITIALIZATIONS
 #
@@ -282,6 +283,7 @@ if not in_file.endswith('.xlsx'):
     print("Found ",n_comments," comment lines")
 else:
     read_delta=10 # for Sugarloaf
+    year_xlsx = 2000 + int(Path(in_file).stem.split("_")[-1])
 #
 if n_comments==0:
     ihead=1
@@ -328,7 +330,11 @@ else:
 if sensor_name == 'SQM1': # .xlsx data
     if site_name == 'Sugarloaf':
         RHmax=50.
-        Etempcmax=15.
+        Etempcmax=10.
+        if year_xlsx==2024:
+            Etemp24=37.124   # Etempc step only for 2024
+        else:
+            Etemp24=0.
 #        SQMmax=22.4
         orig_cols = ['Tloc', 'Solar', 'Winds', 'Windd', 'Etempc', 'RH',
                  'Barom', 'Precip','SQM', 'Stempc', 'Battery', 'Dtempc']
@@ -340,7 +346,11 @@ if sensor_name == 'SQM1': # .xlsx data
                      'Windd','Stempc','RH','Barom', 'Battery', 'Dtempc']
     frame_sensor=pd.read_excel(in_file,header=None, skiprows=head_skip)
     frame_sensor.columns=orig_cols
-    frame_sensor.drop(['Solar','Windd','Barom','Precip','Stempc','Dtempc'], axis=1, inplace=True)
+    frame_sensor.drop(['Solar','Windd','Barom','Precip','Stempc','Dtempc'],
+                      axis=1, inplace=True)
+    # subtract Etempc step for 2024:
+    frame_sensor["Etempc"] = pd.to_numeric(frame_sensor["Etempc"],
+                                           errors="coerce") - Etemp24
     UT,frame_sensor = tloc_ut(frame_sensor)
     # XLSX-only sanity filters (meteo)
     # Drop non-physical values: Etempc < -10 C, RH < 0
