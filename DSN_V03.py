@@ -331,10 +331,6 @@ if sensor_name == 'SQM1': # .xlsx data
     if site_name == 'Sugarloaf':
         RHmax=50.
         Etempcmax=10.
-        if year_xlsx==2024:
-            Etemp24=37.124   # Etempc step only for 2024
-        else:
-            Etemp24=0.
 #        SQMmax=22.4
         orig_cols = ['Tloc', 'Solar', 'Winds', 'Windd', 'Etempc', 'RH',
                  'Barom', 'Precip','SQM', 'Stempc', 'Battery', 'Dtempc']
@@ -348,9 +344,6 @@ if sensor_name == 'SQM1': # .xlsx data
     frame_sensor.columns=orig_cols
     frame_sensor.drop(['Solar','Windd','Barom','Precip','Stempc','Dtempc'],
                       axis=1, inplace=True)
-    # subtract Etempc step for 2024:
-    frame_sensor["Etempc"] = pd.to_numeric(frame_sensor["Etempc"],
-                                           errors="coerce") - Etemp24
     UT,frame_sensor = tloc_ut(frame_sensor)
     # XLSX-only sanity filters (meteo)
     # Drop non-physical values: Etempc < -10 C, RH < 0
