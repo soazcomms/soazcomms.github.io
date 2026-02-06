@@ -1,6 +1,6 @@
 #----
 version="DSN_python V03"
-version_date="01/27/2026"
+version_date="02/05/2026"
 print("DSN_V03.py version ",version_date)
 #----
 #     Original FORTRAN written by A.D. Grauer
@@ -338,8 +338,8 @@ if sensor_name == 'SQM1': # .xlsx data
         RHmax=50.  # just in case we want other values for Bonita
         Etempcmax=10.
 #        SQMmax=22.4
-        orig_cols = ['Tloc', 'Precip', 'SQM', 'Etempc', 'Solar','Winds',
-                     'Windd','Stempc','RH','Barom', 'Battery', 'Dtempc']
+        orig_cols = ['Tloc', 'Precip', 'SQM', 'Stempc', 'Solar','Winds',
+                     'Windd','Etempc','RH','Barom', 'Battery', 'Dtempc']
     frame_sensor=pd.read_excel(in_file,header=None, skiprows=head_skip)
     frame_sensor.columns=orig_cols
     frame_sensor.drop(['Solar','Windd','Barom','Precip','Stempc','Dtempc'],
@@ -419,7 +419,6 @@ JD_midnight_2=np.full(icount,JD_midnight) # default is offset 7h to UT
 #
 if (site_number>1): # for AZ
     df=frame_sensor[['UT','Tloc']]
-#    print(frame_sensor.head())
 #    df["UT"] = pd.to_datetime(df["UT"], format="%Y-%m-%d %H:%M:%S")
     df['UT'] = pd.to_datetime(df['UT'], utc=True)
     df['Tloc'] = pd.to_datetime(df['Tloc']).dt.tz_localize('America/Phoenix')
@@ -428,11 +427,12 @@ if (site_number>1): # for AZ
     ut_tloc = (df['UT'] - df['Tloc_utc']) / pd.Timedelta(hours=1)
 #    ut_tloc=(pd.to_datetime(df.UT)-pd.to_datetime(df.Tloc))/\
 #            pd.Timedelta(hours=1)
-    ut_tloc_bad=np.where(ut_tloc!=7)[0]
-#    if (len(ut_tloc_bad)>0):
+    ut_tloc_bad=np.where(ut_tloc!=0)[0]
+
+    if (len(ut_tloc_bad)>0):
 #        df.Tloc=pd.to_datetime(df.UT).dt.tz_localize('America/Phoenix')
 #        df.Tloc=df.Tloc.dt.tz_convert(None)        
-    frame_sensor.Tloc=df.Tloc
+        frame_sensor.Tloc=df.Tloc
     print("Adjusted ",len(ut_tloc_bad)," UT values for AZ")
 if (site_number==1): # for New Mexico
     df=frame_sensor[['UT','Tloc']]
@@ -462,7 +462,6 @@ if not JD.is_monotonic_increasing:
 
 # new altsun uses astropy sun routines
 sunalt = altsun1(tlat,tlong,tele,list(UTC)) # calculates the whole vector of values
-
 # Set the Sun flag to 0 when Sun below one of the angles below...
 sun_dark = -18.
 sun_8 = -8.0 # allow brighter sun (mainly SQM1)
@@ -541,7 +540,6 @@ SQM=np.array(frame_sensor.SQM.values)
 nst_index=[i for i in range(icount) if nsun[i]==0 and SQM[i]>1.] # reset it
 df=frame_sensor.iloc[nst_index]
 frame_sensor=df.reset_index(drop=True)
-
 # REALIGN sunalt,dark,JD
 sunalt=[sunalt[ii] for ii in nst_index]
 dark=[dark[ii] for ii in nst_index]
@@ -568,103 +566,7 @@ endstart=np.sum(nend1+1-nstart1)-icount
 if endstart != 0:
     print("Night mismatch: ",endstart)
 #
-
 #####################################
-# DROP entire nights if any time has SQM>=SQMmax
-#####################################
-if ('RH' in frame_sensor.columns) and ('Etempc' in frame_sensor.columns):
-    # DROP ENTIRE NIGHTS if ANY sample has SQM>=SQMmax
-    # NOTE: Use len(frame_sensor) (not stale icount) to avoid out-of-bounds.
-    _nrows = len(frame_sensor)
-    if icount != _nrows:
-        icount = _nrows
-    _SQM  = pd.to_numeric(frame_sensor['SQM'], errors='coerce').to_numpy()
-    _RH = pd.to_numeric(frame_sensor['RH'], errors='coerce').to_numpy()
-    _T  = pd.to_numeric(frame_sensor['Etempc'], errors='coerce').to_numpy()
-
-    _bad_night = np.zeros(inight, dtype=bool)
-    for _ni in range(inight):
-        _a = int(nstart1[_ni])
-        _b = int(nend1[_ni])
-        if _b < _a:
-            continue
-        # clamp to current row count (defensive)
-        if _a < 0: _a = 0
-        if _b >= _nrows: _b = _nrows - 1
-        if _b < _a:
-            continue
-        if np.any((_RH[_a:_b+1] > RHmax) & (_T[_a:_b+1] < Etempcmax)):
-#        if np.any((_SQM[_a:_b+1] >= SQMmax)):
-            _bad_night[_ni] = True
-
-    _drop_nights = int(_bad_night.sum())
-#    print(f"Dropped nights due to SQM>{SQMmax}: {_drop_nights}")
-    print(f"Dropped nights due to RH>{RHmax} & Etempc<Etempcmax: \
-    {_drop_nights}")
-    
-    # dump the *triggering* meteo samples (SQM>SQMmax from dropped nights.
-#    if os.environ.get('TESTING', '') == '1' and _drop_nights > 0:
-    if _drop_nights > 0:
-        _bad_rows = np.zeros(_nrows, dtype=bool)
-        for _ni in range(inight):
-            if _bad_night[_ni]:
-                _a = int(nstart1[_ni]); _b = int(nend1[_ni])
-                if _a < 0: _a = 0
-                if _b >= _nrows: _b = _nrows - 1
-                if _b >= _a:
-                    # mark all rows in the dropped night
-                    _bad_rows[_a:_b+1] = True
-    
-        # Now keep only rows that actually triggered the drop condition.
-        _trigger = (_RH > RHmax) & (_T < Etempcmax)
-#        _trigger = (_SQM >= SQMmax)
-        _rows = _bad_rows & _trigger
-    
-        try:
-            _df_bad = frame_sensor.loc[_rows, ['Tloc', 'SQM', 'RH', 'Etempc', 'Winds']].copy()
-        except Exception:
-            _cols = [c for c in ['Tloc', 'SQM', 'RH', 'Etempc', 'Winds'] if c in frame_sensor.columns]
-            _df_bad = frame_sensor.loc[_rows, _cols].copy()
-        if os.environ.get('TESTING', '') == '1':
-            _out_bad = "/tmp/TESTING-dropped.csv"
-            print(f"[TESTING] Wrote dropped-night TRIGGER rows to {_out_bad}: {len(_df_bad)} rows")
-        else:
-            _out_bad = "DSNdata/SAVE/"+inf_measurement+"-dropped.csv"
-        write_header = not os.path.exists(_out_bad)
-        _df_bad.to_csv(_out_bad, mode="a", header=write_header, index=False)
-    
-    if _drop_nights > 0:
-        _keep = np.ones(_nrows, dtype=bool)
-        for _ni in range(inight):
-            if _bad_night[_ni]:
-                _a = int(nstart1[_ni])
-                _b = int(nend1[_ni])
-                if _a < 0: _a = 0
-                if _b >= _nrows: _b = _nrows - 1
-                if _b >= _a:
-                    _keep[_a:_b+1] = False
-
-        _idx = np.where(_keep)[0]
-        frame_sensor = frame_sensor.iloc[_idx].copy()
-        frame_sensor.reset_index(drop=True, inplace=True)
-
-        sunalt = [sunalt[i] for i in _idx]
-        dark   = [dark[i] for i in _idx]
-        JD     = [JD[i] for i in _idx]
-
-        icount = len(frame_sensor)
-        SQM = np.array(frame_sensor.SQM.values)
-        tloc = pd.DatetimeIndex(frame_sensor.Tloc)
-
-        nstart1 = [i+1 for i in range(1, icount-1) if (JD[i+1]-JD[i]) > jd_thr]
-        nstart1 = np.insert(nstart1, 0, 0)
-        inight = len(nstart1)
-        nend1 = [nstart1[i]-1 for i in range(1, len(nstart1))]
-        nend1 = np.append(nend1, icount-1)
-        endstart=np.sum(nend1+1-nstart1)-icount
-        if endstart != 0:
-            print("Night mismatch after meteo-night drop: ",endstart)
-
 run_time = time.time()-start_time
 print("+++ RUN time after filtering (sec): ",np.around(run_time,2))
 
@@ -879,7 +781,9 @@ print(version," ",version_date," Wrote ",4*len(df1)," entries to ",influx_file)
 #
 # Save the data to an archive file for Box.
 if os.path.exists("DSNdata/BOX/"):
-    df.to_csv(box_file,mode='w',header=cols_df,index=False)
+    df_out = df.reindex(columns=cols_df)
+    assert list(df_out.columns)==cols_df
+    df_out.to_csv(box_file,mode='w',header=cols_df,index=False)
     print(version," ",version_date," Wrote ",len(df)," entries to ",
           box_file)
 else:
