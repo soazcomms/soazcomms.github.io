@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-0PQTHF10EQ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-0PQTHF10EQ');
+  </script>
+  <title>DSN Map</title>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDWHW0yh6m2-9_r1P3cAPqW7ZoNef9cwfY"></script>
+      <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        h1 {
+            font-size: 36px;
+            font-weight: bold;
+            margin: 20px 0;
+            color: #333;
+        }
+        #map-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #map {
+            height: 85vh;
+            width: 90%;
+            border: 3px solid #333;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+
+  <!-- Large Title for the Map -->
+  <div id="map-container">
+      <h1>Dark Sky Network (DSN) Monitoring Sites</h1>
+      <div id="dsn-legend" style="font-family: Arial, sans-serif; margin: 0 0 10px 0; font-size: 14px;">Existing: 20 &nbsp;·&nbsp; Proposed: 24</div>
+      <div id="map"></div>
+  </div>
+
+  <script>
+
+    async function initMap() {
+  // Request needed libraries.
+  const { Map, InfoWindow } = await google.maps.importLibrary("maps");
+  const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
+
+          const SQM = [
+      {site: "DSN002-T_Bisbee", position: {lat: 31.448200, lng: -109.928400}, stat: "P", title: "TESS", dsn: "DSN002"},
+      {site: "DSN003-S_Sugarloaf", position: {lat: 32.017900, lng: -109.320800}, stat: "E", title: "SQM1", dsn: "DSN003"},
+      {site: "DSN006-S_KPNO", position: {lat: 31.964000, lng: -111.600000}, stat: "E", title: "SQM3", dsn: "DSN006"},
+      {site: "DSN008-S_OracleSP", position: {lat: 32.607800, lng: -110.733000}, stat: "E", title: "SQM", dsn: "DSN008"},
+      {site: "DSN014-S_Tubac", position: {lat: 31.611500, lng: -111.047800}, stat: "E", title: "SQM", dsn: "DSN014"},
+      {site: "DSN014-T_Tubac", position: {lat: 31.611500, lng: -111.047800}, stat: "E", title: "TESS", dsn: "DSN014"},
+      {site: "DSN015-T_Safford", position: {lat: 32.798900, lng: -109.728200}, stat: "P", title: "TESS", dsn: "DSN015"},
+      {site: "DSN016-S_SaguaroNP", position: {lat: 32.254500, lng: -111.197400}, stat: "E", title: "SQM", dsn: "DSN016"},
+      {site: "DSN019-S_MtLemmon", position: {lat: 32.442700, lng: -110.788600}, stat: "E", title: "SQM3", dsn: "DSN019"},
+      {site: "DSN021-S_VATT", position: {lat: 32.701300, lng: -109.892000}, stat: "E", title: "SQM", dsn: "DSN021"},
+      {site: "DSN022-S_TumacacoriNHP", position: {lat: 31.567800, lng: -111.051000}, stat: "E", title: "SQM", dsn: "DSN022"},
+      {site: "DSN024-S_Winer", position: {lat: 31.665600, lng: -110.601800}, stat: "E", title: "SQM4", dsn: "DSN024"},
+      {site: "DSN029-T_JB", position: {lat: 32.265500, lng: -110.961300}, stat: "E", title: "TESS", dsn: "DSN029"},
+      {site: "DSN030-S_Nogales", position: {lat: 31.333300, lng: -110.933300}, stat: "E", title: "SQM", dsn: "DSN030"},
+      {site: "DSN031-S_AlGrauer", position: {lat: 32.306700, lng: -110.851300}, stat: "E", title: "SQM3", dsn: "DSN031"},
+      {site: "DSN035-S_Cosmic", position: {lat: 33.480000, lng: -108.923000}, stat: "E", title: "SQM3", dsn: "DSN035"},
+      {site: "DSN036-S_Gilinsky", position: {lat: 32.302000, lng: -110.986000}, stat: "E", title: "SQM2", dsn: "DSN036"},
+      {site: "DSN038-S_Ironwood", position: {lat: 32.358400, lng: -111.470200}, stat: "P", title: "SQM4", dsn: "DSN038"},
+      {site: "DSN039-S_SRER", position: {lat: 31.910700, lng: -110.835500}, stat: "P", title: "SQM4", dsn: "DSN039"},
+      {site: "DSN040-S_CosmicS", position: {lat: 33.478900, lng: -108.922700}, stat: "E", title: "SQM3", dsn: "DSN040"},
+      {site: "DSN041-S_G96", position: {lat: 32.442900, lng: -110.788800}, stat: "E", title: "SQM3", dsn: "DSN041"},
+      {site: "DSN042-S_Bonita", position: {lat: 32.009000, lng: -109.388800}, stat: "E", title: "SQM1", dsn: "DSN042"},
+      {site: "DSN043-S_V00", position: {lat: 31.961600, lng: -111.600200}, stat: "E", title: "SQM3", dsn: "DSN043"},
+      {site: "DSN044-S_NOIRLabHQ", position: {lat: 32.233600, lng: -110.947000}, stat: "E", title: "SQM2", dsn: "DSN044"},
+      {site: "DSN045-S_Morenci", position: {lat: 33.050500, lng: -109.324900}, stat: "E", title: "SQM3", dsn: "DSN045"},
+      {site: "Ajo, Pima County", position: {lat: 32.373500, lng: -112.861600}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Bisbee, Cochise County", position: {lat: 31.448800, lng: -109.888500}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Douglas, Cochise County", position: {lat: 31.344800, lng: -109.554900}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Kartchner Caverns State Park, Cochise County", position: {lat: 31.836700, lng: -110.349000}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Organ Pipe Cactus National Monument, Pima County", position: {lat: 31.954900, lng: -112.801100}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Picacho Peak State Park, Pinal County", position: {lat: 32.646200, lng: -111.401700}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Rio Rico High School, Santa Cruz County", position: {lat: 31.504722, lng: -111.018772}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Sahuarita High School, Pima County", position: {lat: 31.959000, lng: -110.973600}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Sells, Pima County", position: {lat: 31.914900, lng: -111.881900}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Safford , Graham County", position: {lat: 32.832700, lng: -109.715500}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Sierra Vista , Cochise County", position: {lat: 31.565100, lng: -110.273200}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Willcox, Cochise County", position: {lat: 32.252900, lng: -109.832000}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Winkelman, Gila County", position: {lat: 32.987600, lng: -110.770900}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Yuma, Yuma County", position: {lat: 32.692700, lng: -114.627700}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Quartzite, La Paz County", position: {lat: 33.663900, lng: -114.229900}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "El Pinacate, Sonora", position: {lat: 31.902700, lng: -113.858500}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Cascabel, Cochise County", position: {lat: 32.291000, lng: -110.371800}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Catalina SP, Pima County", position: {lat: 32.436400, lng: -110.909600}, stat: "P", title: "SQM", dsn: "DSN---"},
+      {site: "Aravaipa Wilderness, Cochise County", position: {lat: 32.897500, lng: -110.488600}, stat: "P", title: "SQM", dsn: "DSN---"},
+];
+
+  const map = new Map(document.getElementById("map"), {
+    zoom: 8,
+    center: {lat: 32.2540, lng: -110.9742},
+    mapId: "4504f8b37365c3d0",
+  });
+
+  // Create an info window to share between markers.
+  const infoWindow = new InfoWindow();
+
+  // Create the markers.
+  SQM.forEach(({ position, title, site, stat, dsn }, i) => {
+    let status = (stat == "E") ? "Existing" : "Proposed";
+    let fillColor = (stat == "E") ? "orange" : "red";
+    
+    // Use custom DSN label if provided, otherwise generate standard label
+    let label;
+    if (dsn) {
+      label = dsn;
+    } else {
+      // Apply spacer logic (DSN00X for <10, DSN0X for >=10)
+      let spacer = (i < 9) ? "DSN00" : "DSN0";
+      label = `${spacer}${i + 1}`; // Example: DSN001, DSN002, ..., DSN010, DSN011, etc.
+    }
+    
+    // Create an SVG rectangle for the marker
+    const svgRect = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svgRect.setAttribute("width", "70");
+    svgRect.setAttribute("height", "30");
+    svgRect.innerHTML = `
+      <rect width="70" height="30" fill="${fillColor}" stroke="black" stroke-width="2"/>
+      <text x="35" y="15" font-size="12" font-family="Arial" fill="white" text-anchor="middle"
+	    alignment-baseline="middle">${label}</text>
+      `;
+
+    // Wrap the SVG in a div so Google Maps can display it
+    const markerDiv = document.createElement("div");
+    markerDiv.appendChild(svgRect);
+
+    // Create an advanced marker with SVG rectangle
+    const marker = new AdvancedMarkerElement({
+      position,
+      map,
+      title: `<h1>${title}</h1><br><h2>${site}<br>${status}</h2>
+              <br><h4>${label}<br>Lat: ${position.lat}<br> Lon: ${position.lng}</h4>`,
+      content: markerDiv,
+      gmpClickable: true,
+    });
+
+    // Add a click listener for each marker, and set up the info window.
+    marker.addListener("click", ({ domEvent, latLng }) => {
+      const { target } = domEvent;
+
+      infoWindow.close();
+      infoWindow.setContent(marker.title);
+      infoWindow.open(marker.map, marker);
+    });
+  });
+}
+
+initMap();
+</script>
+</body>
+</html>
