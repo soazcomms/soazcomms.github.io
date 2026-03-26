@@ -1401,3 +1401,18 @@ DSN039-S_2026-006.csv
 DSN039-S_2026-007.csv
 DSN039-S_2026-008.csv to Box
 2026-03-04 08:25:48 Deleted temp files.
+2026-03-26 21:02:32 Start DSN-process_data.
+2026-03-26 21:05:13 Uploaded chunk files DSN003S_Sugarloaf_2025-2027.csv DSN014S_Tubac_2025-2027.csv DSN016S_SaguaroNP_2025-2027.csv DSN024S_Winer_2025-2027.csv DSN039S_SRER_2025-2027.csv DSN042S_Bonita_2025-2027.csv to influx
+2026-03-26 21:06:34 Uploaded Bonita_26.csv
+DSN003-S_26_012.csv
+DSN003-S_26_013.csv
+DSN014-S_26_039.csv
+DSN016-S_26_013.csv
+DSN024-S_2026-009.csv
+DSN024-S_2026-010.csv
+DSN024-S_2026-011.csv
+DSN039-S_2026-009.csv
+DSN039-S_2026-010.csv
+DSN039-S_2026-011.csv
+Sugarloaf_26.csv to Box
+2026-03-26 21:06:34 Deleted temp files.
