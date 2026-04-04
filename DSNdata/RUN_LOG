@@ -1424,3 +1424,8 @@ DSN029-T_26_104.csv
 DSN039-S_2026-012.csv
 DSN044-S_24.csv to Box
 2026-04-04 18:50:05 Deleted temp files.
+2026-04-04 20:03:19 Start DSN-process_data.
+2026-04-04 20:05:07 Uploaded chunk files DSN014S_Tubac_2025-2027.csv DSN044S_NOIRLabHQ_2022-2024.csv to influx
+2026-04-04 20:05:27 Uploaded DSN014-S_26_040.csv
+DSN044-S_24.csv to Box
+2026-04-04 20:05:28 Deleted temp files.
