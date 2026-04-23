@@ -1453,3 +1453,8 @@ DSN042-S_26_007.csv to Box
 2026-04-16 17:47:21 Uploaded chunk files DSN042S_Bonita_2025-2027.csv to influx
 2026-04-16 17:47:39 Uploaded DSN042-S_25_008.csv to Box
 2026-04-16 17:47:40 Deleted temp files.
+2026-04-23 02:39:14 Start DSN-process_data.
+2026-04-23 02:41:02 Uploaded chunk files DSN003S_Sugarloaf_2025-2027.csv DSN024S_Winer_2025-2027.csv to influx
+2026-04-23 02:41:30 Uploaded DSN003-S_26_013.csv
+DSN024-S_2026-015.csv to Box
+2026-04-23 02:41:31 Deleted temp files.
