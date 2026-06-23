@@ -1,7 +1,7 @@
 Site,Sequence,Alias
 DSN003-S,14,Sugarloaf
 DSN006-S,6,V06
-DSN008-S,5,OracleSP
+DSN008-S,6,OracleSP
 DSN014-S,44,Tubac
 DSN016-S,16,SaguaroNP
 DSN019-S,11,MtL
@@ -12,7 +12,7 @@ DSN030-S,5,Nogales
 DSN031-S,7,CFh
 DSN035-S,12,CCn
 DSN036-S,3,Gilinsky
-DSN038-S,0,Ironwood
+DSN038-S,1,Ironwood
 DSN039-S,17,SRER
 DSN040-S,4,CCs
 DSN041-S,4,G96
