@@ -1,0 +1,155 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>DSN038-S_Ironwood Analysis</title>
+  <style>
+    html {
+      scroll-behavior: smooth;
+    }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    .sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 235px;
+      box-sizing: border-box;
+      background: #0f172a;
+      color: #e5e7eb;
+      padding: 18px 18px 24px;
+      overflow-y: auto;
+      border-right: 1px solid #1e293b;
+    }
+    .sidebar h1 {
+      font-size: 18px;
+      line-height: 1.2;
+      margin: 0 0 6px;
+      color: #ffffff;
+    }
+    .sidebar .generated {
+      font-size: 12px;
+      color: #94a3b8;
+      margin: 0 0 18px;
+    }
+    .sidebar a {
+      display: block;
+      color: #cbd5e1;
+      text-decoration: none;
+      padding: 9px 0;
+      border-bottom: 1px solid #334155;
+      font-size: 15px;
+    }
+    .sidebar a:hover {
+      color: #ffffff;
+    }
+    .content {
+      margin-left: 255px;
+      padding: 22px 28px 44px;
+      max-width: 1800px;
+    }
+    .summary {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 16px 18px;
+      margin-bottom: 28px;
+      box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+    }
+    section {
+      margin-bottom: 48px;
+      scroll-margin-top: 16px;
+    }
+    section h2 {
+      margin: 0 0 10px;
+      font-size: 24px;
+    }
+    iframe {
+      width: 100%;
+      height: 900px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+    }
+    .open-link {
+      margin: 8px 0 0;
+      font-size: 14px;
+    }
+    .open-link a {
+      color: #2563eb;
+    }
+    .missing {
+      color: #b45309;
+      background: #fffbeb;
+      border: 1px solid #fcd34d;
+      padding: 10px 12px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <nav class="sidebar">
+    <h1>DSN038-S_Ironwood</h1>
+    <p class="generated">Generated: 2026-06-26 17:03 UTC</p>
+    <a href="#summary">Summary</a>
+    <a href="#histogram">Histogram</a>
+    <a href="#heatmap">Heatmap</a>
+    <a href="#jellyfish">Jellyfish</a>
+    <a href="#chisq">χ² Histogram</a>
+    <a href="#lst">LST</a>
+  </nav>
+  <main class="content">
+    <section id="summary" class="summary">
+
+<h2>1. Summary Statistics</h2>
+<ul>
+  <li><b>Site:</b> DSN038-S_Ironwood</li>
+  <li><b>Coordinates:</b> Lon -111.4702 Lat 32.3584 El 803 m</li>
+  <li><b>Time Range:</b> 26-05-01 18:50:08 to 26-06-21 04:41:44</li>
+  <li><b>Total Run Hours (18-6h):</b> 464.6</li>
+  <li><b>Night Hours (sunalt<-18):</b> 326.1</li>
+  <li><b>Run Hours percentage:</b> 70.2%</li>
+  <li><b>Percentage w/o clouds:</b> 71.8%</li>
+</ul>
+<h2>2. Night Sky Brightness (NSB) plots (interactive)</h2>
+
+    </section>
+
+    <section id="histogram">
+      <h2>Histogram</h2>
+      <iframe src="DSN038-S_Ironwood_histogram.html" loading="lazy"></iframe>
+      <p class="open-link"><a href="DSN038-S_Ironwood_histogram.html" target="_blank" rel="noopener">Open Histogram in a separate tab</a></p>
+    </section>
+
+    <section id="heatmap">
+      <h2>Heatmap</h2>
+      <iframe src="DSN038-S_Ironwood_heatmap.html" loading="lazy"></iframe>
+      <p class="open-link"><a href="DSN038-S_Ironwood_heatmap.html" target="_blank" rel="noopener">Open Heatmap in a separate tab</a></p>
+    </section>
+
+    <section id="jellyfish">
+      <h2>Jellyfish</h2>
+      <iframe src="DSN038-S_Ironwood_jellyfish.html" loading="lazy"></iframe>
+      <p class="open-link"><a href="DSN038-S_Ironwood_jellyfish.html" target="_blank" rel="noopener">Open Jellyfish in a separate tab</a></p>
+    </section>
+
+    <section id="chisq">
+      <h2>χ² Histogram</h2>
+      <iframe src="DSN038-S_Ironwood_chisq.html" loading="lazy"></iframe>
+      <p class="open-link"><a href="DSN038-S_Ironwood_chisq.html" target="_blank" rel="noopener">Open χ² Histogram in a separate tab</a></p>
+    </section>
+
+    <section id="lst">
+      <h2>LST</h2>
+      <iframe src="DSN038-S_Ironwood_lst.html" loading="lazy"></iframe>
+      <p class="open-link"><a href="DSN038-S_Ironwood_lst.html" target="_blank" rel="noopener">Open LST in a separate tab</a></p>
+    </section>
+  </main>
+</body>
+</html>
