@@ -1,0 +1,155 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>DSN039-S_SRER Analysis</title>
+  <style>
+    html {
+      scroll-behavior: smooth;
+    }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    .sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 235px;
+      box-sizing: border-box;
+      background: #0f172a;
+      color: #e5e7eb;
+      padding: 18px 18px 24px;
+      overflow-y: auto;
+      border-right: 1px solid #1e293b;
+    }
+    .sidebar h1 {
+      font-size: 18px;
+      line-height: 1.2;
+      margin: 0 0 6px;
+      color: #ffffff;
+    }
+    .sidebar .generated {
+      font-size: 12px;
+      color: #94a3b8;
+      margin: 0 0 18px;
+    }
+    .sidebar a {
+      display: block;
+      color: #cbd5e1;
+      text-decoration: none;
+      padding: 9px 0;
+      border-bottom: 1px solid #334155;
+      font-size: 15px;
+    }
+    .sidebar a:hover {
+      color: #ffffff;
+    }
+    .content {
+      margin-left: 255px;
+      padding: 22px 28px 44px;
+      max-width: 1800px;
+    }
+    .summary {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 16px 18px;
+      margin-bottom: 28px;
+      box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+    }
+    section {
+      margin-bottom: 28px;
+      scroll-margin-top: 16px;
+    }
+    section h2 {
+      margin: 0 0 6px;
+      font-size: 22px;
+    }
+    iframe {
+      display: block;
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+    }
+    .open-link {
+      margin: 8px 0 0;
+      font-size: 14px;
+    }
+    .open-link a {
+      color: #2563eb;
+    }
+    .missing {
+      color: #b45309;
+      background: #fffbeb;
+      border: 1px solid #fcd34d;
+      padding: 10px 12px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <nav class="sidebar">
+    <h1>DSN039-S_SRER</h1>
+    <p class="generated">Generated: 2026-07-18 23:35 UTC</p>
+    <a href="#summary">Summary</a>
+    <a href="#histogram">Histogram</a>
+    <a href="#heatmap">Heatmap</a>
+    <a href="#jellyfish">Jellyfish</a>
+    <a href="#chisq">χ² Histogram</a>
+    <a href="#lst">LST</a>
+  </nav>
+  <main class="content">
+    <section id="summary" class="summary">
+
+<h2>1. Summary Statistics</h2>
+<ul>
+  <li><b>Site:</b> DSN039-S_SRER</li>
+  <li><b>Coordinates:</b> Lon -110.8355 Lat 31.9107 El 997 m</li>
+  <li><b>Time Range:</b> 26-05-05 13:12:04 to 26-07-25 06:46:09</li>
+  <li><b>Total Run Hours (18-6h):</b> 593.3</li>
+  <li><b>Night Hours (sunalt<-18):</b> 412.1</li>
+  <li><b>Run Hours percentage:</b> 69.5%</li>
+  <li><b>Percentage w/o clouds:</b> 64.5%</li>
+</ul>
+<h2>2. Night Sky Brightness (NSB) plots (interactive)</h2>
+
+    </section>
+
+    <section id="histogram">
+      <h2>Histogram</h2>
+      <iframe src="DSN039-S_SRER_histogram.html" height="560" loading="lazy"></iframe>
+      <p class="open-link"><a href="DSN039-S_SRER_histogram.html" target="_blank" rel="noopener">Open Histogram in a separate tab</a></p>
+    </section>
+
+    <section id="heatmap">
+      <h2>Heatmap</h2>
+      <iframe src="DSN039-S_SRER_heatmap.html" height="650" loading="lazy"></iframe>
+      <p class="open-link"><a href="DSN039-S_SRER_heatmap.html" target="_blank" rel="noopener">Open Heatmap in a separate tab</a></p>
+    </section>
+
+    <section id="jellyfish">
+      <h2>Jellyfish</h2>
+      <iframe src="DSN039-S_SRER_jellyfish.html" height="650" loading="lazy"></iframe>
+      <p class="open-link"><a href="DSN039-S_SRER_jellyfish.html" target="_blank" rel="noopener">Open Jellyfish in a separate tab</a></p>
+    </section>
+
+    <section id="chisq">
+      <h2>χ² Histogram</h2>
+      <iframe src="DSN039-S_SRER_chisq.html" height="500" loading="lazy"></iframe>
+      <p class="open-link"><a href="DSN039-S_SRER_chisq.html" target="_blank" rel="noopener">Open χ² Histogram in a separate tab</a></p>
+    </section>
+
+    <section id="lst">
+      <h2>LST</h2>
+      <iframe src="DSN039-S_SRER_lst.html" height="560" loading="lazy"></iframe>
+      <p class="open-link"><a href="DSN039-S_SRER_lst.html" target="_blank" rel="noopener">Open LST in a separate tab</a></p>
+    </section>
+  </main>
+</body>
+</html>
