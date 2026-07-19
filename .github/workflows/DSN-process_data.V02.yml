@@ -156,98 +156,6 @@ jobs:
 
           PY
 
-      # Step 2b: Split INFLUX CSVs into ~3-year chunks (to avoid Influx partition buffering limits)
-      - name: Split INFLUX CSVs into 3-year chunks
-        run: |
-          set -euo pipefail
-          mkdir -p DSNdata/INFLUX_CHUNKS
-
-          python3 - <<'PY'
-          import os, glob, csv
-
-          IN_DIR  = "DSNdata/INFLUX"
-          OUT_DIR = "DSNdata/INFLUX_CHUNKS"
-          os.makedirs(OUT_DIR, exist_ok=True)
-
-          TIME_KEYS = ("UTC", "time", "_time")
-
-          def year_from_ts(s):
-              try:
-                  return int(str(s)[:4])
-              except Exception:
-                  return None
-
-          def is_meta_row(row0):
-              # Handle BOM and whitespace before '#'
-              if row0 is None:
-                  return False
-              s = str(row0).strip()
-              s = s.lstrip('\ufeff')
-              return s.startswith("#")
-
-          def split_csv(path):
-              base = os.path.basename(path).rsplit(".", 1)[0]
-
-              buckets = {}
-              meta_lines = []
-              header = None
-              time_idx = None
-              any_rows = False
-
-              def bucket_for_year(y):
-                  start = (y // 3) * 3
-                  end = start + 2
-                  return (start, end)
-
-              with open(path, "r", encoding="utf-8", newline="") as f:
-                  rdr = csv.reader(f)
-                  for row in rdr:
-                      if not row:
-                          continue
-
-                      if is_meta_row(row[0]):
-                          if header is None:
-                              meta_lines.append(row)
-                          continue
-
-                      if header is None:
-                          header = row
-                          time_idx = None
-                          for k in TIME_KEYS:
-                              if k in header:
-                                  time_idx = header.index(k)
-                                  break
-                          if time_idx is None:
-                              raise RuntimeError(f"No UTC/time column found in {path}. Header={header}")
-                          continue
-
-                      if len(row) <= time_idx:
-                          continue
-                      y = year_from_ts(row[time_idx])
-                      if y is None:
-                          continue
-                      any_rows = True
-                      key = bucket_for_year(y)
-                      buckets.setdefault(key, []).append(row)
-
-              if not any_rows:
-                  return
-
-              for (start, end), rows in sorted(buckets.items()):
-                  out_path = os.path.join(OUT_DIR, f"{base}_{start}-{end}.csv")
-                  with open(out_path, "w", encoding="utf-8", newline="") as out:
-                      w = csv.writer(out)
-                      for m in meta_lines:
-                          w.writerow(m)
-                      w.writerow(header)
-                      w.writerows(rows)
-                  print(f"[chunk] {os.path.basename(path)} -> {os.path.basename(out_path)} ({len(rows)} rows)")
-
-          for p in sorted(glob.glob(os.path.join(IN_DIR, "*.csv"))):
-              split_csv(p)
-          PY
-
-
       # Step 3: Set Up Docker
       - name: Set Up Docker
         run: |
@@ -271,38 +179,45 @@ jobs:
           echo "Starting InfluxDB CLI container..."
           docker run --name influx-cli -d influxdb:2.7.5 tail -f /dev/null
 
-      # Step 5: Copy 3-year chunked CSV Files to Docker Container
-      - name: Copy chunked CSV Files to Docker
+      # Step 5: Copy generated Influx CSV files to Docker Container
+      - name: Copy Influx CSV Files to Docker
         run: |
-          echo "Copying chunked .csv files to Docker container..."
-          docker exec influx-cli mkdir -p /data/chunks
-          docker cp DSNdata/INFLUX_CHUNKS/. influx-cli:/data/chunks/
+          echo "Copying original .csv files to Docker container..."
+          docker exec influx-cli mkdir -p /data
+          docker cp DSNdata/INFLUX/. influx-cli:/data/
 
-      # Step 6: Upload CSV Files to InfluxDB Cloud
+      # Step 6: Upload original CSV Files to InfluxDB Cloud
       - name: Upload CSV Files to InfluxDB Cloud
         run: |
+          set -euo pipefail
           echo "Running InfluxDB CLI commands inside Docker..."
-          IN_FILES=$(docker exec influx-cli ls /data/chunks | grep .csv || true)
+
+          IN_FILES=$(docker exec influx-cli sh -c 'find /data -maxdepth 1 -type f -name "*.csv" -printf "%f\n" | sort')
           if [ -z "$IN_FILES" ]; then
             echo "Error: No .csv files found in /data to upload." >&2
+            docker exec influx-cli ls -la /data >&2
             exit 1
-          else
-            echo "Influx files in docker: "$IN_FILES  
           fi
-          for infile in $IN_FILES; do
+
+          echo "Influx files in docker:"
+          printf '%s\n' "$IN_FILES"
+
+          while IFS= read -r infile; do
+            [ -n "$infile" ] || continue
             success=false
-            errors_file="/data/chunks/${infile}.errors"
+            errors_file="/tmp/${infile}.errors"
 
             for attempt in {1..5}; do
-              echo "Uploading /data/chunks/$infile to InfluxDB Cloud..."
-              docker exec influx-cli rm -f "$errors_file"
+              echo "Uploading /data/$infile to InfluxDB Cloud..."
+
+              docker exec influx-cli sh -c ': > "$1"' sh "$errors_file"
 
               if docker exec influx-cli influx write \
                 --host https://us-east-1-1.aws.cloud2.influxdata.com \
                 --org DSN \
                 --bucket DSNdata \
                 --token "$INFLUX_TOKEN" \
-                --file "/data/chunks/$infile" \
+                --file "/data/$infile" \
                 --format csv \
                 --errors-file "$errors_file" \
                 --debug; then
@@ -324,9 +239,10 @@ jobs:
               echo "Error: Failed to upload $infile to InfluxDB Cloud." >&2
               exit 1
             fi
-          done
+          done <<< "$IN_FILES"
+
           CURRENT_DATE=$(date '+%Y-%m-%d %H:%M:%S')
-          echo $CURRENT_DATE "Uploaded chunk files "$IN_FILES" to influx" >> DSNdata/RUN_LOG
+          echo "$CURRENT_DATE Uploaded files $IN_FILES to influx" >> DSNdata/RUN_LOG
           echo "All files successfully uploaded to InfluxDB Cloud."
 
       # Step 6a: Verify corrected Sugarloaf values in InfluxDB
@@ -414,7 +330,6 @@ jobs:
           rm -f results.txt
           rm -rf DSNdata/NEW/*
           rm -f DSNdata/INFLUX/*
-          rm -f DSNdata/INFLUX_CHUNKS/*
           rm -f DSNdata/BOX/*
           rm -f DSNdata/MERGE/*
           echo "Cleaning up Docker container..."
