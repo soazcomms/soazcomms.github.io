@@ -1749,3 +1749,9 @@ DSN014-T_26_012.csv to Box with rclone
 2026-07-19 03:49:23 Uploaded chunk files DSN003S_Sugarloaf_2025-2027.csv to influx
 2026-07-19 03:49:40 Uploaded DSN003-S_26_013.csv to Box with rclone
 2026-07-19 03:49:40 Deleted temp files.
+2026-07-19 20:23:50 Start DSN-process_data.
+2026-07-19 20:25:48 Uploaded files DSN003S_Sugarloaf.csv
+DSN036S_Gilinsky.csv to influx
+2026-07-19 20:26:09 Uploaded DSN003-S_26_013.csv
+DSN036-S_Gilinsky_26-07.csv to Box with rclone
+2026-07-19 20:26:10 Deleted temp files.
