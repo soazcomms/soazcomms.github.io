@@ -8,7 +8,7 @@ on:
 env:
   GDRIVE_CONFIG: ${{ secrets.GDRIVE_CONFIG }}
   NEW_PATH: "DSNdata/NEW/"
-  BOX_RCLONE_CONF: ${{ secrets.RCLONE_CONFIG }}
+  BOX_RCLONE_CONF: ${{ secrets.RCLONE_CONFIG_GET_SQM }}
   BOX_REMOTE: "DSNBox:DSNdata/SQM/"
   MERGE_PATH: "DSNdata/MERGE/"
   SQMTABLE_CSV: "DSNdata/SQMtable.csv"
