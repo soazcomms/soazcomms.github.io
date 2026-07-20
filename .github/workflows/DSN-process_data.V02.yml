@@ -20,6 +20,74 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v5
 
+      # Validate Box credentials before expensive processing
+      - name: Set up rclone
+        shell: bash
+        env:
+          RCLONE_CONFIG_SECRET: ${{ secrets.RCLONE_CONFIG }}
+        run: |
+          set -euo pipefail
+
+          echo "Installing rclone..."
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+
+          RCLONE_CONFIG_FILE="$RUNNER_TEMP/rclone.conf"
+          mkdir -p "$(dirname "$RCLONE_CONFIG_FILE")"
+
+          if [ -z "${RCLONE_CONFIG_SECRET:-}" ]; then
+            echo "ERROR: GitHub secret RCLONE_CONFIG is empty or unavailable." >&2
+            exit 1
+          fi
+
+          # Accept either the complete plaintext rclone.conf or a base64-encoded copy.
+          if printf '%s' "$RCLONE_CONFIG_SECRET" | grep -q '^\[DSNBox\]'; then
+            printf '%s\n' "$RCLONE_CONFIG_SECRET" > "$RCLONE_CONFIG_FILE"
+            echo "Loaded RCLONE_CONFIG as plaintext."
+          else
+            if ! printf '%s' "$RCLONE_CONFIG_SECRET" | base64 --decode > "$RCLONE_CONFIG_FILE" 2>/dev/null; then
+              echo "ERROR: RCLONE_CONFIG is neither plaintext rclone.conf nor valid base64." >&2
+              exit 1
+            fi
+            echo "Loaded RCLONE_CONFIG as base64."
+          fi
+
+          chmod 600 "$RCLONE_CONFIG_FILE"
+
+          if ! grep -q '^\[DSNBox\]$' "$RCLONE_CONFIG_FILE"; then
+            echo "ERROR: [DSNBox] is missing from RCLONE_CONFIG." >&2
+            exit 1
+          fi
+
+          echo "RCLONE_CONFIG_FILE=$RCLONE_CONFIG_FILE" >> "$GITHUB_ENV"
+          echo "Configured rclone remotes:"
+          rclone --config "$RCLONE_CONFIG_FILE" listremotes
+
+          # Safe fingerprint proves which config GitHub loaded without exposing its token.
+          echo "DSNBox token fingerprint:"
+          sed -n '/^\[DSNBox\]$/,/^\[/p' "$RCLONE_CONFIG_FILE" \
+            | sed -n 's/^token[[:space:]]*=[[:space:]]*//p' \
+            | shasum -a 256 \
+            | awk '{print $1}'
+
+          echo "Testing Box remote: ${BOX_REMOTE}"
+          rclone --config "$RCLONE_CONFIG_FILE" lsd "${BOX_REMOTE}"
+
+
+      - name: Save refreshed Box token immediately
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GH_SECRETS_PAT }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "ERROR: GH_SECRETS_PAT is missing. It must be a fine-grained PAT with repository Secrets: Read and write." >&2
+            exit 1
+          fi
+          gh secret set RCLONE_CONFIG --repo "$GITHUB_REPOSITORY" < "$RCLONE_CONFIG_FILE"
+          echo "Saved the refreshed rclone configuration back to RCLONE_CONFIG."
+
+
+
       # Check for files in DSNdata/NEW, quit if none
       - name: Fail if no NEW files
         run: |
@@ -58,33 +126,6 @@ jobs:
             fi
           done
 
-      # Step 2a: Extract/accumulate TESS enclosure temperatures
-      - name: Extract TESS enclosure temperatures
-        run: |
-          mkdir -p DSNdata/TESS_TEMP
-
-          python3 - <<'PY'
-          import os
-          import glob
-          import csv
-
-          OUTDIR = "DSNdata/TESS_TEMP"
-          os.makedirs(OUTDIR, exist_ok=True)
-
-          outfile = os.path.join(OUTDIR, "TESS_temperature.csv")
-
-          seen = set()
-
-          # Load existing UTs so reruns do not duplicate records
-          if os.path.exists(outfile):
-              with open(outfile, "r", encoding="utf-8", newline="") as f:
-                  rdr = csv.DictReader(f)
-                  for row in rdr:
-                      ut = row.get("UT", "").strip()
-                      if ut:
-                          seen.add(ut)
-
-          new_rows = []
       # Step 2a: Extract/accumulate TESS enclosure temperatures
       - name: Extract TESS enclosure temperatures
         run: |
@@ -259,59 +300,7 @@ jobs:
               |> filter(fn: (r) => r._field == "SQM" or r._field == "lum")
               |> keep(columns: ["_time", "_measurement", "_field", "_value"])'
 
-      # Step 7: Install and configure rclone for Box
-      - name: Set up rclone
-        shell: bash
-        env:
-          RCLONE_CONFIG_SECRET: ${{ secrets.RCLONE_CONFIG }}
-        run: |
-          set -euo pipefail
-
-          echo "Installing rclone..."
-          curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          RCLONE_CONFIG_FILE="$RUNNER_TEMP/rclone.conf"
-          mkdir -p "$(dirname "$RCLONE_CONFIG_FILE")"
-
-          if [ -z "${RCLONE_CONFIG_SECRET:-}" ]; then
-            echo "ERROR: GitHub secret RCLONE_CONFIG is empty or unavailable." >&2
-            exit 1
-          fi
-
-          # Accept either the complete plaintext rclone.conf or a base64-encoded copy.
-          if printf '%s' "$RCLONE_CONFIG_SECRET" | grep -q '^\[DSNBox\]'; then
-            printf '%s\n' "$RCLONE_CONFIG_SECRET" > "$RCLONE_CONFIG_FILE"
-            echo "Loaded RCLONE_CONFIG as plaintext."
-          else
-            if ! printf '%s' "$RCLONE_CONFIG_SECRET" | base64 --decode > "$RCLONE_CONFIG_FILE" 2>/dev/null; then
-              echo "ERROR: RCLONE_CONFIG is neither plaintext rclone.conf nor valid base64." >&2
-              exit 1
-            fi
-            echo "Loaded RCLONE_CONFIG as base64."
-          fi
-
-          chmod 600 "$RCLONE_CONFIG_FILE"
-
-          if ! grep -q '^\[DSNBox\]$' "$RCLONE_CONFIG_FILE"; then
-            echo "ERROR: [DSNBox] is missing from RCLONE_CONFIG." >&2
-            exit 1
-          fi
-
-          echo "RCLONE_CONFIG_FILE=$RCLONE_CONFIG_FILE" >> "$GITHUB_ENV"
-          echo "Configured rclone remotes:"
-          rclone --config "$RCLONE_CONFIG_FILE" listremotes
-
-          # Safe fingerprint proves which config GitHub loaded without exposing its token.
-          echo "DSNBox token fingerprint:"
-          sed -n '/^\[DSNBox\]$/,/^\[/p' "$RCLONE_CONFIG_FILE" \
-            | sed -n 's/^token[[:space:]]*=[[:space:]]*//p' \
-            | shasum -a 256 \
-            | awk '{print $1}'
-
-          echo "Testing Box remote: ${BOX_REMOTE}"
-          rclone --config "$RCLONE_CONFIG_FILE" lsd "${BOX_REMOTE}"
-
-      # Step 8: Upload/merge files in Box with rclone
+      # Upload/merge files in Box with rclone
       - name: Upload Files to Box
         run: |
           set -euo pipefail
@@ -357,6 +346,21 @@ jobs:
             CURRENT_DATE=$(date '+%Y-%m-%d %H:%M:%S')
             echo "$CURRENT_DATE Uploaded $IN_FILES to Box with rclone" >> DSNdata/RUN_LOG
             echo "$CURRENT_DATE Uploaded $IN_FILES to Box with rclone: written to log."
+          fi
+
+      - name: Save final rotated Box token
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GH_SECRETS_PAT }}
+        run: |
+          set -euo pipefail
+          if [ -f "${RCLONE_CONFIG_FILE:-}" ] && [ -n "${GH_TOKEN:-}" ]; then
+            gh secret set RCLONE_CONFIG --repo "$GITHUB_REPOSITORY" < "$RCLONE_CONFIG_FILE"
+            echo "Saved final rclone token state back to RCLONE_CONFIG."
+          else
+            echo "No rclone config or GH_SECRETS_PAT available; token state was not saved." >&2
+            exit 1
           fi
 
       # Step 9: Clean Up
