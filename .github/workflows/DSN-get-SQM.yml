@@ -1,419 +1,153 @@
-name: DSN Process SQM/TESS Raw Data and Upload to Box
-# Trigger the workflow on a schedule (in production mode)
+name: DSN-get-SQM Data
+
 on:
   schedule:
-    - cron: '0 8 * * 3'  # Runs every Wed at 08:00 UTC
-  workflow_dispatch:
-
-# Box refresh tokens are single-use. Never allow two runs to use the same token.
-concurrency:
-  group: dsn-process-box-rclone
-  cancel-in-progress: false
+    - cron: '0 8 * * 2'  # Runs at 08:00 UTC every Tuesday
+  workflow_dispatch:  # Allows manual triggering
 
 env:
-  INFLUX_TOKEN: ${{ secrets.INFLUX_TOKEN1 }}
-  BOX_PATH: "DSNdata/BOX/"
+  GDRIVE_CONFIG: ${{ secrets.GDRIVE_CONFIG }}
+  NEW_PATH: "DSNdata/NEW/"
+  BOX_RCLONE_CONF: ${{ secrets.RCLONE_CONFIG }}
+  BOX_REMOTE: "DSNBox:DSNdata/SQM/"
   MERGE_PATH: "DSNdata/MERGE/"
-  BOX_REMOTE: "DSNBox:DSNdata/ARCHIVE/"
+  SQMTABLE_CSV: "DSNdata/SQMtable.csv"
+  LOG_FILE: "DSNdata/SQMdownloaded.log"
 
 jobs:
-  process_and_upload:
+  sync-sqm-data:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout Repository, get python
-      - name: Checkout Repository
+      - name: Check out repository
         uses: actions/checkout@v5
 
-      # Validate Box credentials before expensive processing
-      - name: Set up rclone
-        shell: bash
-        env:
-          RCLONE_CONFIG_SECRET: ${{ secrets.RCLONE_CONFIG }}
-        run: |
-          set -euo pipefail
-
-          echo "Installing rclone..."
-          curl -fsSL https://rclone.org/install.sh | sudo bash
-
-          RCLONE_CONFIG_FILE="$RUNNER_TEMP/rclone.conf"
-          mkdir -p "$(dirname "$RCLONE_CONFIG_FILE")"
-
-          if [ -z "${RCLONE_CONFIG_SECRET:-}" ]; then
-            echo "ERROR: GitHub secret RCLONE_CONFIG is empty or unavailable." >&2
-            exit 1
-          fi
-
-          # Accept either the complete plaintext rclone.conf or a base64-encoded copy.
-          if printf '%s' "$RCLONE_CONFIG_SECRET" | grep -q '^\[DSNBox\]'; then
-            printf '%s\n' "$RCLONE_CONFIG_SECRET" > "$RCLONE_CONFIG_FILE"
-            echo "Loaded RCLONE_CONFIG as plaintext."
-          else
-            if ! printf '%s' "$RCLONE_CONFIG_SECRET" | base64 --decode > "$RCLONE_CONFIG_FILE" 2>/dev/null; then
-              echo "ERROR: RCLONE_CONFIG is neither plaintext rclone.conf nor valid base64." >&2
-              exit 1
-            fi
-            echo "Loaded RCLONE_CONFIG as base64."
-          fi
-
-          chmod 600 "$RCLONE_CONFIG_FILE"
-
-          if ! grep -q '^\[DSNBox\]$' "$RCLONE_CONFIG_FILE"; then
-            echo "ERROR: [DSNBox] is missing from RCLONE_CONFIG." >&2
-            exit 1
-          fi
-
-          echo "RCLONE_CONFIG_FILE=$RCLONE_CONFIG_FILE" >> "$GITHUB_ENV"
-          echo "Configured rclone remotes:"
-          rclone --config "$RCLONE_CONFIG_FILE" listremotes
-
-          # Safe fingerprint proves which config GitHub loaded without exposing its token.
-          echo "DSNBox token fingerprint:"
-          sed -n '/^\[DSNBox\]$/,/^\[/p' "$RCLONE_CONFIG_FILE" \
-            | sed -n 's/^token[[:space:]]*=[[:space:]]*//p' \
-            | shasum -a 256 \
-            | awk '{print $1}'
-
-          echo "Testing Box remote: ${BOX_REMOTE}"
-          rclone --config "$RCLONE_CONFIG_FILE" lsd "${BOX_REMOTE}"
-
-
-      - name: Save refreshed Box token immediately
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GH_SECRETS_PAT }}
-        run: |
-          set -euo pipefail
-          if [ -z "${GH_TOKEN:-}" ]; then
-            echo "ERROR: GH_SECRETS_PAT is missing. It must be a fine-grained PAT with repository Secrets: Read and write." >&2
-            exit 1
-          fi
-          gh secret set RCLONE_CONFIG --repo "$GITHUB_REPOSITORY" < "$RCLONE_CONFIG_FILE"
-          echo "Saved the refreshed rclone configuration back to RCLONE_CONFIG."
-
-
-
-      # Verify the checked-out repository really contains processable NEW files
-      - name: Verify NEW files
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          echo "PWD=$(pwd)"
-          echo "Checked-out branch:"
-          git branch --show-current
-          echo "Checked-out commit:"
-          git rev-parse HEAD
-
-          echo "Contents of DSNdata/NEW:"
-          ls -la DSNdata/NEW
-
-          echo "Non-hidden files found:"
-          find DSNdata/NEW -maxdepth 1 -type f ! -name '.*' -print
-
-          FILE_COUNT=$(find DSNdata/NEW -maxdepth 1 -type f ! -name '.*' | wc -l | tr -d '[:space:]')
-          echo "NEW file count: ${FILE_COUNT}"
-
-          if [ "${FILE_COUNT}" -eq 0 ]; then
-            CURRENT_DATE=$(date '+%Y-%m-%d %H:%M:%S')
-            echo "${CURRENT_DATE} No non-hidden files in DSNdata/NEW." >> DSNdata/RUN_LOG
-            echo "ERROR: No non-hidden files found in DSNdata/NEW." >&2
-            exit 1
-          fi
-
-      # Step 1: Setup environment
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.10'
+          python-version: '3.x'
 
       - name: Install dependencies
         run: |
-          CURRENT_DATE=$(date '+%Y-%m-%d %H:%M:%S')
-          echo $CURRENT_DATE "Start DSN-process_data." >> DSNdata/RUN_LOG
           sudo apt-get update
           sudo apt-get install -y pkg-config libgtk-3-dev libc-bin curl
           pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install pandas
+          sudo apt-get install -y rclone
 
-      # Step 2: run DSN_V03.py on all files in DSNdata/NEW
-      - name: Process files, write results to DSNdata/INFLUX
+      - name: Configure rclone
         run: |
-          cp DSNdata/DSNsites.csv ./DSNsites.csv
-          find DSNdata/NEW -maxdepth 1 -type f ! -name '.*' | while IFS= read -r file; do
-            if [ -f "$file" ]; then  # ignore dirs
-              new_file="$file"
-              echo "Process $new_file"
-              python3 DSN_V03.py $new_file || { echo "Error processing $new_file" >&2; exit 1; }
-            fi
-          done
+          mkdir -p ~/.config/rclone
+          echo "$GDRIVE_CONFIG" > ~/.config/rclone/rclone.conf
+          printf "\n" >> ~/.config/rclone/rclone.conf
+          echo "$BOX_RCLONE_CONF" >> ~/.config/rclone/rclone.conf
+          rclone listremotes  # Verify connection
+          echo "DSNBox sections:"
+          grep -n '^\[DSNBox\]$' ~/.config/rclone/rclone.conf || true
+          rclone config redacted DSNBox
+          rclone lsd DSNBox:
 
-      # Step 2a: Extract/accumulate TESS enclosure temperatures
-      - name: Extract TESS enclosure temperatures
+      - name: Ensure Log File Exists
         run: |
-          mkdir -p DSNdata/TESS_TEMP
+          touch "$LOG_FILE"
 
-          python3 - <<'PY'
-          import os
-          import glob
-          import csv
-
-          OUTDIR = "DSNdata/TESS_TEMP"
-          os.makedirs(OUTDIR, exist_ok=True)
-
-          for infile in sorted(glob.glob("DSNdata/NEW/*.dat")):
-              print(f"Reading {infile}")
-
-              # Example:
-              # DSN029-T_2026-019.dat -> DSN029-T
-              label = os.path.basename(infile).split("_")[0]
-
-              outfile = os.path.join(OUTDIR, f"{label}_T.csv")
-              seen = set()
-
-              # Load existing UTs for this site
-              if os.path.exists(outfile):
-                  with open(outfile, "r", encoding="utf-8", newline="") as f:
-                      rdr = csv.DictReader(f)
-
-                      for row in rdr:
-                          ut = row.get("UT", "").strip()
-
-                          if ut:
-                              seen.add(ut)
-
-              new_rows = []
-              with open(infile, "r", encoding="utf-8", errors="ignore") as fp:
-                  for line in fp:
-                      line = line.strip()
-                      if not line or line.startswith("#"):
-                          continue
-
-                      parts = line.split(";")
-                      if len(parts) < 3:
-                          continue
-
-                      ut = parts[0].strip()
-                      temp = parts[2].strip()
-                      if not ut:
-                          continue
-                      if not temp:
-                          continue
-                      if temp.lower() == "nan":
-                          continue
-                      if ut in seen:
-                          continue
-
-                      seen.add(ut)
-                      new_rows.append((ut, temp))
-
-              write_header = not os.path.exists(outfile)
-              with open(outfile, "a", encoding="utf-8", newline="") as out:
-                  w = csv.writer(out)
-                  if write_header:
-                      w.writerow(["UT", "T"])
-
-                  w.writerows(new_rows)
-
-              print(f"Wrote/appended {len(new_rows)} rows to {outfile}")
-
-          PY
-
-      # Step 3: Set Up Docker
-      - name: Set Up Docker
+      - name: Process each site in SQMtable.csv
         run: |
-          echo "Installing Docker..."
-          sudo apt-get update
-          sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
-          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-          sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-          sudo apt-get update
-          sudo apt-get remove -y containerd
-          sudo apt-get install -y docker-ce
-          sudo systemctl start docker
-          sudo systemctl enable docker
-          docker --version
-
-      # Step 4: Run InfluxDB CLI in Docker
-      - name: Start InfluxDB CLI Docker Container
-        run: |
-          echo "Pulling InfluxDB CLI Docker image..."
-          docker pull influxdb:2.7.5
-          echo "Starting InfluxDB CLI container..."
-          docker run --name influx-cli -d influxdb:2.7.5 tail -f /dev/null
-
-      # Step 5: Copy generated Influx CSV files to Docker Container
-      - name: Copy Influx CSV Files to Docker
-        run: |
-          echo "Copying original .csv files to Docker container..."
-          docker exec influx-cli mkdir -p /data
-          docker cp DSNdata/INFLUX/. influx-cli:/data/
-
-      # Step 6: Upload original CSV Files to InfluxDB Cloud
-      - name: Upload CSV Files to InfluxDB Cloud
-        run: |
-          set -euo pipefail
-          echo "Running InfluxDB CLI commands inside Docker..."
-
-          IN_FILES=$(docker exec influx-cli sh -c 'find /data -maxdepth 1 -type f -name "*.csv" -printf "%f\n" | sort')
-          if [ -z "$IN_FILES" ]; then
-            echo "Error: No .csv files found in /data to upload." >&2
-            docker exec influx-cli ls -la /data >&2
+          if [ ! -f "$SQMTABLE_CSV" ]; then
+            echo "Error: SQMtable.csv not found!" >&2
             exit 1
           fi
 
-          echo "Influx files in docker:"
-          printf '%s\n' "$IN_FILES"
+          mkdir -p "$NEW_PATH"
 
-          while IFS= read -r infile; do
-            [ -n "$infile" ] || continue
-            success=false
-            errors_file="/tmp/${infile}.errors"
+          echo "Processing each site in $SQMTABLE_CSV..."
+          awk 'NF' "$SQMTABLE_CSV" | sed 's/\r$//' > cleaned_sqm.csv
 
-            for attempt in {1..5}; do
-              echo "Uploading /data/$infile to InfluxDB Cloud..."
-
-              docker exec influx-cli sh -c ': > "$1"' sh "$errors_file"
-
-              if docker exec influx-cli influx write \
-                --host https://us-east-1-1.aws.cloud2.influxdata.com \
-                --org DSN \
-                --bucket DSNdata \
-                --token "$INFLUX_TOKEN" \
-                --file "/data/$infile" \
-                --format csv \
-                --errors-file "$errors_file" \
-                --debug; then
-
-                if docker exec influx-cli test -s "$errors_file"; then
-                  echo "ERROR: Influx rejected rows from $infile:" >&2
-                  docker exec influx-cli cat "$errors_file" >&2
-                else
-                  success=true
-                  break
-                fi
-              fi
-
-              echo "Attempt $attempt failed, retrying..."
-              sleep 10
-            done
-
-            if [ "$success" = false ]; then
-              echo "Error: Failed to upload $infile to InfluxDB Cloud." >&2
-              exit 1
+          while IFS=, read -r site_name sequence alias; do
+            if [[ -z "$site_name" || "$site_name" == "Site" ]]; then
+              continue
             fi
-          done <<< "$IN_FILES"
 
-          CURRENT_DATE=$(date '+%Y-%m-%d %H:%M:%S')
-          echo "$CURRENT_DATE Uploaded files $IN_FILES to influx" >> DSNdata/RUN_LOG
-          echo "All files successfully uploaded to InfluxDB Cloud."
+            echo "---- Processing Site: $site_name (Seq: $sequence)"
+            SITE_FOLDER="soazdsn:DSNdata/DSNsites/$site_name"
+            LOCAL_FOLDER="DSNdata/$site_name"
+            mkdir -p "$LOCAL_FOLDER"
 
-      # Step 6a: Verify corrected Sugarloaf values in InfluxDB
-      - name: Verify Sugarloaf Influx update
+            echo "Checking for new .dat,.csv,.xlsx files in $SITE_FOLDER..."
+            rclone lsf "$SITE_FOLDER" --files-only | grep -Ei "\.(dat|csv|xlsx)$" > available_files.txt || true
+
+            if [ -f "$LOG_FILE" ]; then
+              grep -Fxvf "$LOG_FILE" available_files.txt > new_files.txt || true
+            else
+              mv available_files.txt new_files.txt
+            fi
+
+            if [ -s new_files.txt ]; then
+              echo "Downloading new files..."
+              while IFS= read -r file; do
+                if [[ -n "$file" ]]; then
+                  echo "Downloading: $file"
+                  if rclone copyto "$SITE_FOLDER/$file" "$LOCAL_FOLDER/$file" --verbose; then
+                    echo "$file" >> "$LOG_FILE"
+                  else
+                    echo "ERROR: Failed to download $file" >&2
+                    exit 1
+                  fi
+                else
+                  echo "Warning: Empty filename encountered, skipping."
+                fi
+              done < new_files.txt
+
+              python DSN_rename_sqm_files.py  "$LOCAL_FOLDER" "$SQMTABLE_CSV" 
+
+              for file in "$LOCAL_FOLDER"/*; do
+                if [ -f "$file" ]; then
+                  mv "$file" "$NEW_PATH"
+                  echo "Moved $file to $NEW_PATH"
+                fi
+              done
+            else
+              echo "No new files for $site_name, skipping."
+            fi
+          done < cleaned_sqm.csv
+
+      - name: Commit Updated Log and SQMtable.csv
         run: |
-          echo "Querying corrected Sugarloaf point from InfluxDB..."
-          docker exec influx-cli influx query \
-            --host https://us-east-1-1.aws.cloud2.influxdata.com \
-            --org DSN \
-            --token "$INFLUX_TOKEN" \
-            'from(bucket: "DSNdata")
-              |> range(start: 2025-12-25T06:59:59Z, stop: 2025-12-25T07:00:01Z)
-              |> filter(fn: (r) => r._measurement == "DSN003S_Sugarloaf")
-              |> filter(fn: (r) => r._field == "SQM" or r._field == "lum")
-              |> keep(columns: ["_time", "_measurement", "_field", "_value"])'
-
-      # Upload/merge files in Box with rclone
-      - name: Upload Files to Box
-        run: |
-          set -euo pipefail
-          echo "BOX_PATH is set to: ${BOX_PATH}"
-          echo "BOX_REMOTE is set to: ${BOX_REMOTE}"
-          mkdir -p "${MERGE_PATH}"
-
-          if [ -d "${BOX_PATH}" ] && [ "$(ls -A "${BOX_PATH}")" ]; then
-            IN_FILES=$(find "${BOX_PATH}" -maxdepth 1 -type f ! -name ".*" -printf '%f\n')
-          else
-            echo "Warning: No files found in ${BOX_PATH}"
-            IN_FILES=""
-          fi
-
-          if [ -z "$IN_FILES" ]; then
-            echo "No files to upload to Box, skipping..."
-          else
-            echo "++++++++++ IN_FILES: $IN_FILES in ${BOX_PATH}"
-            rclone --config "$RCLONE_CONFIG_FILE" lsf "${BOX_REMOTE}" --files-only > results.txt
-
-            for file in $IN_FILES; do
-              box_file="${BOX_PATH}${file}"
-              raw_file=$(echo "$file" | sed -E 's/_20([0-9]{2})-([0-9]{3})/_\1_\2/')
-              cp "$box_file" "$raw_file"
-              echo "Boxing $box_file as $raw_file"
-
-              if grep -Fxq "$raw_file" results.txt; then
-                echo "⬇️⬇️⬇️ Download existing Box file: $raw_file"
-                rclone --config "$RCLONE_CONFIG_FILE" copyto "${BOX_REMOTE}${raw_file}" "${MERGE_PATH}${raw_file}"
-                echo "✅✅✅ Downloaded ${BOX_REMOTE}${raw_file}"
-                python DSN-box_merge.py "${MERGE_PATH}${raw_file}" "$raw_file" || { echo "Error merging $raw_file" >&2; exit 1; }
-                echo "Deleting old Box copy: ${BOX_REMOTE}${raw_file}"
-                rclone --config "$RCLONE_CONFIG_FILE" deletefile "${BOX_REMOTE}${raw_file}"
-                echo "Uploading MERGED ${MERGE_PATH}${raw_file} to Box..."
-                rclone --config "$RCLONE_CONFIG_FILE" copyto "${MERGE_PATH}${raw_file}" "${BOX_REMOTE}${raw_file}"
-                echo "⬆️⬆️⬆️ Uploaded merged $raw_file"
-              else
-                echo "🔎🔎🔎 File $raw_file not found, upload it"
-                rclone --config "$RCLONE_CONFIG_FILE" copyto "$raw_file" "${BOX_REMOTE}${raw_file}"
-                echo "⬆️⬆️⬆️ Uploaded $raw_file"
-              fi
-            done
-            CURRENT_DATE=$(date '+%Y-%m-%d %H:%M:%S')
-            echo "$CURRENT_DATE Uploaded $IN_FILES to Box with rclone" >> DSNdata/RUN_LOG
-            echo "$CURRENT_DATE Uploaded $IN_FILES to Box with rclone: written to log."
-          fi
-
-      - name: Save final rotated Box token
-        if: always()
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GH_SECRETS_PAT }}
-        run: |
-          # Do not replace the original workflow error with a token-save error.
-          if [ ! -f "${RCLONE_CONFIG_FILE:-}" ]; then
-            echo "WARNING: rclone config file was never created; nothing to save." >&2
-            exit 0
-          fi
-
-          if [ -z "${GH_TOKEN:-}" ]; then
-            echo "WARNING: GH_SECRETS_PAT is missing; refreshed Box token was not saved." >&2
-            exit 0
-          fi
-
-          if gh secret set RCLONE_CONFIG --repo "$GITHUB_REPOSITORY" < "$RCLONE_CONFIG_FILE"; then
-            echo "Saved final rclone token state back to RCLONE_CONFIG."
-          else
-            echo "WARNING: Failed to update RCLONE_CONFIG secret." >&2
-          fi
-
-      # Step 9: Clean Up
-      - name: Clean Up
-        run: |
-          echo "Delete temporary files..."
-          rm -f results.txt
-          rm -rf DSNdata/NEW/*
-          rm -f DSNdata/INFLUX/*
-          rm -f DSNdata/BOX/*
-          rm -f DSNdata/MERGE/*
-          echo "Cleaning up Docker container..."
-          docker rm -f influx-cli || true
-  
-      # Step 10: Commit Changes to DSNdata
-      - name: Commit Changes to Repository
-        run: |
-          echo "Checking for changes in DSNdata..."
-          CURRENT_DATE=$(date '+%Y-%m-%d %H:%M:%S')
-          echo $CURRENT_DATE "Deleted temp files." >> DSNdata/RUN_LOG
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add DSNdata/
+          git add "$LOG_FILE" "$SQMTABLE_CSV" "$NEW_PATH"
+          if git diff-index --quiet HEAD; then
+            echo "No changes to commit."
+          else
+            git commit -m "Updated log file and SQMtable.csv with new sequence numbers"
+            git push
+          fi
+
+      - name: Upload Files to Box with rclone
+        run: |
+          echo "NEW_PATH is set to: ${NEW_PATH}"
+          echo "BOX_REMOTE is set to: ${BOX_REMOTE}"
+
+          if find "${NEW_PATH}" -maxdepth 1 -type f | grep -q .; then
+            echo "Uploading new files from ${NEW_PATH} to ${BOX_REMOTE}"
+            rclone copy "${NEW_PATH}" "${BOX_REMOTE}" \
+              --ignore-existing \
+              --filter "+ *.dat" \
+              --filter "+ *.csv" \
+              --filter "+ *.xlsx" \
+              --filter "- *" \
+              --transfers 4 \
+              --checkers 8 \
+              --verbose
+          else
+            echo "Warning: No files found in ${NEW_PATH}"
+          fi
+
+      - name: Commit Changes to Repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add DSNdata
           if git diff-index --quiet HEAD; then
             echo "No changes to commit."
           else
