@@ -261,19 +261,55 @@ jobs:
 
       # Step 7: Install and configure rclone for Box
       - name: Set up rclone
+        shell: bash
+        env:
+          RCLONE_CONFIG_SECRET: ${{ secrets.RCLONE_CONFIG }}
         run: |
           set -euo pipefail
+
           echo "Installing rclone..."
-          curl https://rclone.org/install.sh | sudo bash
-          mkdir -p ~/.config/rclone
-          cat > ~/.config/rclone/rclone.conf <<'EOF'
-          ${{ secrets.RCLONE_CONFIG }}
-          EOF
-          chmod 600 ~/.config/rclone/rclone.conf
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+
+          RCLONE_CONFIG_FILE="$RUNNER_TEMP/rclone.conf"
+          mkdir -p "$(dirname "$RCLONE_CONFIG_FILE")"
+
+          if [ -z "${RCLONE_CONFIG_SECRET:-}" ]; then
+            echo "ERROR: GitHub secret RCLONE_CONFIG is empty or unavailable." >&2
+            exit 1
+          fi
+
+          # Accept either the complete plaintext rclone.conf or a base64-encoded copy.
+          if printf '%s' "$RCLONE_CONFIG_SECRET" | grep -q '^\[DSNBox\]'; then
+            printf '%s\n' "$RCLONE_CONFIG_SECRET" > "$RCLONE_CONFIG_FILE"
+            echo "Loaded RCLONE_CONFIG as plaintext."
+          else
+            if ! printf '%s' "$RCLONE_CONFIG_SECRET" | base64 --decode > "$RCLONE_CONFIG_FILE" 2>/dev/null; then
+              echo "ERROR: RCLONE_CONFIG is neither plaintext rclone.conf nor valid base64." >&2
+              exit 1
+            fi
+            echo "Loaded RCLONE_CONFIG as base64."
+          fi
+
+          chmod 600 "$RCLONE_CONFIG_FILE"
+
+          if ! grep -q '^\[DSNBox\]$' "$RCLONE_CONFIG_FILE"; then
+            echo "ERROR: [DSNBox] is missing from RCLONE_CONFIG." >&2
+            exit 1
+          fi
+
+          echo "RCLONE_CONFIG_FILE=$RCLONE_CONFIG_FILE" >> "$GITHUB_ENV"
           echo "Configured rclone remotes:"
-          rclone listremotes
+          rclone --config "$RCLONE_CONFIG_FILE" listremotes
+
+          # Safe fingerprint proves which config GitHub loaded without exposing its token.
+          echo "DSNBox token fingerprint:"
+          sed -n '/^\[DSNBox\]$/,/^\[/p' "$RCLONE_CONFIG_FILE" \
+            | sed -n 's/^token[[:space:]]*=[[:space:]]*//p' \
+            | shasum -a 256 \
+            | awk '{print $1}'
+
           echo "Testing Box remote: ${BOX_REMOTE}"
-          rclone lsd "${BOX_REMOTE}"
+          rclone --config "$RCLONE_CONFIG_FILE" lsd "${BOX_REMOTE}"
 
       # Step 8: Upload/merge files in Box with rclone
       - name: Upload Files to Box
@@ -294,7 +330,7 @@ jobs:
             echo "No files to upload to Box, skipping..."
           else
             echo "++++++++++ IN_FILES: $IN_FILES in ${BOX_PATH}"
-            rclone lsf "${BOX_REMOTE}" --files-only > results.txt || true
+            rclone --config "$RCLONE_CONFIG_FILE" lsf "${BOX_REMOTE}" --files-only > results.txt
 
             for file in $IN_FILES; do
               box_file="${BOX_PATH}${file}"
@@ -304,17 +340,17 @@ jobs:
 
               if grep -Fxq "$raw_file" results.txt; then
                 echo "⬇️⬇️⬇️ Download existing Box file: $raw_file"
-                rclone copyto "${BOX_REMOTE}${raw_file}" "${MERGE_PATH}${raw_file}"
+                rclone --config "$RCLONE_CONFIG_FILE" copyto "${BOX_REMOTE}${raw_file}" "${MERGE_PATH}${raw_file}"
                 echo "✅✅✅ Downloaded ${BOX_REMOTE}${raw_file}"
                 python DSN-box_merge.py "${MERGE_PATH}${raw_file}" "$raw_file" || { echo "Error merging $raw_file" >&2; exit 1; }
                 echo "Deleting old Box copy: ${BOX_REMOTE}${raw_file}"
-                rclone deletefile "${BOX_REMOTE}${raw_file}"
+                rclone --config "$RCLONE_CONFIG_FILE" deletefile "${BOX_REMOTE}${raw_file}"
                 echo "Uploading MERGED ${MERGE_PATH}${raw_file} to Box..."
-                rclone copyto "${MERGE_PATH}${raw_file}" "${BOX_REMOTE}${raw_file}"
+                rclone --config "$RCLONE_CONFIG_FILE" copyto "${MERGE_PATH}${raw_file}" "${BOX_REMOTE}${raw_file}"
                 echo "⬆️⬆️⬆️ Uploaded merged $raw_file"
               else
                 echo "🔎🔎🔎 File $raw_file not found, upload it"
-                rclone copyto "$raw_file" "${BOX_REMOTE}${raw_file}"
+                rclone --config "$RCLONE_CONFIG_FILE" copyto "$raw_file" "${BOX_REMOTE}${raw_file}"
                 echo "⬆️⬆️⬆️ Uploaded $raw_file"
               fi
             done
