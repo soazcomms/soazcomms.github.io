@@ -41,10 +41,17 @@ jobs:
           echo "$GDRIVE_CONFIG" > ~/.config/rclone/rclone.conf
           printf "\n" >> ~/.config/rclone/rclone.conf
           echo "$BOX_RCLONE_CONF" >> ~/.config/rclone/rclone.conf
-          rclone listremotes  # Verify connection
-          echo "DSNBox sections:"
-          grep -n '^\[DSNBox\]$' ~/.config/rclone/rclone.conf || true
-          rclone config redacted DSNBox
+
+          echo "Configured remotes:"
+          rclone listremotes
+
+          echo "DSNBox section exists:"
+          grep -n '^\[DSNBox\]$' ~/.config/rclone/rclone.conf || {
+            echo "ERROR: DSNBox remote missing from rclone config" >&2
+            exit 1
+          }
+
+          echo "Testing DSNBox connection:"
           rclone lsd DSNBox:
 
       - name: Ensure Log File Exists
