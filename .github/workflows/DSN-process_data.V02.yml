@@ -88,14 +88,31 @@ jobs:
 
 
 
-      # Check for files in DSNdata/NEW, quit if none
-      - name: Fail if no NEW files
+      # Verify the checked-out repository really contains processable NEW files
+      - name: Verify NEW files
+        shell: bash
         run: |
-          FILES=$(ls -1 DSNdata/NEW)
-          if [ -z "$FILES" ]; then
+          set -euo pipefail
+
+          echo "PWD=$(pwd)"
+          echo "Checked-out branch:"
+          git branch --show-current
+          echo "Checked-out commit:"
+          git rev-parse HEAD
+
+          echo "Contents of DSNdata/NEW:"
+          ls -la DSNdata/NEW
+
+          echo "Non-hidden files found:"
+          find DSNdata/NEW -maxdepth 1 -type f ! -name '.*' -print
+
+          FILE_COUNT=$(find DSNdata/NEW -maxdepth 1 -type f ! -name '.*' | wc -l | tr -d '[:space:]')
+          echo "NEW file count: ${FILE_COUNT}"
+
+          if [ "${FILE_COUNT}" -eq 0 ]; then
             CURRENT_DATE=$(date '+%Y-%m-%d %H:%M:%S')
-            echo $CURRENT_DATE "No files in DSNdata/NEW." >> DSNdata/RUN_LOG
-            echo "Exit: No files found in DSNdata/NEW." >&2
+            echo "${CURRENT_DATE} No non-hidden files in DSNdata/NEW." >> DSNdata/RUN_LOG
+            echo "ERROR: No non-hidden files found in DSNdata/NEW." >&2
             exit 1
           fi
 
