@@ -21,9 +21,7 @@ env:
 
 jobs:
   sync-sqm-data:
-    # This runner must be the DSN iMac account whose normal rclone.conf
-    # already contains the working remotes DSNBox: and soazdsn:.
-    runs-on: [self-hosted, macOS, DSN-iMac]
+    runs-on: ubuntu-latest
 
     steps:
       - name: Check out repository
@@ -31,30 +29,37 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify local tools and rclone remotes
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies and configure rclone
         shell: bash
+        env:
+          RCLONE_CONFIG_DATA: ${{ secrets.RCLONE_CONFIG }}
         run: |
           set -euo pipefail
 
-          echo "Runner: $(hostname)"
-          echo "User: $(whoami)"
-          echo "Python: $(command -v python3)"
-          python3 --version
-          echo "rclone: $(command -v rclone)"
-          rclone version | head -1
-          echo "rclone config:"
-          rclone config file
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pandas
+
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+
+          mkdir -p "$HOME/.config/rclone"
+          printf '%s\n' "$RCLONE_CONFIG_DATA" > "$HOME/.config/rclone/rclone.conf"
+          chmod 600 "$HOME/.config/rclone/rclone.conf"
 
           echo "Configured remotes:"
           rclone listremotes
 
           rclone listremotes | grep -Fxq 'soazdsn:' || {
-            echo "ERROR: soazdsn: is missing from the runner user's rclone config" >&2
+            echo "ERROR: soazdsn: is missing from RCLONE_CONFIG" >&2
             exit 1
           }
 
           rclone listremotes | grep -Fxq 'DSNBox:' || {
-            echo "ERROR: DSNBox: is missing from the runner user's rclone config" >&2
+            echo "ERROR: DSNBox: is missing from RCLONE_CONFIG" >&2
             exit 1
           }
 
@@ -63,12 +68,6 @@ jobs:
 
           echo "Testing Box:"
           rclone lsd DSNBox: >/dev/null
-
-      - name: Ensure Python dependency
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 -c 'import pandas' 2>/dev/null || python3 -m pip install --user pandas
 
       - name: Ensure log file exists
         shell: bash
@@ -148,6 +147,24 @@ jobs:
           else
             echo "No files found in $NEW_PATH; nothing to upload."
           fi
+
+      - name: Save refreshed rclone config
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GH_SECRETS_PAT }}
+        run: |
+          set -euo pipefail
+
+          CONFIG="$HOME/.config/rclone/rclone.conf"
+          if [ ! -s "$CONFIG" ]; then
+            echo "No rclone config was created; nothing to save."
+            exit 0
+          fi
+
+          gh secret set RCLONE_CONFIG \
+            --repo "$GITHUB_REPOSITORY" \
+            < "$CONFIG"
 
       - name: Commit and push repository changes
         shell: bash
