@@ -265,15 +265,20 @@ jobs:
           echo "Influx files in docker:"
           printf '%s\n' "$IN_FILES"
 
+          file_number=0
+          file_total=$(printf '%s\n' "$IN_FILES" | sed '/^$/d' | wc -l | tr -d '[:space:]')
+
           while IFS= read -r infile; do
             [ -n "$infile" ] || continue
+            file_number=$((file_number + 1))
             success=false
             errors_file="/tmp/${infile}.errors"
 
             for attempt in {1..5}; do
-              echo "Uploading /data/$infile to InfluxDB Cloud..."
+              echo "Uploading /data/$infile to InfluxDB Cloud (attempt $attempt of 5)..."
 
               docker exec influx-cli sh -c ': > "$1"' sh "$errors_file"
+              upload_log="$(mktemp)"
 
               if docker exec influx-cli influx write \
                 --host https://us-east-1-1.aws.cloud2.influxdata.com \
@@ -283,24 +288,43 @@ jobs:
                 --file "/data/$infile" \
                 --format csv \
                 --errors-file "$errors_file" \
-                --debug; then
+                --debug 2>&1 | tee "$upload_log"; then
 
                 if docker exec influx-cli test -s "$errors_file"; then
                   echo "ERROR: Influx rejected rows from $infile:" >&2
                   docker exec influx-cli cat "$errors_file" >&2
                 else
                   success=true
+                  rm -f "$upload_log"
                   break
                 fi
               fi
 
-              echo "Attempt $attempt failed, retrying..."
-              sleep 10
+              if grep -qE '429 Too Many Requests|limited_write plan limit' "$upload_log"; then
+                wait_seconds=310
+                echo "InfluxDB write quota reached. Waiting ${wait_seconds} seconds for the quota window to reset..."
+              else
+                wait_seconds=30
+                echo "Attempt $attempt failed for a non-quota reason. Waiting ${wait_seconds} seconds before retrying..."
+              fi
+
+              rm -f "$upload_log"
+
+              if [ "$attempt" -lt 5 ]; then
+                sleep "$wait_seconds"
+              fi
             done
 
             if [ "$success" = false ]; then
               echo "Error: Failed to upload $infile to InfluxDB Cloud." >&2
               exit 1
+            fi
+
+            if [ "$file_number" -lt "$file_total" ]; then
+              echo "Uploaded $infile successfully. Waiting 310 seconds before the next file to avoid the limited_write quota..."
+              sleep 310
+            else
+              echo "Uploaded final Influx file $infile successfully."
             fi
           done <<< "$IN_FILES"
 
