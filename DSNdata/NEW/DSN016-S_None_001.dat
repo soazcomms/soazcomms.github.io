@@ -1,0 +1,43 @@
+# Light Pollution Monitoring Data Format 1.0
+# URL: http://www.darksky.org/measurements
+# Number of header lines: 43
+# This data is released under the following license: ODbL 1.0 http://opendatacommons.org/licenses/odbl/summary/
+# Device type: SQM-LU-DL-R2
+# Instrument ID: DSN016-S
+# Data supplier: DarkSky SoAZ
+# Location name: SaguaroNP
+# Position (lat, lon, elev(m)): 32.25446, -111.19748 778
+# Local timezone: MST
+# Time Synchronization: GPS
+# Moving / Stationary position: STATIONARY
+# Moving / Fixed look direction: FIXED
+# Number of channels: 1
+# Filters per channel: HOYA CM-500
+# Measurement direction per channel: 0
+# Field of view (degrees): 20
+# Number of fields per line: 5
+# SQM serial number: 7466
+# SQM hardware identity: B003LQS5
+# SQM firmware version: 4-6-84
+# SQM cover offset value: -0.11
+# SQM readout test ix (Information): i,00000004,00000006,00000084,00007466
+# SQM readout test rx (Reading): r, 00.00m,0000559352Hz,0000000000c,0000000.000s, 039.0C
+# SQM readout test cx (Calibration): c,00000019.94m,0000194.610s, 016.1C,00000008.71m, 017.0C
+# SQM readout test Ix (Report Interval): 0000000000s,0000000000s,00000000.00m,00000000.00m
+# DL time difference (seconds): 0
+# DL retrieved at (UTC): 2025-09-21T22:33:39.965
+# DL trigger mode : Every 5 minutes on the 1/12th hour
+# DL trigger seconds : 0
+# DL trigger minutes : 255
+# DL trigger threshold : 7
+# Comment: 
+# Comment: 
+# Comment: 
+# Comment: 
+# Comment: 
+# UDM version: 1.0.0.365
+# UDM setting: DL binary retrieve
+# blank line
+# UTC Date & Time, Local Date & Time, Temperature, Voltage, MSAS, Record type
+# YYYY-MM-DDTHH:mm:ss.fff;YYYY-MM-DDTHH:mm:ss.fff;Celsius;Volts;mag/arcsec^2;Init/Subs
+# END OF HEADER
