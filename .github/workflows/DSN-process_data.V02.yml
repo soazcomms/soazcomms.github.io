@@ -332,20 +332,6 @@ jobs:
           echo "$CURRENT_DATE Uploaded files $IN_FILES to influx" >> DSNdata/RUN_LOG
           echo "All files successfully uploaded to InfluxDB Cloud."
 
-      # Step 6a: Verify corrected Sugarloaf values in InfluxDB
-      - name: Verify Sugarloaf Influx update
-        run: |
-          echo "Querying corrected Sugarloaf point from InfluxDB..."
-          docker exec influx-cli influx query \
-            --host https://us-east-1-1.aws.cloud2.influxdata.com \
-            --org DSN \
-            --token "$INFLUX_TOKEN" \
-            'from(bucket: "DSNdata")
-              |> range(start: 2025-12-25T06:59:59Z, stop: 2025-12-25T07:00:01Z)
-              |> filter(fn: (r) => r._measurement == "DSN003S_Sugarloaf")
-              |> filter(fn: (r) => r._field == "SQM" or r._field == "lum")
-              |> keep(columns: ["_time", "_measurement", "_field", "_value"])'
-
       # Upload/merge files in Box with rclone
       - name: Upload Files to Box
         run: |
