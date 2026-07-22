@@ -108,19 +108,37 @@ jobs:
               while IFS= read -r file; do
                 [ -n "$file" ] || continue
 
+                local_file="$LOCAL_FOLDER/$file"
                 echo "Downloading: $file"
-                rclone copyto "$SITE_FOLDER/$file" "$LOCAL_FOLDER/$file" --verbose
-                echo "$file" >> "$LOG_FILE"
+                rm -f "$local_file"
+                rclone copyto "$SITE_FOLDER/$file" "$local_file" --verbose
+
+                if [ ! -s "$local_file" ]; then
+                  echo "ERROR: Download failed or produced an empty file: $local_file" >&2
+                  exit 1
+                fi
               done < new_files.txt
 
               python3 DSN_rename_sqm_files.py "$LOCAL_FOLDER" "$SQMTABLE_CSV"
 
-              for file in "$LOCAL_FOLDER"/*; do
-                if [ -f "$file" ]; then
-                  mv "$file" "$NEW_PATH"
-                  echo "Moved $file to $NEW_PATH"
+              while IFS= read -r renamed_file; do
+                [ -n "$renamed_file" ] || continue
+
+                destination="$NEW_PATH$(basename "$renamed_file")"
+                rm -f "$destination"
+                mv "$renamed_file" "$destination"
+
+                if [ ! -s "$destination" ]; then
+                  echo "ERROR: Move to NEW failed or produced an empty file: $destination" >&2
+                  exit 1
                 fi
-              done
+
+                echo "Moved $renamed_file to $destination"
+              done < <(find "$LOCAL_FOLDER" -maxdepth 1 -type f ! -name '.*' -print)
+
+              # Record the original remote filenames only after every download,
+              # rename, and move for this site has succeeded.
+              cat new_files.txt >> "$LOG_FILE"
             else
               echo "No new files for $site_name, skipping."
             fi
