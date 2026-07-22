@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: dsn-get-sqm-data
+  group: dsn-rclone-box
   cancel-in-progress: false
 
 env:
