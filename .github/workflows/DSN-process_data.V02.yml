@@ -2,6 +2,11 @@ name: DSN Process SQM/TESS Raw Data and Upload to Box
 
 permissions:
   contents: write
+
+concurrency:
+  group: dsn-rclone-box
+  cancel-in-progress: false
+
 # Trigger the workflow on a schedule (in production mode)
 on:
   schedule:
