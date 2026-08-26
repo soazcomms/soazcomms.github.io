@@ -2204,3 +2204,9 @@ DSN024-S_2026-033.csv
 DSN035-S_26_013.csv
 DSN019-S_26_010.csv to Box with rclone
 2026-08-24 17:54:11 Deleted temp files.
+2026-08-26 08:39:20 Start DSN-process_data.
+2026-08-26 08:46:09 Uploaded files DSN014S_Tubac.csv
+DSN021S_VATT.csv to influx
+2026-08-26 08:46:29 Uploaded DSN021-S_26_013.csv
+DSN014-S_26_044.csv to Box with rclone
+2026-08-26 08:46:29 Deleted temp files.
