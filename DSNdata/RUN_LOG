@@ -2242,3 +2242,7 @@ DSN024-S_2026-035.csv to Box with rclone
 2026-09-11 20:02:31 Uploaded files DSN003S_Sugarloaf.csv to influx
 2026-09-11 20:02:35 Uploaded DSN003-S_21_014.csv to Box with rclone
 2026-09-11 20:02:36 Deleted temp files.
+2026-09-13 07:56:15 Start DSN-process_data.
+2026-09-13 07:57:33 Uploaded files DSN014S_Tubac.csv to influx
+2026-09-13 07:57:46 Uploaded DSN014-S_26_044.csv to Box with rclone
+2026-09-13 07:57:48 Deleted temp files.
