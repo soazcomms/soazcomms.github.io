@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DSN Site Survey / Instrument Selection</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  @page { size: Letter; margin: 0.38in; }
+  * { box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; margin: 0; color: #111; font-size: 11px; }
+  h1 { font-size: 20px; margin: 0; }
+  .sub { float:right; font-weight:bold; margin-top:-18px; }
+  .top { display:grid; grid-template-columns: 1.6fr .7fr 1.1fr; gap:12px; margin:12px 0 8px; }
+  .field { display:flex; align-items:end; gap:5px; white-space:nowrap; }
+  input[type=text], input[type=number] { border:0; border-bottom:1px solid #333; outline:none; min-width:0; width:100%; font:inherit; background:transparent; }
+  section { border-top:1px solid #555; padding-top:7px; margin-top:7px; break-inside:avoid; }
+  h2 { font-size:13px; margin:0 0 6px; }
+  .checks { display:grid; grid-template-columns: repeat(3,1fr); gap:4px 14px; }
+  .checks.four { grid-template-columns: repeat(4,1fr); }
+  label { display:flex; align-items:flex-start; gap:5px; }
+  input[type=checkbox], input[type=radio] { width:14px; height:14px; margin:0; flex:none; accent-color:#222; }
+  .row { display:grid; grid-template-columns: repeat(3,1fr); gap:15px; margin:6px 0; }
+  .note { font-size:10px; margin:5px 0; }
+  .warn { font-weight:bold; }
+  .decision { display:grid; grid-template-columns: 120px 1fr; gap:5px; align-items:start; margin:5px 0; }
+  .decision strong { font-size:11px; }
+  .final { display:grid; grid-template-columns: repeat(4,1fr); gap:12px; font-weight:bold; font-size:13px; margin:8px 0; }
+  textarea { width:100%; height:48px; resize:vertical; border:1px solid #777; font:inherit; }
+  .footer { margin-top:8px; font-style:italic; font-size:9px; display:flex; justify-content:space-between; }
+  .buttons { margin: 10px 0; display:flex; gap:8px; }
+  button { padding:6px 12px; font-size:11px; cursor:pointer; }
+  @media print {
+    .buttons { display:none; }
+    body { font-size:10px; }
+    input, textarea { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+  }
+</style>
+</head>
+<body>
+<h1>DSN Site Survey / Instrument Selection</h1>
+<div class="sub">SQM-DL &nbsp;|&nbsp; SQM-LE &nbsp;|&nbsp; TESS</div>
+
+<div class="buttons">
+  <button onclick="window.print()">Print / Save PDF</button>
+  <button onclick="downloadCompleted()">Save Completed Form</button>
+  <button onclick="emailCompleted()">Email Completed Form</button>
+  <button onclick="if(confirm('Clear all entries?')) { localStorage.removeItem('dsnSurvey'); location.reload(); }">Clear form</button>
+</div>
+
+<div class="top">
+ <div class="field">Site / DSN ID: <input id="site" type="text"></div>
+ <div class="field">Date: <input id="date" type="text"></div>
+ <div class="field">Surveyed by: <input id="surveyor" type="text"></div>
+</div>
+
+<section>
+<h2>1. BASIC SITE REQUIREMENTS</h2>
+<div class="checks">
+ <label><input type="checkbox">Clear, unobstructed zenith view</label>
+ <label><input type="checkbox">No direct nearby lighting</label>
+ <label><input type="checkbox">Maintenance access</label>
+ <label><input type="checkbox">Instrument can point vertically at zenith</label>
+ <label><input type="checkbox">Weatherproof location/enclosure possible</label>
+</div>
+<p class="note warn">If either zenith-view item cannot be checked, find a better mounting position before selecting an instrument.</p>
+</section>
+
+<section>
+<h2>2. PROPOSED MOUNTING</h2>
+<div class="checks four">
+ <label><input type="checkbox">Roof</label>
+ <label><input type="checkbox">Wall / eave</label>
+ <label><input type="checkbox">Pole</label>
+ <label><input type="checkbox">Remote field</label>
+</div>
+<div class="row">
+ <div class="field">Height above ground: <input id="height" type="text"></div>
+ <div class="field">Distance to building: <input id="buildingDistance" type="text"></div>
+ <div class="field">Distance to AP/router: <input id="apDistance" type="text"></div>
+</div>
+<div class="checks">
+ <label><input type="checkbox">AC power available</label>
+ <label><input type="checkbox">Solar / battery required</label>
+ <label><input type="checkbox">CAT5/6 route practical</label>
+ <label><input type="checkbox">Cable drip loop possible</label>
+ <label><input type="checkbox">Weatherproof enclosure needed</label>
+ <label><input type="checkbox">PoE practical</label>
+</div>
+</section>
+
+<section>
+<h2>3. WI-FI SURVEY — TEST AT THE ACTUAL SENSOR POSITION</h2>
+<div class="row">
+ <div class="field">SSID: <input id="ssid" type="text"></div>
+ <div class="field">Measured RSSI: <input id="rssi" type="text"> dBm</div>
+ <div class="field">Test duration: <input id="testDuration" type="text"></div>
+</div>
+<div class="checks four">
+ <label><input type="checkbox">≥ −60 dBm — Excellent</label>
+ <label><input type="checkbox">−60 to −67 — Good</label>
+ <label><input type="checkbox">−67 to −72 — Usable</label>
+ <label><input type="checkbox">−72 to −75 — Marginal</label>
+</div>
+<div class="checks" style="margin-top:5px">
+ <label><input type="checkbox">&lt; −75 dBm — Do NOT design around Wi-Fi</label>
+ <label><input type="checkbox">Major wall/roof obstruction between AP and sensor</label>
+</div>
+<p class="note"><b>DSN guideline:</b> target ≥ −67 dBm for TESS. At −72 to −75 dBm prefer wired Ethernet. Below −75 dBm avoid Wi-Fi.</p>
+</section>
+
+<section>
+<h2>4. INSTRUMENT DECISION</h2>
+<div class="decision"><strong>Choose SQM-LE when:</strong>
+ <div class="checks"><label><input type="checkbox">Ethernet is practical</label><label><input type="checkbox">Continuous power available</label><label><input type="checkbox">PoE useful</label></div>
+</div>
+<div class="decision"><strong>Choose TESS when:</strong>
+ <div class="checks"><label><input type="checkbox">Strong Wi-Fi (target ≥ −67 dBm)</label><label><input type="checkbox">Continuous power available</label></div>
+</div>
+<div class="decision"><strong>Choose SQM-DL when:</strong>
+ <div class="checks"><label><input type="checkbox">No reliable network</label><label><input type="checkbox">Remote / autonomous site</label><label><input type="checkbox">Periodic retrieval OK</label></div>
+</div>
+<p class="note"><b>Quick decision:</b> Remote/no network → SQM-DL &nbsp;&nbsp; Ethernet available → SQM-LE &nbsp;&nbsp; Strong Wi-Fi + power → TESS<br>
+Wi-Fi −67 to −75 dBm → SQM-LE preferred &nbsp;&nbsp; Wi-Fi &lt; −75 dBm → SQM-LE or SQM-DL</p>
+</section>
+
+<section>
+<h2>5. FINAL SELECTION</h2>
+<div class="final">
+ <label><input name="final" type="radio">SQM-DL</label>
+ <label><input name="final" type="radio">SQM-LE</label>
+ <label><input name="final" type="radio">TESS</label>
+ <label><input name="final" type="radio">SITE NOT SUITABLE</label>
+</div>
+<div>Reason / notes:</div>
+<textarea id="notes"></textarea>
+<div class="row">
+ <div class="field">Final RSSI: <input id="finalRssi" type="text"> dBm</div>
+ <div class="field">Cable length: <input id="cableLength" type="text"></div>
+ <div class="field">Mount hardware needed: <input id="mountHardware" type="text"></div>
+</div>
+</section>
+
+<div class="footer"><span>Southern Arizona Dark Sky Network (DSN) — Field site survey</span><span>Rev. 2026-09</span></div>
+
+<script>
+const controls=[...document.querySelectorAll('input,textarea')];
+function save(){
+ const data=controls.map(el=>({type:el.type,value:el.value,checked:el.checked}));
+ localStorage.setItem('dsnSurvey',JSON.stringify(data));
+}
+function restore(){
+ try {
+   const data=JSON.parse(localStorage.getItem('dsnSurvey'));
+   if(!data) return;
+   controls.forEach((el,i)=>{
+     if(!data[i]) return;
+     if(el.type==='checkbox'||el.type==='radio') el.checked=data[i].checked;
+     else el.value=data[i].value || '';
+   });
+ } catch(e){}
+}
+
+function fieldValue(id) {
+  const el=document.getElementById(id);
+  return el ? el.value.trim() : '';
+}
+function selectedInstrument() {
+  const r=[...document.querySelectorAll('input[name="final"]')];
+  const labels=["SQM-DL","SQM-LE","TESS","SITE NOT SUITABLE"];
+  const i=r.findIndex(x=>x.checked);
+  return i>=0 ? labels[i] : "Not selected";
+}
+function checkedLabels() {
+  return [...document.querySelectorAll('label')]
+    .filter(l => {
+      const x=l.querySelector('input[type="checkbox"]');
+      return x && x.checked;
+    })
+    .map(l => l.textContent.trim());
+}
+function surveyText() {
+  const checks=checkedLabels();
+  return [
+    "DSN SITE SURVEY / INSTRUMENT SELECTION",
+    "",
+    "Site / DSN ID: " + fieldValue("site"),
+    "Date: " + fieldValue("date"),
+    "Surveyed by: " + fieldValue("surveyor"),
+    "",
+    "Mounting:",
+    "  Height above ground: " + fieldValue("height"),
+    "  Distance to building: " + fieldValue("buildingDistance"),
+    "  Distance to AP/router: " + fieldValue("apDistance"),
+    "",
+    "Wi-Fi:",
+    "  SSID: " + fieldValue("ssid"),
+    "  Measured RSSI: " + fieldValue("rssi") + " dBm",
+    "  Test duration: " + fieldValue("testDuration"),
+    "",
+    "Checked items:",
+    ...checks.map(x=>"  [X] "+x),
+    "",
+    "FINAL SELECTION: " + selectedInstrument(),
+    "Final RSSI: " + fieldValue("finalRssi") + " dBm",
+    "Cable length: " + fieldValue("cableLength"),
+    "Mount hardware needed: " + fieldValue("mountHardware"),
+    "",
+    "Reason / notes:",
+    fieldValue("notes")
+  ].join("\n");
+}
+function safeName(s) {
+  return (s || "site").replace(/[^A-Za-z0-9_-]+/g,"_");
+}
+function downloadCompleted() {
+  save();
+  const clone=document.documentElement.cloneNode(true);
+  const src=[...document.querySelectorAll('input,textarea')];
+  const dst=[...clone.querySelectorAll('input,textarea')];
+  src.forEach((el,i)=>{
+    const d=dst[i];
+    if(!d) return;
+    if(el.type==="checkbox" || el.type==="radio") {
+      if(el.checked) d.setAttribute("checked","checked");
+      else d.removeAttribute("checked");
+    } else if(el.tagName==="TEXTAREA") {
+      d.textContent=el.value;
+    } else {
+      d.setAttribute("value",el.value);
+    }
+  });
+  const data="<!doctype html>\n"+clone.outerHTML;
+  const blob=new Blob([data],{type:"text/html;charset=utf-8"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="DSN_Site_Survey_"+safeName(fieldValue("site"))+"_completed.html";
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000);
+}
+function emailCompleted() {
+  const subject="DSN Site Survey - "+(fieldValue("site") || "Completed Form");
+  const body=surveyText()+
+    "\n\nIf requested, attach the completed HTML file created with the 'Save Completed Form' button.";
+  window.location.href="mailto:?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(body);
+}
+
+controls.forEach(el=>el.addEventListener('input',save));
+controls.forEach(el=>el.addEventListener('change',save));
+restore();
+</script>
+</body>
+</html>
