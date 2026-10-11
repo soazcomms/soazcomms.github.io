@@ -1,6 +1,11 @@
 Site,Sequence,Alias
+<<<<<<< HEAD
 DSN003-S,16,Sugarloaf
 DSN006-S,7,V06
+=======
+DSN003-S,15,Sugarloaf
+DSN006-S,8,V06
+>>>>>>> eb8c7b86 (Update SQMtable.csv and BOXfiles - 2026-10-11 01:09)
 DSN008-S,5,OracleSP
 DSN014-S,46,Tubac
 DSN016-S,21,SaguaroNP
