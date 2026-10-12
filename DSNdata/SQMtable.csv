@@ -1,12 +1,8 @@
 Site,Sequence,Alias
-<<<<<<< HEAD,,
-<<<<<<< HEAD,,
 DSN003-S,16.0,Sugarloaf
 DSN006-S,7.0,V06
-=======,,
 DSN003-S,15.0,Sugarloaf
 DSN006-S,8.0,V06
->>>>>>> eb8c7b86 (Update SQMtable.csv and BOXfiles - 2026-10-11 01:09),,
 DSN008-S,5.0,OracleSP
 DSN014-S,46.0,Tubac
 DSN016-S,21.0,SaguaroNP
@@ -25,14 +21,10 @@ DSN042-S,3.0,Bonita
 DSN043-S,7.0,V00
 DSN044-S,1.0,NOIRLab
 DSN045-S,6.0,MoM
-=======,,
-<<<<<<< HEAD,,
 DSN003-S,16.0,Sugarloaf
 DSN006-S,7.0,V06
-=======,,
 DSN003-S,15.0,Sugarloaf
 DSN006-S,8.0,V06
->>>>>>> eb8c7b86 (Update SQMtable.csv and BOXfiles - 2026-10-11 01:09),,
 DSN008-S,5.0,OracleSP
 DSN014-S,46.0,Tubac
 DSN016-S,21.0,SaguaroNP
@@ -52,4 +44,3 @@ DSN042-S,3.0,Bonita
 DSN043-S,7.0,V00
 DSN044-S,1.0,NOIRLab
 DSN045-S,6.0,MoM
->>>>>>> 3ae0751c (Update SQMtable.csv and BOXfiles - 2026-10-12 12:43),,
