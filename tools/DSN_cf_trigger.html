@@ -113,7 +113,7 @@
 </head>
 <body>
   <main class="card">
-    <h1>🔬 DSN Analysis V.64</h1>
+    <h1>🔬 DSN Analysis V.65</h1>
     <div id="siteLine" class="muted">Initializing…</div>
     <div id="status">⏳ Preparing…</div>
 
@@ -383,7 +383,11 @@
         pollStatus();
       }
 
-      const payload = { label: rawLabel, from: fromStr, to: toStr };
+      const payload = {
+        label: rawLabel,
+        from: justDate(fromStr) + " 00:00:00",
+        to:   justDate(toStr)   + " 23:59:59"
+      };
 
       try {
         const r = await fetch(WORKER_URL, {
