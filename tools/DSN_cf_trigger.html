@@ -392,21 +392,28 @@
           body: JSON.stringify(payload)
         });
 
+        const text = await r.text();
+        console.log("worker HTTP", r.status, text);
+
         if (!r.ok) {
-          console.log("worker HTTP error", r.status);
-          statusMsg("⏳ Running analysis…");
+          done = true;
+          stopAllTimers();
+          statusEl.innerHTML =
+            "<span class='err'>❌ Worker failed: HTTP " +
+            r.status + " — " + text + "</span>";
           return;
         }
 
-        let body = {};
-        try { body = await r.json(); } catch (_) {}
-        console.log("worker response", body);
-
-        statusMsg("⏳ Running analysis…");
+        console.log("worker accepted:", text);
+        statusMsg("⏳ Worker accepted request; analysis running…");
 
       } catch (err) {
+        done = true;
+        stopAllTimers();
         console.log("worker fetch error", err);
-        statusMsg("⏳ Running analysis…");
+        statusEl.innerHTML =
+          "<span class='err'>❌ Worker request failed: " +
+          err.message + "</span>";
       }
     }
 
