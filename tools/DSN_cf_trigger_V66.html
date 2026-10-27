@@ -113,7 +113,7 @@
 </head>
 <body>
   <main class="card">
-    <h1>🔬 DSN Analysis V.65</h1>
+    <h1>🔬 DSN Analysis V.66</h1>
     <div id="siteLine" class="muted">Initializing…</div>
     <div id="status">⏳ Preparing…</div>
 
@@ -279,14 +279,35 @@
       }
     }
 
-    // Marker = ONLY completion signal; JSON = progress text only
+    async function pagesResultExists(){
+      if (!analysisPath) return false;
+      const href = buildHtmlHref(analysisPath);
+      try {
+        const sep = href.includes("?") ? "&" : "?";
+        const r = await fetch(href + sep + "ts=" + Date.now(), {
+          method: "HEAD",
+          cache: "no-store"
+        });
+        console.log("Pages HEAD", href, "->", r.status);
+        return r.ok;
+      } catch (err) {
+        console.log("pagesResultExists error", err);
+        return false;
+      }
+    }
+
+    // Raw marker means GitHub Actions finished. Pages availability is checked separately.
     async function pollStatus(){
       if (done || !rawLabel) return;
 
-      // 1) marker => done
+      // 1) Raw marker => analysis finished; now wait for GitHub Pages publication.
       if (await markerExists()) {
         const href = buildHtmlHref(analysisPath);
-        showDone("✅ Analysis complete for this range.", href);
+        if (await pagesResultExists()) {
+          showDone("✅ Results ready — View Analysis", href);
+        } else {
+          statusMsg("✅ Analysis finished — publishing results to web…");
+        }
         return;
       }
 
