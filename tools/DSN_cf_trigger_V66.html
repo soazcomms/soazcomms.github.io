@@ -300,17 +300,12 @@
     async function pollStatus(){
       if (done || !rawLabel) return;
 
-      // 1) Raw marker => analysis finished; now wait for GitHub Pages publication.
+      // Raw marker => analysis finished and results committed to GitHub.
       if (await markerExists()) {
-        const href = buildHtmlHref(analysisPath);
-        if (await pagesResultExists()) {
-          showDone("✅ Results ready — View Analysis", href);
-        } else {
-          statusMsg("✅ Analysis finished — publishing results to web…");
-        }
-        return;
+         const href = buildHtmlHref(analysisPath);
+         showDone("✅ Analysis complete — View Analysis", href);
+         return;
       }
-
       // 2) JSON for intermediate messages only
       let showedStatus = false;
       const url = buildStatusUrl(rawLabel);
