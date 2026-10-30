@@ -164,6 +164,61 @@ def gap_corrected_hours(df, ts_col="UTC", q=10, tol=1.25):
 
     return seconds / 3600.0
 #
+
+def _remove_detached_faint_peak(df, separation=1.5, bin_size=0.1, min_count=5):
+    """
+    Remove a detached, anomalously faint SQM cluster.
+
+    The dominant 0.1-mag histogram bin defines the main peak.  Data are only
+    removed when an occupied cluster exists >= separation mag fainter than the
+    main peak AND at least one empty histogram bin separates it from the main
+    distribution.  This avoids a simple hard cut at mode + separation.
+    """
+    if "SQM" not in df.columns or df.empty:
+        return df.copy()
+
+    out = df.copy()
+    sqm = pd.to_numeric(out["SQM"], errors="coerce")
+    vals = sqm.dropna().to_numpy()
+    if vals.size == 0:
+        return out
+
+    lo = np.floor(vals.min() / bin_size) * bin_size
+    hi = np.ceil(vals.max() / bin_size) * bin_size
+    edges = np.arange(lo, hi + bin_size * 1.01, bin_size)
+    if edges.size < 2:
+        return out
+
+    counts, edges = np.histogram(vals, bins=edges)
+    peak_i = int(np.argmax(counts))
+    peak = float((edges[peak_i] + edges[peak_i + 1]) / 2.0)
+
+    first_far = int(np.searchsorted(edges[:-1], peak + separation, side="left"))
+    first_far = max(first_far, peak_i + 1)
+    occupied_far = np.where(counts[first_far:] >= min_count)[0]
+    if occupied_far.size == 0:
+        return out
+
+    faint_i = first_far + int(occupied_far[0])
+
+    # Require a genuine gap between the main distribution and faint cluster.
+    zero_bins = np.where(counts[peak_i + 1:faint_i] == 0)[0]
+    if zero_bins.size == 0:
+        return out
+
+    gap_i = peak_i + 1 + int(zero_bins[-1])
+    cutoff = float(edges[gap_i + 1])
+
+    n_before = int(sqm.notna().sum())
+    keep = sqm.isna() | (sqm < cutoff)
+    out = out.loc[keep].copy()
+    n_removed = n_before - int(pd.to_numeric(out["SQM"], errors="coerce").notna().sum())
+
+    if n_removed:
+        print(f"SQM detached-peak filter: mode={peak:.2f}, cutoff={cutoff:.2f}, removed={n_removed}")
+
+    return out
+#
 def _filtered_sqm(df, moon_thr=-10.0, chi_thr=0.009, MW_thr=50.):
     """
     Return a copy of df filtered to good SQM rows that satisfy ALL:
@@ -187,6 +242,7 @@ def _filtered_sqm(df, moon_thr=-10.0, chi_thr=0.009, MW_thr=50.):
     out = df.loc[m].copy()
     out["SQM"] = pd.to_numeric(out["SQM"], errors="coerce")
     out = out.dropna(subset=["SQM"])
+    out = _remove_detached_faint_peak(out, separation=1.5, bin_size=0.1)
     return out
 # plotting thresholds:
 moon_thr=-10.
@@ -200,6 +256,8 @@ run_hours = gap_corrected_hours(df_all, ts_col="UTC")
 # Night only (sunalt <= -18)
 df_all['sunalt']=altsun1(lat,lon,el,list(UTC))
 df_all = df_all[df_all['sunalt'] <= -18]
+# Remove a detached anomalously faint SQM cluster before making analysis products.
+df_all = _remove_detached_faint_peak(df_all, separation=1.5, bin_size=0.1)
 UTC=df_all['UTC']
 night_hours = gap_corrected_hours(df_all, ts_col="UTC")
 #run_hours = (df_all['UTC'].iloc[-1]-df_all['UTC'].iloc[0]).total_seconds()/3600
