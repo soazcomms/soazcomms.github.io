@@ -483,11 +483,19 @@ if len(df_use) and 'UTC' in df_use.columns:
 
     # Edges
     x_edges = np.arange(0.0, 24.0001, 0.25)  # 96 columns (15-min bins)
-#    y_min = float(np.nanmin(yval)) if yval.size else 20.0
-#    y_max = float(np.nanmax(yval)) if yval.size else 23.0
-    y_min = 18.
-    y_max = 23.
-    y_edges = np.arange(np.floor(y_min*10)/10.0, np.ceil(y_max*10)/10.0 + 0.0001, 0.1)
+
+    # Dynamic Jellyfish y-range from the filtered SQM values.
+    # Round outward to 0.5 mag so each site's plot uses the useful vertical range.
+    if yval.size:
+        y_min = np.floor(np.nanmin(yval) * 2.0) / 2.0
+        y_max = np.ceil(np.nanmax(yval) * 2.0) / 2.0
+        if y_max <= y_min:
+            y_max = y_min + 0.5
+    else:
+        y_min, y_max = 18.0, 23.0
+
+    print(f"Jellyfish SQM range: {y_min:.1f} to {y_max:.1f} mag/arcsec²")
+    y_edges = np.arange(y_min, y_max + 0.0001, 0.1)
 
     # 2D histogram over full 0–24, then wrap to 17→07
     H, _, _ = np.histogram2d(hour, yval, bins=[x_edges, y_edges])  # (96, Ny)
