@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>DSN Analysis – Cloudflare Trigger</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at top, #1e293b 0, #020617 55%, #000 100%);
+      color: #e5e7eb;
+    }
+    .card {
+      background: rgba(15, 23, 42, 0.96);
+      border-radius: 1.25rem;
+      padding: 1.5rem 1.75rem 1.75rem;
+      box-shadow: 0 24px 80px rgba(15, 23, 42, 0.85);
+      max-width: 720px;
+      width: min(720px, 100% - 2rem);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+    }
+    h1 {
+      margin: 0 0 0.35rem;
+      font-size: 1.2rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #a5b4fc;
+    }
+    #siteLine {
+      font-size: 0.9rem;
+      color: #e5e7eb;
+      margin-bottom: 0.75rem;
+    }
+    #status {
+      margin: 0.4rem 0 0.9rem;
+      font-size: 0.98rem;
+    }
+    .muted {
+      color: #9ca3af;
+    }
+    .bar-wrap {
+      width: 100%;
+      margin: 0.35rem 0 0.5rem;
+    }
+    .bar-bg {
+      width: 100%;
+      height: 0.5rem;
+      border-radius: 999px;
+      background: rgba(30, 64, 175, 0.5);
+      overflow: hidden;
+    }
+    .bar-fill {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #60a5fa, #22c55e);
+      transition: width 0.25s linear;
+    }
+    #timersRow {
+      font-size: 0.8rem;
+      color: #9ca3af;
+      margin-bottom: 0.9rem;
+    }
+    .btn-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      padding: 0.45rem 0.9rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      background: rgba(15, 23, 42, 0.9);
+      color: #e5e7eb;
+      font-size: 0.85rem;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease, transform 0.08s ease;
+    }
+    .btn[disabled] {
+      opacity: 0.4;
+      cursor: default;
+      pointer-events: none;
+    }
+    .btn:hover:not([disabled]) {
+      background: rgba(30, 64, 175, 0.9);
+      border-color: rgba(129, 140, 248, 0.9);
+      transform: translateY(-0.5px);
+    }
+    .btn.secondary:hover:not([disabled]) {
+      background: rgba(31, 41, 55, 0.95);
+      border-color: rgba(148, 163, 184, 0.9);
+    }
+    .ok {
+      color: #4ade80;
+    }
+    .err {
+      color: #f97373;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>🔬 DSN Analysis V.66</h1>
+    <div id="siteLine" class="muted">Initializing…</div>
+    <div id="status">⏳ Preparing…</div>
+
+    <div class="bar-wrap">
+      <div class="bar-bg">
+        <div class="bar-fill" id="barFill"></div>
+      </div>
+    </div>
+
+    <div id="timersRow">⏱ 0:00 · Timeout in 7:00</div>
+
+    <div class="btn-row">
+      <a id="viewBtn" class="btn" href="#" target="_blank" rel="noopener" disabled>
+        📄 View Analysis Result
+      </a>
+      <a id="exitBtn" class="btn secondary" href="#" onclick="window.close(); return false;">
+        🔙 Exit
+      </a>
+    </div>
+  </main>
+
+  <script>
+  (function(){
+    const WORKER_URL      = "https://dsn-analysis.dsn-analysis.workers.dev/";
+    const GH_RAW_BASE     = "https://raw.githubusercontent.com/soazcomms/soazcomms.github.io/main/";
+    const GH_PAGES_BASE   = "https://soazcomms.github.io";
+    const TIMEOUT_SECONDS = 7 * 60;
+    const POLL_INTERVAL   = 5000;
+
+    const statusEl   = document.getElementById("status");
+    const siteLineEl = document.getElementById("siteLine");
+    const barFill    = document.getElementById("barFill");
+    const timersRow  = document.getElementById("timersRow");
+    const viewBtn    = document.getElementById("viewBtn");
+
+    let elapsedSec   = 0;
+    let timerId      = null;
+    let pollId       = null;
+    let done         = false;
+    let started      = false;
+    let rawLabel     = "";
+    let fromStr      = "";
+    let toStr        = "";
+    let analysisPath = "";
+    let markerUrl    = "";
+
+    function parseParams(){
+      const u = new URL(window.location.href);
+      const sp = u.searchParams;
+      const label = (sp.get("label") || "").trim();
+      const from  = (sp.get("from")  || "").trim();
+      const to    = (sp.get("to")    || "").trim();
+      return { label, from, to };
+    }
+
+    function justDate(s){
+      if (!s) return "";
+      return s.slice(0, 10);
+    }
+
+    function mmss(sec){
+      sec = Math.max(0, Math.floor(sec));
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return m + ":" + String(s).padStart(2, "0");
+    }
+
+    function statusMsg(msg) {
+      if (done) return;
+      statusEl.textContent = msg;
+    }
+
+    function stopAllTimers(){
+      if (timerId !== null) {
+        clearInterval(timerId);
+        timerId = null;
+      }
+      if (pollId !== null) {
+        clearInterval(pollId);
+        pollId = null;
+      }
+    }
+
+    function startTimers(){
+      elapsedSec = 0;
+      timersRow.textContent = "⏱ 0:00 · Timeout in " + mmss(TIMEOUT_SECONDS);
+      barFill.style.width = "0%";
+
+      timerId = window.setInterval(function(){
+        if (done) {
+          clearInterval(timerId);
+          timerId = null;
+          return;
+        }
+        elapsedSec += 1;
+        const remaining = Math.max(0, TIMEOUT_SECONDS - elapsedSec);
+        timersRow.textContent =
+          "⏱ " + mmss(elapsedSec) + " · Timeout in " + mmss(remaining);
+        const pct = Math.max(0, Math.min(100, (elapsedSec / TIMEOUT_SECONDS) * 100));
+        barFill.style.width = pct.toFixed(1) + "%";
+
+        if (remaining <= 0) {
+          done = true;
+          statusEl.innerHTML = "<span class='err'>❌ Timed out waiting for analysis.</span>";
+          stopAllTimers();
+        }
+      }, 1000);
+    }
+
+    // "YYYY-MM-DD..." -> "YYYYMMDD"
+    function dateCodeYYYYMMDD(s){
+      if (!s) return "";
+      const d = s.slice(0, 10);
+      return d.replace(/-/g, "");
+    }
+
+    function buildHtmlHref(path){
+      if (!path) return null;
+      if (path.startsWith("http://") || path.startsWith("https://")) {
+        return path;
+      }
+      if (!path.startsWith("/")) {
+        path = "/" + path;
+      }
+      const base = GH_PAGES_BASE.replace(/\/+$/, "");
+      return base + path;
+    }
+
+    function buildStatusUrl(label){
+      return GH_RAW_BASE + "status/status-" + encodeURIComponent(label) +
+             ".json?ts=" + Date.now();
+    }
+
+    function showDone(text, href){
+      if (done) return;
+      done = true;
+
+      barFill.style.width = "100%";
+      timersRow.textContent = "⏱ " + mmss(elapsedSec) + " · Done";
+
+      statusEl.innerHTML = text || "<span class='ok'>✅ Analysis complete.</span>";
+
+      if (viewBtn && href) {
+        viewBtn.removeAttribute("disabled");
+        viewBtn.href = href;
+      }
+
+      stopAllTimers();
+    }
+
+    async function markerExists(){
+      if (!markerUrl) return false;
+      try {
+        const r = await fetch(markerUrl + "?ts=" + Date.now(), {
+          method: "HEAD",
+          cache: "no-store"
+        });
+        console.log("HEAD", markerUrl, "->", r.status);
+        return r.ok;
+      } catch (err) {
+        console.log("markerExists error", err);
+        return false;
+      }
+    }
+
+    async function pagesResultExists(){
+      if (!analysisPath) return false;
+      const href = buildHtmlHref(analysisPath);
+      try {
+        const sep = href.includes("?") ? "&" : "?";
+        const r = await fetch(href + sep + "ts=" + Date.now(), {
+          method: "HEAD",
+          cache: "no-store"
+        });
+        console.log("Pages HEAD", href, "->", r.status);
+        return r.ok;
+      } catch (err) {
+        console.log("pagesResultExists error", err);
+        return false;
+      }
+    }
+
+    // Raw marker means GitHub Actions finished. Pages availability is checked separately.
+    async function pollStatus(){
+      if (done || !rawLabel) return;
+
+      // Raw marker => analysis finished and results committed to GitHub.
+      if (await markerExists()) {
+         const href = buildHtmlHref(analysisPath);
+         showDone("✅ Analysis complete — View Analysis", href);
+         return;
+      }
+      // 2) JSON for intermediate messages only
+      let showedStatus = false;
+      const url = buildStatusUrl(rawLabel);
+
+      try {
+        const r = await fetch(url, { cache: "no-store" });
+        if (r.status !== 404 && r.ok) {
+          const data  = await r.json();
+          const phase = String(data.phase || "").toLowerCase();
+          const stat  = data.status || "";
+
+          console.log("status JSON", data);
+
+          if (phase.includes("done")) {
+            // ignore "done" here; marker is the truth
+            showedStatus = true;
+          } else if (phase.includes("publishing")) {
+            statusMsg("🚀 Publishing results…");
+            showedStatus = true;
+          } else if (stat) {
+            statusMsg(stat);
+            showedStatus = true;
+          }
+        }
+      } catch (err) {
+        console.log("pollStatus JSON error", err);
+      }
+
+      if (!done && !showedStatus) {
+        statusMsg("⏳ Running analysis…");
+      }
+    }
+
+    async function startJob(){
+      if (started) {
+        console.log("startJob() called twice; ignoring second call.");
+        return;
+      }
+      started = true;
+
+      const p = parseParams();
+      rawLabel = p.label;
+      fromStr  = p.from;
+      toStr    = p.to;
+
+      if (!rawLabel || !fromStr || !toStr) {
+        statusEl.innerHTML =
+          "<span class='err'>❌ Missing label/from/to parameters.</span>";
+        console.log("Missing params", p);
+        return;
+      }
+
+      siteLineEl.textContent =
+        "Site: " + rawLabel +
+        " · Range: " + justDate(fromStr) +
+        " → " + justDate(toStr);
+
+      analysisPath = "/analysis/" + rawLabel + "/" + rawLabel + ".analysis.html";
+
+      const fromCode = dateCodeYYYYMMDD(fromStr);
+      const toCode   = dateCodeYYYYMMDD(toStr);
+
+      if (fromCode && toCode) {
+        const relMarker = "analysis/" + rawLabel + "/files_" + fromCode + "_" + toCode;
+        markerUrl = GH_RAW_BASE + relMarker;
+      } else {
+        markerUrl = "";
+      }
+
+      console.log("Label:", rawLabel);
+      console.log("From:", fromStr, "->", fromCode);
+      console.log("To:  ", toStr, "->", toCode);
+      console.log("Marker URL:", markerUrl);
+
+      // FAST PATH: if files_YYYYMMDD_YYYYMMDD exists, reuse existing analysis, no worker
+      if (markerUrl) {
+        statusMsg("⏳ Checking existing results…");
+        if (await markerExists()) {
+          const href = buildHtmlHref(analysisPath);
+          showDone("✅ Analysis already available for this range.", href);
+          return;
+        }
+      }
+
+      // SLOW PATH: trigger worker + poll marker/JSON
+      statusMsg("⏳ Triggering analysis…");
+      startTimers();
+
+      if (!pollId) {
+        pollId = window.setInterval(pollStatus, POLL_INTERVAL);
+        pollStatus();
+      }
+
+      const payload = {
+        label: rawLabel,
+        from: justDate(fromStr) + " 00:00:00",
+        to:   justDate(toStr)   + " 23:59:59"
+      };
+
+      try {
+        const r = await fetch(WORKER_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        const text = await r.text();
+        console.log("worker HTTP", r.status, text);
+
+        if (!r.ok) {
+          done = true;
+          stopAllTimers();
+          statusEl.innerHTML =
+            "<span class='err'>❌ Worker failed: HTTP " +
+            r.status + " — " + text + "</span>";
+          return;
+        }
+
+        console.log("worker accepted:", text);
+        statusMsg("⏳ Worker accepted request; analysis running…");
+
+      } catch (err) {
+        done = true;
+        stopAllTimers();
+        console.log("worker fetch error", err);
+        statusEl.innerHTML =
+          "<span class='err'>❌ Worker request failed: " +
+          err.message + "</span>";
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", startJob);
+  })();
+  </script>
+</body>
+</html>
