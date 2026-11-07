@@ -239,8 +239,32 @@ site_file = os.path.basename(in_file)
 iunder=site_file.find('_')
 idot=site_file.rfind('.')
 idsn=site_file.find('DSN')
-matches = process.extract(site_file[:iunder], site_dict, limit=1)
-site_number=matches[0][2]+1
+
+# Prefer an exact DSNnnn-X identifier from the parent directory when the
+# input basename itself does not contain a DSN identifier.  Files such as
+# SQM-V00_all.csv are not site-specific enough for fuzzy matching.
+parent_dir = os.path.basename(os.path.dirname(os.path.abspath(in_file)))
+parent_match = re.match(r'^(DSN\d{3}-[ST])(?:_|$)', parent_dir)
+site_number = None
+
+if idsn < 0 and parent_match:
+    parent_dsn = parent_match.group(1)
+    parent_rows = frame_sites[
+        frame_sites['Site'].astype(str).str.strip().str.startswith(parent_dsn + '_')
+    ]
+    if len(parent_rows) == 1:
+        site_number = int(parent_rows.index[0])
+        print("DEBUG site lookup: parent directory", parent_dir,
+              "->", frame_sites.loc[site_number, 'Site'].strip())
+    elif len(parent_rows) > 1:
+        print("WARNING: multiple DSNsites matches for parent", parent_dsn,
+              "; falling back to filename fuzzy match")
+
+# Existing fuzzy lookup remains as the fallback for legacy/special filenames.
+if site_number is None:
+    matches = process.extract(site_file[:iunder], site_dict, limit=1)
+    site_number=matches[0][2]+1
+
 if (idsn>0):   
     DSN_name=site_file[idsn:idsn+8]
     site_name=site_names[site_number][iunder:]
@@ -481,13 +505,30 @@ else:
             sep=sepcol
         )
     len_cols=len(frame_sensor.columns)
-    if sensor_name == 'SQM3': # HG astropy .table format
-        # columns wanted from .table:
-        # 0 = UTC time
-        # 1 = local time
-        # 7 = SB  (mag/arcsec^2)
-        # 8 = T   (sensor temperature)
-        frame_sensor = frame_sensor.iloc[:, [0, 1, 7, 8]].copy()
+    if sensor_name == 'SQM3': # HG Box data, full or reduced column layout
+        # DSN_box_to_dat.py removes JD/LST and other columns. Read names,
+        # not fixed positions, so both original and reduced exports work.
+        required = ['utc time', 'local time', 'sb', 't']
+        header_cols = None
+        with open(in_file, newline='') as header_file:
+            for _ in range(ihead):
+                line = header_file.readline()
+                if not line:
+                    break
+                candidate = [name.strip().lower() for name in
+                             next(csv.reader([line.lstrip('#').strip()]))]
+                if all(name in candidate for name in required):
+                    header_cols = candidate
+                    break
+        if header_cols is None or len(header_cols) != len(frame_sensor.columns):
+            raise ValueError(
+                "SQM3 header does not match the data columns; expected "
+                "UTC time, local time, SB and T. Check the input header."
+            )
+        use_cols = [header_cols.index(name) for name in required]
+        print("SQM3 columns (1-based):", dict(zip(required,
+                                                  [i + 1 for i in use_cols])))
+        frame_sensor = frame_sensor.iloc[:, use_cols].copy()
         frame_cols = ['UT', 'Tloc', 'SQM', 'Etempc']
     elif sensor_name == 'SQM4':
         frame_cols=['UT','Tloc','Etempc','number','freq','SQM'] # Winer
@@ -662,6 +703,9 @@ SQM=np.array(frame_sensor.SQM.values)
 nst_index=[i for i in range(icount) if nsun[i]==0 and SQM[i]>1.] # reset it
 df=frame_sensor.iloc[nst_index]
 frame_sensor=df.reset_index(drop=True)
+if frame_sensor.empty:
+    sys.exit("No valid SQM readings remain after the night-length and SQM > 1 "
+             "filters. Check the input magnitude column and missing values.")
 # REALIGN sunalt,dark,JD
 sunalt=[sunalt[ii] for ii in nst_index]
 dark=[dark[ii] for ii in nst_index]
