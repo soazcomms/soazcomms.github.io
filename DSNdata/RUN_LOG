@@ -2348,3 +2348,18 @@ DSN036-S_Gilinsky_26-10.csv
 DSN014-T_26_016.csv
 DSN039-S_2026-043.csv to Box with rclone
 2026-11-04 16:14:05 Deleted temp files.
+2026-11-07 17:33:57 Start DSN-process_data.
+2026-11-07 18:01:21 Uploaded files DSN014S_Tubac.csv
+DSN024S_Winer.csv
+DSN041S_MtLemmon1.csv
+DSN044S_NOIRLab.csv
+DSN047S_Tubac1.csv to influx
+2026-11-07 18:01:37 Uploaded DSN044-S_26_002_2.csv
+DSN041-S_26_001_2.csv
+DSN014-S_26_055.csv
+DSN041-S_26_001_1.csv
+DSN047-S_26_003.csv
+DSN024-S_2026-043.csv
+DSN044-S_26_002_1.csv
+DSN041-S_26_001_3.csv to Box with rclone
+2026-11-07 18:01:38 Deleted temp files.
