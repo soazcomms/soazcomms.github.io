@@ -1,4 +1,5 @@
 #long      lat        el  sensor ihead dark bright  Site
+-110.8846, +31.6888, 2616, SQM4, 38, 22.0, 19.0, DSN001-S_MMT
 -109.9284, +31.4482, 1448, TESS, 38, 21.0, 19.0, DSN002-T_Bisbee
 -109.3208, +32.0179, 2089, SQM1,  4, 22.1, 19.0, DSN003-S_Sugarloaf
 -110.7326, +32.4170, 2518, SQM3,  1, 21.1, 19.0, DSN006-S_MtBigelow
